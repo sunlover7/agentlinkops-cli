@@ -1,6 +1,6 @@
 {
   "name": "agentlinkops",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "A backlink ledger that lives in your repository: local link checks with dated evidence, supplier-export imports and optional sync to the hosted AgentLinkOps service.",
   "author": "AgentLinkOps (https://agentlinkops.com)",
   "license": "Apache-2.0",
@@ -21,6 +21,7 @@
     "templates",
     "references",
     "scripts",
+    ".mcp.json",
     ".claude-plugin",
     ".codex-plugin",
     "README.md",
@@ -54,6 +55,13 @@
   "dependencies": {
     "@modelcontextprotocol/server": "2.0.0",
     "parse5": "8.0.1",
+    "turndown": "^7.2.4",
     "zod": "4.6.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "optionalDependencies": {
+    "playwright-core": "^1.63.0"
   }
 }

@@ -74,7 +74,10 @@ export const citationPromptSchema = z.object({
 });
 
 export const citationEngineSpecSchema = z.object({
-  engine: z.enum(CITATION_ENGINES),
+  // API engines ('mock', 'perplexity') or browser surfaces ('chatgpt',
+  // 'perplexity', 'gemini', 'claude', 'ai-overview' with via:'browser').
+  engine: z.string().min(2).max(40),
+  via: z.enum(['api', 'browser']).default('api'),
   model: z.string().min(1).max(80).optional(),
 });
 
@@ -95,7 +98,8 @@ export const citationPanelSchema = z.object({
 // The engine identity names HOW a surface was reached, because the same engine two
 // ways is two different measurements and is never averaged (limelitgeo/open's rule).
 export function engineIdentity(spec) {
-  const parts = [spec.engine, spec.engine === 'mock' ? 'builtin' : 'api'];
+  const provider = spec.via === 'browser' ? 'web-own-browser' : spec.engine === 'mock' ? 'builtin' : 'api';
+  const parts = [spec.engine, provider];
   if (spec.model) parts.push(spec.model);
   return parts.join(':');
 }
@@ -117,6 +121,9 @@ export const evidenceEnvelopeSchema = z.object({
   // evidence snapshots distinct content-addressed objects rather than silent
   // duplicates of each other.
   run_index: z.number().int().nonnegative(),
+  // Sibling screenshot of the answer surface, same directory as this envelope;
+  // present when the engine captures pixels (browser surfaces always do).
+  screenshot_file: z.string().max(120).optional(),
   prompt: z.string().min(1),
   engine_identity: z.string().min(1),
   provider_model_version: z.string().min(1),

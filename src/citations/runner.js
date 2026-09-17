@@ -101,7 +101,7 @@ export async function runEpoch(panelInput, options = {}) {
       }
       spent += run.costEstimateUsd ?? 0;
 
-      const envelope = evidenceEnvelopeSchema.parse({
+      const envelope = {
         schema_version: CITATIONS_VERSION,
         epoch_id: epochId, cell_id: cell.id, run_index: runIndex, prompt: cell.prompt.text,
         engine_identity: cell.identity,
@@ -110,10 +110,17 @@ export async function runEpoch(panelInput, options = {}) {
         usage: run.usage ?? { input_tokens: 0, output_tokens: 0 },
         cost_estimate_usd: run.costEstimateUsd ?? 0,
         at: nowIso(),
-      });
-      const evidenceJson = JSON.stringify(envelope);
-      const digest = sha256(evidenceJson);
-      await writeFile(join(evidenceRoot, `${digest}.json`), evidenceJson, 'utf8');
+      };
+      const digest = sha256(JSON.stringify(envelope));
+      // The screenshot is a sibling of the envelope: same content-addressed
+      // directory, named by the envelope digest it belongs to. An observation
+      // of a rendered surface carries the pixels of that surface.
+      if (run.screenshotPng) {
+        const shotName = `${digest}.screenshot.png`;
+        await writeFile(join(evidenceRoot, shotName), run.screenshotPng);
+        envelope.screenshot_file = shotName;
+      }
+      await writeFile(join(evidenceRoot, `${digest}.json`), JSON.stringify(evidenceEnvelopeSchema.parse(envelope)), 'utf8');
 
       const tiered = classifyOutcome(cell.target, run, options.verifyFetch ?? null);
       outcomesByCell.get(cell.id).push(tiered.outcome);
@@ -146,6 +153,12 @@ export async function runEpoch(panelInput, options = {}) {
 
   await writeFile(join(dir, CITATION_FILES.observations), observationRows.map((r) => JSON.stringify(r)).join('\n') + (observationRows.length ? '\n' : ''), { flag: 'a' });
   await writeFile(join(dir, CITATION_FILES.epochs), epochRows.map((r) => JSON.stringify(r)).join('\n') + (epochRows.length ? '\n' : ''), { flag: 'a' });
+
+  // Browser engines hold a browser and maybe an Xvfb display for the whole
+  // epoch; release both once the tallies are written.
+  for (const engine of new Set(cells.map((c) => c.engine))) {
+    try { await engine.close?.(); } catch { /* cleanup is best-effort */ }
+  }
 
   return { epochId, cells: epochRows, spentEstimateUsd: Number(spent.toFixed(6)), aborted, samples, maxUsd };
 }

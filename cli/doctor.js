@@ -261,6 +261,23 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
     checks.push({ status: 'skip', name: 'citations', detail: 'no engine credential set; mock citation runs work, live runs need PERPLEXITY_API_KEY' });
   }
 
+  // Browser engines: the Camoufox stack. Each missing piece names its fix; none
+  // of it fails doctor, because API and mock engines do not need it.
+  try {
+    await import('playwright-core');
+    const { execFile } = await import('node:child_process');
+    const camoufoxOk = await new Promise((resolve) => {
+      execFile('camoufox', ['--version'], { timeout: 8000 }, (error) => resolve(!error));
+    });
+    if (camoufoxOk) {
+      checks.push({ status: 'ok', name: 'browser', detail: 'playwright-core + camoufox present; browser engines available' });
+    } else {
+      checks.push({ status: 'skip', name: 'browser', detail: 'playwright-core ok but camoufox missing', fix: 'python3 -m pip install cloverlabs-camoufox[geoip] && python3 -m camoufox fetch' });
+    }
+  } catch {
+    checks.push({ status: 'skip', name: 'browser', detail: 'browser engines unavailable: playwright-core not installed', fix: 'npm install playwright-core (API and mock engines are unaffected)' });
+  }
+
   out(`agentlinkops doctor — ${config.dir}`);
 
   // Record the probe outcomes beside the cursors they protect — BEFORE rendering, so the

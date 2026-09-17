@@ -21,6 +21,10 @@ const USAGE = `agentlinkops citation — AI citation watches in this repository
   agentlinkops citation run PANEL.json [--dir DIR] [--samples N] [--max-usd USD] [--json]
                                             run one fixed-n epoch over a panel; evidence and
                                             tallies land under .agentlinkops/citations/
+  agentlinkops citation run PANEL.json --engine chatgpt:web-own-browser
+                                            measure the consumer UI through Camoufox
+                                            (dedicated account, personal cadence; evidence
+                                            includes a screenshot of every answer)
   agentlinkops citation help                 this help
 
 Panel (JSON): targets (domain or url, brand, aliases), prompts, engines
@@ -53,6 +57,15 @@ export async function citationMain(argv = [], { cwd = process.cwd(), out = conso
   const dir = resolve(cwd, args.dir ?? '.agentlinkops');
   if (args.samples) panel.samples = Number(args.samples);
   if (args['max-usd']) panel.maxUsd = Number(args['max-usd']);
+  // --engine NAME[:PROVIDER] overrides the panel's engine list. The provider
+  // suffix picks the surface: chatgpt:web-own-browser measures the consumer
+  // UI through Camoufox; chatgpt:api would measure the API. Never averaged.
+  if (args.engine) {
+    const [engineName, providerTag] = String(args.engine).split(':');
+    const via = providerTag === 'web-own-browser' ? 'browser' : 'api';
+    panel.engines = [{ engine: engineName, via }];
+    err(`engine override: ${engineIdentity(panel.engines[0])}`);
+  }
   // Overrides are stated, never silent: a number the panel did not ask for is a
   // configuration decision the operator should see in the receipt.
   if (args.samples || args['max-usd']) {
@@ -63,6 +76,11 @@ export async function citationMain(argv = [], { cwd = process.cwd(), out = conso
   for (const spec of panel.engines) {
     const identity = engineIdentity(spec);
     if (engines.has(identity)) continue;
+    if (spec.via === 'browser') {
+      const { createBrowserEngine } = await import('../src/citations/browser/engine.js');
+      engines.set(identity, createBrowserEngine({ engineName: spec.engine, env }));
+      continue;
+    }
     if (spec.engine === 'mock') {
       engines.set(identity, createMockEngine({ fixtures: panel.mockFixtures ?? {} }));
     } else if (spec.engine === 'perplexity') {

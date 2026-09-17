@@ -171,7 +171,7 @@ test('a local-only repository with a valid ledger passes with skips, exit 0', as
   assert.equal(code, 0);
   // The citations engine-credential check skips alongside cloud and token in a
   // repository with no live engine configured.
-  assert.match(text, /all checks passed \(3 ok, 4 skipped\)/);
+  assert.match(text, /all checks passed \(3 ok, 5 skipped\)/);
 });
 
 test('the command runs through main and refuses flags', async t => {
