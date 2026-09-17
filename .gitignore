@@ -1,0 +1,10 @@
+node_modules/
+.agentlinkops/
+.linktrail/
+*.sqlite
+*.sqlite-journal
+__pycache__/
+*.pyc
+._*
+.DS_Store
+*.tgz

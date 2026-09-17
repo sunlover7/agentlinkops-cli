@@ -1,0 +1,24 @@
+{
+  "name": "agentlinkops",
+  "version": "0.5.0",
+  "description": "Connect an agent to AgentLinkOps and run backlink work with it: the connect skill (views, the three discovery verbs, evidence rules), local ledger and campaign skills, a portable CRM, the source-cited content pipeline, user-managed disavow lists, HTML reports and monitoring-event sync.",
+  "author": {
+    "name": "AgentLinkOps"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AgentLinkOps",
+    "shortDescription": "Run backlink campaigns with your own agent.",
+    "longDescription": "Plan campaigns and preserve contacts, outreach references and placements in a local SQLite CRM. Manage property-scoped disavow lists and generate branded HTML reports offline. Optional account-connected event sync preserves local notes and costs.",
+    "developerName": "AgentLinkOps",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Plan a backlink campaign for my product.",
+      "Set up my local link and outreach CRM.",
+      "Review changes to my monitored placements."
+    ]
+  }
+}

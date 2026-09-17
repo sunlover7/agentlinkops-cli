@@ -1,0 +1,21 @@
+Vendored from github.com/aryamantodkar/oneglanse at upstream commit f40b336
+("Document WSL Camoufox limitation (#75)"), vendored 2026-09-16 under its MIT
+license (see LICENSE in this directory; copyright (c) 2025 Aryaman Todkar).
+
+Copied trees (paths preserved relative to their upstream homes):
+  apps/agent/src/core/providers/**  -> core/providers/
+  apps/agent/src/lib/browser/**     -> lib/browser/
+  apps/agent/src/lib/input/**       -> lib/input/
+  apps/agent/src/lib/extraction/**  -> lib/extraction/
+  packages/utils/src/agent/constants.ts -> utils/agent-constants.ts
+
+Why these trees: the per-engine ProviderConfig abstraction (new engine = one config
+file + one registry line), the Camoufox launch layer (fingerprints, geoip alignment,
+Xvfb virtual-headless), submit-strategy ladders and DOM state-signature
+answer-complete detection, and the selector registry. The upstream LLM-judge /
+GEO-score analysis layer, storage, UI and scheduling were deliberately NOT vendored
+(this project does no scores; its evidence/epoch/statistics layer replaces them).
+
+Modification policy: this copy is a starting point, not a mirror. Files here will be
+modified in place without per-change markers; the upstream commit above is the
+provenance record for what arrived. Keep this NOTICE and LICENSE intact.

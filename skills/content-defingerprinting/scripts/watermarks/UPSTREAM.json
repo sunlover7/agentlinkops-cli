@@ -1,0 +1,26 @@
+{
+  "upstream": "https://github.com/guillaumemeyer/watermarks-remover",
+  "license": "MIT",
+  "pinned_commit": "8318d4df79de18a8c18c21eecb4b796192f34805",
+  "pinned_commit_date": "2026-08-18T18:28:19-07:00",
+  "vendored_on": "2026-08-18",
+  "vendored_from": "service/scripts/",
+  "modified": false,
+  "layers_vendored": [
+    "A: invisible Unicode / space homoglyphs (deterministic)"
+  ],
+  "layers_deliberately_not_vendored": [
+    "B: statistical token-sampling watermark removal by rewriting (opt-in, needs a decision)",
+    "Files: C2PA / EXIF / XMP stripping (we DETECT and report C2PA, we do not strip it)",
+    "Pixels: CtrlRegen image watermark removal (not used; our covers are our own generated assets)"
+  ],
+  "note": "Files are byte-identical to upstream. Re-vendor with revendor.sh; never edit in place.",
+  "sha256": {
+    "LICENSE.upstream": "c70d55b5722484a6be261f755b5bdfd5335244d0389436eb116aa8357243347c",
+    "clean_text.py": "8cde7a3c75c06687f7403f85364eda3380ace4c0ab5e5eb7d1f89f9e0c50ce04",
+    "common.py": "311d78fb23351d56b9a2601a7af3b8d5bf834e2e55289796e1f18184a3b9f49d",
+    "inspect_text.py": "a61e5c524f72de8122750114f09973cec826641d798f417d811c7e5649218479",
+    "score_stylometry.py": "cd3dae134d5f641120218fd525afd523d4a0bfb52d4d73c0e92dc04e3bcc6d59",
+    "text_unicode.py": "cd21c5700184a6bb4a43089f546531a2692bf140413954ea9b93f4a67f1f3a5e"
+  }
+}

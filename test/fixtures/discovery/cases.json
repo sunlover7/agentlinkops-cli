@@ -1,0 +1,301 @@
+{
+  "synthetic": true,
+  "query": {
+    "target_kind": "domain",
+    "target": "example.com",
+    "include_subdomains": true,
+    "backlinks_status_type": "live",
+    "exclude_internal_backlinks": true,
+    "mode": "as_is",
+    "filters": null,
+    "order_by": [
+      "rank,desc"
+    ],
+    "rank_scale": "one_thousand",
+    "page_limit": 2,
+    "row_limit": 4
+  },
+  "retrieved_at": "2026-09-10T04:00:00.000Z",
+  "cases": [
+    {
+      "name": "success",
+      "response": {
+        "version": "synthetic-v3",
+        "status_code": 20000,
+        "status_message": "Synthetic envelope",
+        "cost": 7e-06,
+        "tasks_count": 1,
+        "tasks_error": 0,
+        "tasks": [
+          {
+            "id": "synthetic-task-001",
+            "status_code": 20000,
+            "status_message": "Synthetic task result",
+            "cost": 7e-06,
+            "result_count": 1,
+            "result": [
+              {
+                "target": "example.com",
+                "mode": "as_is",
+                "total_count": 2,
+                "items_count": 2,
+                "items": [
+                  {
+                    "type": "backlink",
+                    "url_from": "https://publisher.example.org/Guide?x=1#intro",
+                    "url_to": "https://example.com/Article#top",
+                    "anchor": "Synthetic resource",
+                    "attributes": [
+                      "nofollow",
+                      "ugc"
+                    ],
+                    "dofollow": false,
+                    "item_type": "anchor",
+                    "page_from_status_code": 200,
+                    "url_to_status_code": null,
+                    "first_seen": "2026-07-01 12:00:00 +00:00",
+                    "prev_seen": "2026-08-01 12:00:00 +00:00",
+                    "last_seen": "2026-09-01 12:00:00 +00:00",
+                    "is_lost": false,
+                    "is_broken": null,
+                    "is_new": false,
+                    "links_count": 2,
+                    "rank": 0,
+                    "page_from_rank": 42,
+                    "domain_from_rank": 100,
+                    "backlink_spam_score": null
+                  },
+                  {
+                    "type": "backlink",
+                    "url_from": "https://publisher.example.net/second",
+                    "url_to": "https://docs.example.com/resource",
+                    "anchor": "",
+                    "attributes": [],
+                    "is_lost": true,
+                    "is_broken": false,
+                    "links_count": 0
+                  }
+                ],
+                "search_after_token": null
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "candidates": 2,
+        "returned_rows": 2,
+        "rejected_rows": 0,
+        "duplicate_rows": 0,
+        "coverage": "complete_for_query"
+      }
+    },
+    {
+      "name": "partial",
+      "response": {
+        "version": "synthetic-v3",
+        "status_code": 20000,
+        "status_message": "Synthetic envelope",
+        "cost": 7e-06,
+        "tasks_count": 1,
+        "tasks_error": 0,
+        "tasks": [
+          {
+            "id": "synthetic-task-001",
+            "status_code": 20000,
+            "status_message": "Synthetic task result",
+            "cost": 7e-06,
+            "result_count": 1,
+            "result": [
+              {
+                "target": "example.com",
+                "mode": "as_is",
+                "total_count": 2,
+                "items_count": 2,
+                "items": [
+                  {
+                    "type": "backlink",
+                    "url_from": "https://publisher.example.org/Guide?x=1#intro",
+                    "url_to": "https://example.com/Article#top",
+                    "anchor": "Synthetic resource",
+                    "attributes": [
+                      "nofollow",
+                      "ugc"
+                    ],
+                    "dofollow": false,
+                    "item_type": "anchor",
+                    "page_from_status_code": 200,
+                    "url_to_status_code": null,
+                    "first_seen": "2026-07-01 12:00:00 +00:00",
+                    "prev_seen": "2026-08-01 12:00:00 +00:00",
+                    "last_seen": "2026-09-01 12:00:00 +00:00",
+                    "is_lost": false,
+                    "is_broken": null,
+                    "is_new": false,
+                    "links_count": 2,
+                    "rank": 0,
+                    "page_from_rank": 42,
+                    "domain_from_rank": 100,
+                    "backlink_spam_score": null
+                  },
+                  {
+                    "type": "backlink",
+                    "url_from": "http://127.0.0.1/private",
+                    "url_to": "https://docs.example.com/resource",
+                    "anchor": "",
+                    "attributes": [],
+                    "is_lost": true,
+                    "is_broken": false,
+                    "links_count": 0
+                  }
+                ],
+                "search_after_token": null
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "candidates": 1,
+        "returned_rows": 2,
+        "rejected_rows": 1,
+        "duplicate_rows": 0,
+        "coverage": "partial"
+      }
+    },
+    {
+      "name": "empty",
+      "response": {
+        "version": "synthetic-v3",
+        "status_code": 20000,
+        "status_message": "Synthetic envelope",
+        "cost": 7e-06,
+        "tasks_count": 1,
+        "tasks_error": 0,
+        "tasks": [
+          {
+            "id": "synthetic-task-001",
+            "status_code": 20000,
+            "status_message": "Synthetic task result",
+            "cost": 7e-06,
+            "result_count": 1,
+            "result": [
+              {
+                "target": "example.com",
+                "mode": "as_is",
+                "total_count": 0,
+                "items_count": 0,
+                "items": [],
+                "search_after_token": null
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "candidates": 0,
+        "returned_rows": 0,
+        "rejected_rows": 0,
+        "duplicate_rows": 0,
+        "coverage": "complete_for_query"
+      }
+    },
+    {
+      "name": "task_failure",
+      "response": {
+        "version": "synthetic-v3",
+        "status_code": 20000,
+        "status_message": "Synthetic envelope",
+        "cost": 7e-06,
+        "tasks_count": 1,
+        "tasks_error": 1,
+        "tasks": [
+          {
+            "id": "synthetic-task-001",
+            "status_code": 40501,
+            "status_message": "Synthetic task result",
+            "cost": 7e-06,
+            "result_count": 0,
+            "result": null
+          }
+        ]
+      },
+      "expected": {
+        "error": "PROVIDER_TASK_FAILED"
+      }
+    },
+    {
+      "name": "paginated",
+      "response": {
+        "version": "synthetic-v3",
+        "status_code": 20000,
+        "status_message": "Synthetic envelope",
+        "cost": 7e-06,
+        "tasks_count": 1,
+        "tasks_error": 0,
+        "tasks": [
+          {
+            "id": "synthetic-task-001",
+            "status_code": 20000,
+            "status_message": "Synthetic task result",
+            "cost": 7e-06,
+            "result_count": 1,
+            "result": [
+              {
+                "target": "example.com",
+                "mode": "as_is",
+                "total_count": 5,
+                "items_count": 2,
+                "items": [
+                  {
+                    "type": "backlink",
+                    "url_from": "https://publisher.example.org/Guide?x=1#intro",
+                    "url_to": "https://example.com/Article#top",
+                    "anchor": "Synthetic resource",
+                    "attributes": [
+                      "nofollow",
+                      "ugc"
+                    ],
+                    "dofollow": false,
+                    "item_type": "anchor",
+                    "page_from_status_code": 200,
+                    "url_to_status_code": null,
+                    "first_seen": "2026-07-01 12:00:00 +00:00",
+                    "prev_seen": "2026-08-01 12:00:00 +00:00",
+                    "last_seen": "2026-09-01 12:00:00 +00:00",
+                    "is_lost": false,
+                    "is_broken": null,
+                    "is_new": false,
+                    "links_count": 2,
+                    "rank": 0,
+                    "page_from_rank": 42,
+                    "domain_from_rank": 100,
+                    "backlink_spam_score": null
+                  },
+                  {
+                    "type": "backlink",
+                    "url_from": "https://publisher.example.net/second",
+                    "url_to": "https://docs.example.com/resource",
+                    "anchor": "",
+                    "attributes": [],
+                    "is_lost": true,
+                    "is_broken": false,
+                    "links_count": 0
+                  }
+                ],
+                "search_after_token": "synthetic-cursor-2"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "candidates": 2,
+        "returned_rows": 2,
+        "rejected_rows": 0,
+        "duplicate_rows": 0,
+        "coverage": "partial"
+      }
+    }
+  ]
+}

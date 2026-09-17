@@ -1,0 +1,27 @@
+// Pure repository-local tool definitions. No cloud or filesystem imports.
+import { z } from 'zod';
+
+// The DP-0017 first-party context surface (registered here by DP-0026-T03 per T02/T03's
+// deferred-wiring notes: "the service-level surface is the same exported functions"). These
+// tools are LOCAL BY CONTRACT: they read and write the customer's repository
+// (.agentlinkops/context/…), and the context contract makes the cloud a mirror that is never the
+// system of record — so no workerd transport can host them (workerd has no filesystem), and the
+// registry defines them the way registerFreeCheckTool defines the free tool: with the context
+// service INJECTED, keeping this module free of node:fs and safe for the workerd bundle. The
+// injected service is composed from the same functions cli/context.js composes
+// (readContextState, readGscRows, pageContext, refreshContext, importHandoff,
+// buildSiteProfile, validateProfileCitations, …).
+//
+// Repository-context definitions are captured separately from hosted tools. No cloud transport
+// exposes these filesystem operations; a local host must inject its context service.
+export const registerContextTools=({contextTool,context})=>{
+    contextTool('context_status','Read this repository\'s first-party context state: connection grant state (booleans, property names, permission levels and dates only — never a token), GSC fact-row count, site-fact count, availability floors and manual-input presence. manual_only is a complete configuration, not an error: with no Google connection the manual inputs are the context.',null,{},a=>context.status(a),false,{strict:true});
+    contextTool('context_manual','Read the human/agent-owned manual inputs (target pages, site or niche description, offering, known assets, competitors) that form the no-Google floor of the context. Manual entries are judgment: they carry a manual source label, can be wrong, have no observation date, and never migrate into tool-owned fact rows.',null,{},a=>context.manual(a),false,{strict:true});
+    contextTool('context_focus','Choose focus pages from manual targets first, then GSC clicks. Keep manual judgments and search observations in separate fields. Supply both start and end to select one date range, or omit both for the recent 28-day range.',null,{start:z.string().min(10).max(10).optional(),end:z.string().min(10).max(10).optional()},a=>context.focus(a),false,{strict:true});
+    contextTool('context_gsc_page','Read page/query context for one supplied page entirely from repository fact rows — no Google connection is consulted and no query is spent; a connector handoff with no grant from us at all is a complete configuration. A page outside every connected property is page_outside_property with zero rows invented; absence from truncated top rows means "not in the returned top rows", never "no impressions"; nulls stay null and CTR is derived at read time.',null,{page:z.string().min(1).max(8192),start:z.string().min(10).max(10).optional(),end:z.string().min(10).max(10).optional()},a=>context.page(a),false,{strict:true});
+    contextTool('context_gsc_refresh','Refresh GSC rows with read-only webmasters.readonly access. Limit each run to 12 Search Analytics calls per property and 50 total, including availability probes, reports and retries. Fresh cached requests spend no API calls. A quota refusal returns quota_exceeded with a 15-minute hint and at most one retry within the remaining call budget. Read the token from the host environment at call time. Append fact rows and read the newest answer.',null,{properties:z.array(z.string().min(1).max(200)).min(1).max(10).optional(),dataState:z.enum(['final','all']).optional()},a=>context.refresh(a),true,{strict:true,dispatch:false});
+    contextTool('context_gsc_import','Import an existing-agent handoff snapshot (JSON lines or a Markdown table) in the gsc.jsonl row shape, instead of granting anything. The connector stays named in retrieved_by and is never re-labeled as fetched by us; its capture date stays captured_at, separate from any later fetch of ours; rows missing window, aggregationType or retrieved_by are refused per file with what is missing; a connector row whose key matches a row we fetched is refused — ours is kept. A handoff and a grant may coexist, rows kept distinct by retrieved_by.',null,{file:z.string().min(1).max(4096)},a=>context.import(a),true,{strict:true,dispatch:false});
+    contextTool('context_profile_build','Build the bounded public site-profile facts: robots.txt, at most 3 sitemap documents and at most 10 selected pages per run, fetched on the verifier\'s public fetch boundary with the CLI\'s courtesy pacing, with every limit the run hit reported as a count. Facts keep derived fields (titles, h1s, description, canonical, link counts, sitemap membership, byte hashes, fetched_at) — never raw HTML. A page that could not be read is unknown/unreadable, never "no assets", and missing pages stay explicit.',null,{site:z.string().min(1).max(2048).optional(),pages:z.array(z.string().min(1).max(8192)).max(50).optional()},a=>context.buildProfile(a),true,{strict:true,dispatch:false});
+    contextTool('context_profile_check','Check that every [fact:…] and [manual:…] citation in the human/agent-owned site-profile.md resolves to a fact row or manual entry. Facts are read-only to the profile: editing a judgment never edits a fact row, and a citation nothing backs is reported, never dropped.',null,{},a=>context.checkProfile(a),false,{strict:true});
+};
+

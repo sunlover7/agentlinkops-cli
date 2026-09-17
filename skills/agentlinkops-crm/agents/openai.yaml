@@ -1,0 +1,12 @@
+interface:
+  display_name: AgentLinkOps CRM
+  short_description: Manage the AgentLinkOps local backlink and outreach CRM, user-selected disavow lists, branded HTML reports and cloud eve
+policy:
+  allow_implicit_invocation: true
+dependencies:
+  tools:
+    - type: mcp
+      value: agentlinkops
+      description: AgentLinkOps hosted MCP server (verified backlink observations, monitoring and evidence).
+      transport: streamable_http
+      url: https://app.agentlinkops.com/mcp

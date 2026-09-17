@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "campaigns": {
+    "guest_post": {
+      "version": 1,
+      "goal": "Contribute an original article useful to a relevant publisher's audience.",
+      "inputs": ["product audience", "author expertise", "proposed topic", "linkable target"],
+      "qualify": ["Publisher covers this audience", "Recent editorial activity", "Published contribution route or explicit editor interest", "Proposed topic adds material the site lacks"],
+      "evidence": ["Relevant recent article URL", "Contribution-policy URL and observed date", "Editor or submission form source"],
+      "reject": ["Required payment hidden from campaign owner", "Irrelevant audience", "Mass-produced guest-post inventory without editorial review"],
+      "agent_work": ["Read contribution terms", "Develop a differentiated outline", "Use the existing email tool when outreach is authorized"],
+      "success": "Published article contains an accurate, contextually useful attribution to the target asset."
+    },
+    "resource_addition": {
+      "version": 1,
+      "goal": "Help a resource-page editor add a genuinely useful missing resource.",
+      "inputs": ["target resource", "reader problem solved", "topic and geography", "resource-page examples"],
+      "qualify": ["Page curates outside resources", "Our asset fills an observable gap", "Page's audience matches the asset", "Publisher has a working submission route"],
+      "evidence": ["Candidate source page", "Relevant section and current neighboring resources", "Specific missing information our asset supplies"],
+      "reject": ["The target duplicates an existing resource without improvement", "Resource is mainly a sales page with little independent utility"],
+      "agent_work": ["Read the page in context", "Explain the precise addition", "Record editor response using external message IDs"],
+      "success": "The editor adds the resource to a relevant section, then an independent check verifies the placement."
+    },
+    "broken_link": {
+      "version": 1,
+      "goal": "Offer an accurate replacement for a demonstrably unavailable cited resource.",
+      "inputs": ["source page", "dead destination", "replacement asset", "original citation purpose"],
+      "qualify": ["Repeated checks establish unavailability rather than blocking", "Replacement answers the original citation's purpose", "Replacement claims have evidence"],
+      "evidence": ["Original anchor and surrounding context", "Check status and time", "Archived original when available", "Replacement comparison"],
+      "reject": ["A single timeout or bot challenge treated as dead", "Replacement meaning differs from original", "Historical source unavailable but replacement accuracy unverified"],
+      "agent_work": ["Investigate ambiguous browser results", "Compare original context and replacement", "Explain the broken resource factually"],
+      "success": "The editor repairs the citation using a suitable destination and monitoring confirms the result."
+    },
+    "competitor": {
+      "version": 1,
+      "goal": "Find relevant publisher opportunities from observed competitor placements.",
+      "inputs": ["named competitors", "our audience and differentiator", "desired asset", "known source coverage"],
+      "qualify": ["Placement is editorially relevant", "Our offering independently merits inclusion", "Source remains active", "There is a real route to contribute or request correction"],
+      "evidence": ["Observed source page and destination", "Provider or owned-index provenance and retrieval time", "Fresh source verification", "Editorial inclusion criteria"],
+      "reject": ["Competitor link is assumed to guarantee our eligibility", "Affiliate or sponsorship terms concealed", "Provider disappearance treated as confirmed link loss"],
+      "agent_work": ["Classify the actual campaign mechanism", "Propose a specific contribution", "Preserve discovery coverage limitations"],
+      "success": "A qualified, evidence-backed opportunity becomes an earned, independently verified placement."
+    },
+    "reclamation": {
+      "version": 1,
+      "goal": "Repair a previously earned link or request useful attribution for an existing mention.",
+      "inputs": ["prior placement or mention", "correct destination", "current observation", "prior publisher relationship if known"],
+      "qualify": ["Prior link or relevant mention has evidence", "Change is confirmed rather than an inaccessible page", "Correct destination helps the reader"],
+      "evidence": ["Earlier and current observations", "Source URL and surrounding context", "Correct canonical destination"],
+      "reject": ["Unknown fetch outcome described as intentional removal", "Unrelated namesake mention", "Attribution request presented as a legal demand without a basis"],
+      "agent_work": ["Inspect ambiguous changes", "Check whether our own destination changed", "Use the prior thread when available"],
+      "success": "The placement is repaired or useful attribution is added, with the outcome recorded locally."
+    },
+    "custom": {
+      "version": 1,
+      "goal": "Define a campaign around the user's actual product, assets and audience.",
+      "inputs": ["user objective", "publisher incentive", "target asset", "qualification criteria", "budget and outreach constraints"],
+      "qualify": ["State why a publisher and its reader benefit", "Define observable acceptance and rejection criteria", "Specify what evidence is required"],
+      "evidence": ["Campaign-specific source URLs", "Observed dates", "Known uncertainties"],
+      "reject": ["Invented contact details or publisher policies", "Unsupported authority or ranking guarantees"],
+      "agent_work": ["Write a product-specific goal and rubric in campaign notes", "Adapt available research, browser and email tools", "Track outcomes using the common CRM entities"],
+      "success": "Campaign-specific acceptance criteria are met and supported by verifiable evidence."
+    }
+  }
+}

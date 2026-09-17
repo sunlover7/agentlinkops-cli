@@ -1,0 +1,17 @@
+AgentLinkOps CLI
+Copyright 2026 AgentLinkOps
+
+This product includes software developed by AgentLinkOps (https://agentlinkops.com/).
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+Third-party components redistributed with this package:
+
+- skills/content-defingerprinting/scripts/watermarks/vendor/: files from
+  watermarks-remover (https://github.com/guillaumemeyer/watermarks-remover),
+  MIT License, Copyright (c) 2026 watermarks-remover contributors. The files are
+  byte-identical to the pinned upstream commit named in the sibling UPSTREAM.json;
+  the upstream license text is at vendor/LICENSE.upstream.
+
+Runtime dependencies installed by npm and not redistributed here: parse5 (MIT),
+zod (MIT).

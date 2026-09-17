@@ -1,0 +1,5 @@
+interface:
+  display_name: AgentLinkOps Assets
+  short_description: Improve a code-built site's resource, guide or research page for a specific backlink campaign, with sourced claims and u
+policy:
+  allow_implicit_invocation: true

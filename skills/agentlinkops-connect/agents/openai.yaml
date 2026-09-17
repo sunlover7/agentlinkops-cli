@@ -1,0 +1,12 @@
+interface:
+  display_name: AgentLinkOps Connect
+  short_description: How to use AgentLinkOps correctly through its MCP tools, the agentlinkops CLI or HTTP; read before the first call.
+policy:
+  allow_implicit_invocation: true
+dependencies:
+  tools:
+    - type: mcp
+      value: agentlinkops
+      description: AgentLinkOps hosted MCP server (verified backlink observations, monitoring and evidence).
+      transport: streamable_http
+      url: https://app.agentlinkops.com/mcp
