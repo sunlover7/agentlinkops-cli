@@ -35,7 +35,14 @@ jobs:
           [ "refs/tags/v$v" = "$GITHUB_REF" ] || { echo "tag $GITHUB_REF does not match package.json $v"; exit 1; }
       - name: Publish (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
-        run: npm publish --access public --dry-run
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if npm view "agentlinkops@$v" version >/dev/null 2>&1; then
+            echo "agentlinkops@$v is already on the registry; packing only"
+            npm pack --dry-run
+          else
+            npm publish --access public --dry-run
+          fi
       - name: Publish with provenance
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         run: npm publish --access public --provenance
