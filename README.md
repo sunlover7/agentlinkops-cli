@@ -37,7 +37,8 @@ Four steps, the same ones the docs and the landing page show. Node.js 22.13 or l
 The skill is a short door: the first time your agent uses AgentLinkOps in a session it reads
 the full agent reference, which `agentlinkops skill` prints and
 https://agentlinkops.com/SKILL.md serves. Hosted monitoring is an invitation-only pilot; the
-local commands below need no account.
+local commands below need no account. The package is `agentlinkops` on npm, published by the
+`agentlinkops` account; the source is https://github.com/sunlover7/agentlinkops-cli.
 
 ## Install the CLI on its own
 
