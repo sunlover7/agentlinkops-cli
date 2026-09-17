@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm test
+      - name: Pack and run the packed CLI from an empty directory
+        run: |
+          npm pack --pack-destination /tmp >/dev/null
+          mkdir -p /tmp/prefix /tmp/empty
+          npm install -g --prefix /tmp/prefix /tmp/agentlinkops-*.tgz
+          cd /tmp/empty
+          /tmp/prefix/bin/agentlinkops --help | head -3
+          /tmp/prefix/bin/agentlinkops tools monitoring >/dev/null
+          /tmp/prefix/bin/agentlinkops skill | head -1
+          /tmp/prefix/bin/agentlinkops doctor || test $? -eq 1

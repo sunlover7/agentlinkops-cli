@@ -1,0 +1,49 @@
+# One tagged version reaches npm from here, with provenance, under the AgentLinkOps identity:
+# push a tag `vX.Y.Z` that matches package.json, and this workflow tests, packs and publishes
+# through npm trusted publishing (OIDC; no token in the repository). The GitHub release is
+# created from the tag with the CHANGELOG entry. `workflow_dispatch` with dry_run rehearses
+# everything except the final upload.
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run everything but the publish
+        type: boolean
+        default: true
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm test
+      - name: The tag must match package.json
+        if: github.event_name == 'push'
+        run: |
+          v=$(node -p "require('./package.json').version")
+          [ "refs/tags/v$v" = "$GITHUB_REF" ] || { echo "tag $GITHUB_REF does not match package.json $v"; exit 1; }
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: npm publish --access public --dry-run
+      - name: Publish with provenance
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        run: npm publish --access public --provenance
+      - name: GitHub release from the CHANGELOG entry
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          awk -v v="$v" '$0 ~ "^## " v {p=1; next} /^## /{p=0} p' CHANGELOG.md > /tmp/notes.md
+          gh release create "v$v" --title "agentlinkops $v" --notes-file /tmp/notes.md || gh release edit "v$v" --notes-file /tmp/notes.md
