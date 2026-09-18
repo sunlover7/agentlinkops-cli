@@ -3,7 +3,21 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
-## 0.5.0 (unreleased; DP-0036 agent surface)
+## 0.5.1 (2026-09-17)
+
+- The plugin's `.mcp.json` ships in the tarball. 0.5.0 left it out, so a marketplace install
+  got the skills but no MCP server entry; the package build now carries and requires it.
+- Package identity: `author` is AgentLinkOps (https://agentlinkops.com); `repository` and
+  `bugs` point at `sunlover7/agentlinkops-cli`. No personal identity in the registry metadata.
+- `agentlinkops citation run PANEL.json --engine chatgpt:web-own-browser`: measures the
+  consumer UI through the customer's own Camoufox browser instead of an API, with a screenshot
+  of every answer in the evidence. `--engine NAME[:PROVIDER]` overrides the panel's engine list.
+  `playwright-core` is an optional dependency; `doctor` reports the browser stack as a skip,
+  never a failure, when it is absent (API and mock engines need none of it).
+- Repository: CI on every push and a tag-driven release workflow that publishes through npm
+  trusted publishing with provenance.
+
+## 0.5.0 (2026-09-16; DP-0036 agent surface)
 
 - `agentlinkops tools [TOOLSET]`, `agentlinkops describe NAME` and `agentlinkops call NAME`:
   the three discovery verbs, answered offline from the bundled catalog snapshot (`--refresh`
