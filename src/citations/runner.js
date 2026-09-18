@@ -94,6 +94,9 @@ export async function runEpoch(panelInput, options = {}) {
         run = await cell.engine.run({ prompt: cell.prompt.text, runIndex });
       } catch (cause) {
         if (cause instanceof EngineError && cause.retriable) {
+          // An unknown is honest, but never silent: the reason travels to
+          // stderr so a run of unknowns names its wall.
+          if (options.err) options.err(`unknown observation (${cell.id}): ${cause.message}`);
           outcomesByCell.get(cell.id).push('unknown');
           continue;
         }

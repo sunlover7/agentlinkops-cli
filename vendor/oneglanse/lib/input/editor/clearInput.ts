@@ -61,7 +61,7 @@ export async function clearEditorInput(
 		}
 
 		if (!clearedByKeyboard) {
-			await input.setInputValue("");
+			await input.fill("");
 		}
 
 		if (dismissWithEscape) {

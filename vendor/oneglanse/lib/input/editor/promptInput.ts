@@ -41,15 +41,11 @@ async function prepareEditorForPrompt(
 		);
 	}
 
-	const state = await input.getEditableState().catch(() => null);
-	if (
-		!(
-			state?.connected &&
-			state.editable &&
-			state.enabled &&
-			state.acceptsTextInput
-		)
-	) {
+	// Stock playwright-core readiness (see waitForReady for the perplexity
+	// exception, which typing does not need).
+	const editable = await input.isEditable().catch(() => false);
+	const enabled = await input.isEnabled().catch(() => false);
+	if (!(editable && enabled)) {
 		throw new ExternalServiceError(
 			provider,
 			`Editor not ready for ${provider}: input is not editable`,
@@ -58,7 +54,7 @@ async function prepareEditorForPrompt(
 
 	await focusEditorTarget(page, input);
 
-	const existingValue = await input.readInputValue().catch(() => "");
+	const existingValue = await input.inputValue().catch(() => "");
 	if (normalizePromptValue(existingValue).length === 0) {
 		await focusEditorTarget(page, input);
 		return;
@@ -75,7 +71,7 @@ async function prepareEditorForPrompt(
 		);
 	}
 
-	const remainingValue = await input.readInputValue().catch(() => "");
+	const remainingValue = await input.inputValue().catch(() => "");
 	if (normalizePromptValue(remainingValue).length > 0) {
 		throw new ExternalServiceError(
 			provider,
@@ -93,7 +89,7 @@ async function insertPromptOnce(
 	strategy: "directSet" | "pacedPaste",
 ): Promise<void> {
 	if (strategy === "directSet") {
-		await input.setInputValue(prompt);
+		await input.fill(prompt);
 		await page.waitForTimeout(randomBetween(40, 120));
 		return;
 	}
@@ -108,7 +104,7 @@ async function waitForPromptValue(
 	timeoutMs: number,
 ): Promise<string> {
 	const deadline = Date.now() + timeoutMs;
-	let lastValue = await input.readInputValue().catch(() => "");
+	let lastValue = await input.inputValue().catch(() => "");
 
 	while (Date.now() < deadline) {
 		if (normalizePromptValue(lastValue) === expectedValue) {
@@ -116,7 +112,7 @@ async function waitForPromptValue(
 		}
 
 		await page.waitForTimeout(randomBetween(80, 140));
-		lastValue = await input.readInputValue().catch(() => "");
+		lastValue = await input.inputValue().catch(() => "");
 	}
 
 	return lastValue;
@@ -162,7 +158,7 @@ export async function insertPromptIntoEditor(
 		}
 	}
 
-	const finalValue = await input.readInputValue().catch(() => "");
+	const finalValue = await input.inputValue().catch(() => "");
 	throw new ExternalServiceError(
 		provider,
 		`Typing failed: normalized input mismatch after local retry (expected ${expectedValue.length} chars, got ${normalizePromptValue(finalValue).length})`,

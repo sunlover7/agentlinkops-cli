@@ -19,6 +19,7 @@ export const PROVIDER_FORCE_EXIT_STABLE_MS: Record<Provider, number> = {
 export const PROVIDER_EDITOR_SELECTORS: Record<Provider, string[]> = {
 	chatgpt: [
 		'#prompt-textarea',
+		'#mobile-composer-prompt',
 		'div#prompt-textarea[contenteditable="true"][role="textbox"]',
 		'div.ProseMirror[contenteditable="true"][role="textbox"]',
 		'div[contenteditable="true"][role="textbox"][aria-multiline="true"][aria-label="Chat with ChatGPT"]'

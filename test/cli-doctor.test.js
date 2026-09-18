@@ -170,8 +170,10 @@ test('a local-only repository with a valid ledger passes with skips, exit 0', as
   const { code, text } = await run(root);
   assert.equal(code, 0);
   // The citations engine-credential check skips alongside cloud and token in a
-  // repository with no live engine configured.
-  assert.match(text, /all checks passed \(3 ok, 5 skipped\)/);
+  // repository with no live engine configured; the browser line reports ok or
+  // skip depending on whether THIS machine has the camoufox stack, so accept
+  // both shapes rather than pinning the local install.
+  assert.match(text, /all checks passed \((3|4) ok, (4|5) skipped\)/);
 });
 
 test('the command runs through main and refuses flags', async t => {

@@ -26,6 +26,8 @@ const EXCLUDED = ['lib/browser/launch.ts', 'lib/browser/proxy/runner.ts', 'lib/i
 async function collect(dir) {
   const out = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
+    // exFAT/AppleDouble sidecars (._foo.ts) are macOS metadata, not source.
+    if (entry.name.startsWith('._')) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...(await collect(full)));
     else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) out.push(full);

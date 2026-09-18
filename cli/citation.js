@@ -97,7 +97,7 @@ export async function citationMain(argv = [], { cwd = process.cwd(), out = conso
   }
 
   try {
-    const result = await runEpoch(panel, { dir, engines, delayMs: 250 });
+    const result = await runEpoch(panel, { dir, engines, delayMs: 250, err });
     if (args.json) {
       out(JSON.stringify(result, null, 2));
     } else {

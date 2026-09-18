@@ -267,7 +267,9 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
     await import('playwright-core');
     const { execFile } = await import('node:child_process');
     const camoufoxOk = await new Promise((resolve) => {
-      execFile('camoufox', ['--version'], { timeout: 8000 }, (error) => resolve(!error));
+      // `camoufox path` resolves the fetched browser and exits 0; the launcher
+      // has no --version flag and exits nonzero on it.
+      execFile('camoufox', ['path'], { timeout: 8000 }, (error) => resolve(!error));
     });
     if (camoufoxOk) {
       checks.push({ status: 'ok', name: 'browser', detail: 'playwright-core + camoufox present; browser engines available' });

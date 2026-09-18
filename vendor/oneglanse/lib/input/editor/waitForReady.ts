@@ -40,15 +40,13 @@ async function isEditorReady(
 	input: Locator,
 	provider: Provider,
 ): Promise<boolean> {
-	const state = await input.getEditableState().catch(() => null);
-	return Boolean(
-		state?.connected &&
-			state.visible &&
-			state.editable &&
-			state.enabled &&
-			(state.acceptsTextInput ||
-				provider === "perplexity"),
-	);
+	// Stock playwright-core: the patchright-only getEditableState is replaced
+	// by its portable equivalent. Perplexity editors report non-editable
+	// sometimes, so it keeps the upstream provider exception.
+	const editable = await input.isEditable().catch(() => false);
+	const enabled = await input.isEnabled().catch(() => false);
+	const visible = await input.isVisible().catch(() => false);
+	return Boolean(visible && enabled && (editable || provider === "perplexity"));
 }
 
 async function waitForStableEditorCandidate(
