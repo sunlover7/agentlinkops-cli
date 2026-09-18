@@ -45,7 +45,13 @@ jobs:
           fi
       - name: Publish with provenance
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
-        run: npm publish --access public --provenance
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if npm view "agentlinkops@$v" version >/dev/null 2>&1; then
+            echo "agentlinkops@$v is already on the registry (published by hand); the release proceeds without publishing"
+          else
+            npm publish --access public --provenance
+          fi
       - name: GitHub release from the CHANGELOG entry
         if: github.event_name == 'push'
         env:
