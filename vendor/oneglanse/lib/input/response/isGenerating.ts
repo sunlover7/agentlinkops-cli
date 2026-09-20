@@ -57,24 +57,23 @@ export async function getResponseStateSignature(
 ): Promise<{ signature: string; textLength: number }> {
 	return await page.evaluate((selectors) => {
 		const visible = (element: Element | null): element is HTMLElement => {
-			if (!(element instanceof HTMLElement)) return false;
+			if (!(element instanceof HTMLElement) || !element.isConnected) return false;
 			const style = window.getComputedStyle(element);
-			return (
-				element.offsetParent !== null &&
-				style.visibility !== "hidden" &&
-				style.display !== "none"
-			);
+			if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") return false;
+			const rect = element.getBoundingClientRect();
+			return rect.width > 0 && rect.height > 0;
 		};
 
-		const elements = (selectors || [])
-			.flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-			.filter(
-				(el): el is HTMLElement =>
-					visible(el) && (el.innerText || "").trim().length > 0,
-			);
-
-		const latest = elements.at(-1) ?? null;
-		if (!latest) {
+		// Local compatibility patch: use DOM order and keep a complete outer
+		// response when legacy and anonymous selectors overlap.
+		const selector = (selectors || []).join(", ");
+		const elements = selector.trim()
+			? Array.from(document.querySelectorAll(selector)).filter(visible)
+			: [];
+		const latest = elements.filter(el => !elements.some(other => other !== el && other.contains(el))).at(-1) ?? null;
+		if (!latest || latest.getAttribute("aria-busy") === "true" ||
+			(latest.getAttribute("data-message-id") || "").startsWith("request-placeholder") ||
+			(latest.innerText || "").trim().length <= 50) {
 			return { signature: "", textLength: 0 };
 		}
 

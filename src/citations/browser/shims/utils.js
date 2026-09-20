@@ -1,15 +1,23 @@
 // Shim for @oneglanse/utils runtime exports. The selector/timeout constants
-// are re-exported from the vendored agent-constants module unchanged; logger,
+// are re-exported except the evidenced anonymous ChatGPT response boundary; logger,
 // getDomain and getFaviconUrls are minimal equivalents.
 export {
   PROVIDER_NO_OUTPUT_TIMEOUT_MS,
   PROVIDER_FORCE_EXIT_STABLE_MS,
   PROVIDER_EDITOR_SELECTORS,
   PROVIDER_SUBMIT_BTN_SELECTORS,
-  PROVIDER_MODEL_RESPONSE_SELECTORS,
   PROVIDER_RESPONSE_GENERATION_SELECTORS,
   RETRYABLE_ERRORS,
 } from '../gen/utils/agent-constants.js';
+import { PROVIDER_MODEL_RESPONSE_SELECTORS as vendoredResponseSelectors } from '../gen/utils/agent-constants.js';
+
+// Anonymous surface observed 2026-09-20: conversation LI, distinct from its
+// user sibling, with response actions. Never select the conversation itself.
+export const CHATGPT_ANONYMOUS_RESPONSE_SELECTOR = 'ol[aria-label="Conversation"] > li:has(> [role="group"][aria-label="Response actions"] button[aria-label="Copy response"]):not(:has(button[aria-label="Copy message"], [data-message-author-role="user"], [data-turn="user"], form, input, textarea, [contenteditable="true"]))';
+export const PROVIDER_MODEL_RESPONSE_SELECTORS = Object.freeze({
+  ...vendoredResponseSelectors,
+  chatgpt: Object.freeze([...vendoredResponseSelectors.chatgpt, CHATGPT_ANONYMOUS_RESPONSE_SELECTOR]),
+});
 
 const envQuiet = () => Boolean(process.env.AGENTLINKOPS_BROWSER_QUIET);
 

@@ -3,6 +3,12 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.8 (2026-09-20)
+
+- Recognize the anonymous ChatGPT response layout and use the latest visible assistant response consistently when reading answers and citations. Exclude user messages and response controls from answer text.
+- Read citation URLs from a newly opened anonymous Sources panel after one normal click on the latest response's Sources control. Require the exact controlled panel layout, visible publisher-label coverage and three matching valid reads; unresolved, hidden, ambiguous or changed evidence remains unknown.
+- Correct the bundled agent reference version. Package, web and documentation preflight checks now reject stale reference versions or mismatched generated copies.
+
 ## 0.6.7 (2026-09-20)
 
 - Default browser citation measurement to accountless mode. Saved session files are ignored unless `AGENTLINKOPS_BROWSER_AUTH=saved-session` is explicitly selected.
