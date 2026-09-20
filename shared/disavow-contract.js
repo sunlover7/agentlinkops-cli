@@ -1,0 +1,18 @@
+import {z} from 'zod';
+export const DISAVOW_LIMITS=Object.freeze({projectRules:500,ruleBytes:3072,importRules:100,importBytes:163840,comments:8,commentChars:120});
+const id=z.string().min(1).max(200),revision=z.number().int().positive();
+const comments=z.array(z.string().max(120).startsWith('#')).max(8);
+export const disavowListInput=z.object({projectId:id,status:z.enum(['proposed','active','rejected']).optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().max(4096).optional()}).strict();
+export const disavowHistoryInput=z.object({projectId:id,limit:z.number().int().min(1).max(100).optional(),cursor:z.string().max(4096).optional()}).strict();
+export const disavowProposeInput=z.object({projectId:id,kind:z.enum(['domain','url']),value:z.string().min(1).max(2048),comments:comments.optional(),source:z.enum(['manual','agent_proposal']).optional(),status:z.enum(['proposed','active']).optional()}).strict();
+export const disavowImportInput=z.object({projectId:id,text:z.string().max(163840)}).strict();
+export const disavowReviewInput=z.object({projectId:id,ruleId:id,revision,decision:z.enum(['approve','reject'])}).strict();
+export const disavowDeleteInput=z.object({projectId:id,ruleId:id,revision}).strict();
+export const disavowProjectInput=z.object({projectId:id}).strict();
+export const disavowRule=z.object({id,workspace_id:id,project_id:id,kind:z.enum(['domain','url']),value:z.string(),identity:z.string(),source:z.enum(['manual','import','agent_proposal']),status:z.enum(['proposed','active','rejected']),comments,revision,created_by:id,approved_by:id.nullable(),created_at:z.string(),updated_at:z.string()}).strict();
+export const disavowListOutput=z.object({rules:z.array(disavowRule),revision:z.number().int().nonnegative(),cursor:z.string().nullable()}).strict();
+export const disavowMutationOutput=z.object({rules:z.array(disavowRule),created:z.number().int().nonnegative(),unchanged:z.number().int().nonnegative(),revision:z.number().int().nonnegative()}).strict();
+export const disavowDeleteOutput=z.object({deleted:z.literal(true),rule_id:id,revision:z.number().int().nonnegative()}).strict();
+export const disavowExportReceipt=z.object({id,workspace_id:id,project_id:id,format_version:z.literal(1),sha256:z.string().regex(/^[a-f0-9]{64}$/),stored_active_count:z.number().int().nonnegative(),effective_count:z.number().int().nonnegative(),byte_length:z.number().int().nonnegative(),collection_revision:z.number().int().nonnegative(),source_revisions:z.array(z.object({id,revision}).strict()),created_by:id,created_at:z.string()}).strict();
+export const disavowExportOutput=z.object({filename:z.literal('disavow.txt'),content_type:z.literal('text/plain; charset=utf-8'),text:z.string(),receipt:disavowExportReceipt}).strict();
+export const disavowHistoryOutput=z.object({receipts:z.array(disavowExportReceipt),cursor:z.string().nullable()}).strict();

@@ -9,7 +9,7 @@ records. This page is the complete agent reference: the same text prints from
 full once per session, then use `describe` for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.2. 100 commands in 9 toolsets.
+Pack version 0.6.3. 125 commands in 13 toolsets.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)
@@ -235,19 +235,23 @@ The human-readable version is
 ## Tool reference
 
 <!-- generated:skill-tools begin (npm run generate:tools; source: src/tool-registry.js) -->
-100 commands in 9 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated today: request_competitor_inventory, request_domain_overview, discover_backlinks; these refuse before any persistence.
+125 commands in 13 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated today: request_competitor_inventory, request_domain_overview, discover_backlinks; these refuse before any persistence.
 
 | Toolset | Commands | What it covers |
 | --- | --- | --- |
 | `monitoring` | 17 | Watch earned links and destination URLs: create, list, update, import, export, recheck. |
-| `evidence` | 16 | What a check observed: histories, snapshots, change feeds, check jobs, published contacts. |
+| `evidence` | 17 | What a check observed: histories, snapshots, change feeds, check jobs, published contacts. |
 | `discovery` | 16 | Import candidate rows, read stored runs, verify selected candidates, enroll them. |
 | `library` | 3 | Read and export the coverage-stated opportunity library. |
 | `competitors` | 17 | Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports. |
-| `reports` | 3 | Profile, anchor and report summaries over the tracked dataset. |
+| `reports` | 5 | Profile, anchor and report summaries over the tracked dataset. |
 | `workspace` | 16 | Workspace, projects, usage, members, invitations, scratch-resource cleanup. |
 | `notifications` | 6 | Email notification preferences, previews, tests and deliveries. |
 | `webhooks` | 6 | Webhook endpoints, state, secrets and delivery records. |
+| `admission` | 7 | Project rules, URL previews and retained admission decisions. |
+| `disavow` | 7 | Propose, review and export website disavow rules. |
+| `lifecycle` | 4 | Placement costs, expiry, renewal events and currency reports. |
+| `digests` | 4 | Own-address digest preferences, delivery history and exact events. |
 <!-- generated:skill-tools end -->
 
 ## What it does not do

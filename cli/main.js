@@ -1,4 +1,7 @@
+import {lifecycleMain} from './lifecycle.js';
+import {admissionMain} from './admission.js';
 import { commandsMain } from './commands.js';
+import { disavowMain } from './disavow.js';
 import { agentMain } from './agent-setup.js';
 import { setupPlanMain } from './setup-plan.js';
 import {parseArgs as parseArguments} from './args.js';
@@ -19,7 +22,7 @@ import { readImport, parseMap } from './import.js';
 import { freezeDataset, renderReport, datasetDigest } from './report.js';
 import { createClient, CloudError } from './client.js';
 import { cloudConnection, connectMain, keySetup } from './connection.js';
-import { syncPlan, pushExpectations, pullEvents, cloudObservationRows, watchIndex, pullTargetEvents } from './sync.js';
+import { syncPlan, pushExpectations, pullLifecycleMirrors, pullEvents, cloudObservationRows, watchIndex, pullTargetEvents } from './sync.js';
 import { SUPPLIER_NAMES } from './adapters/suppliers.js';
 import { fleetSummary, renderFleet } from './fleet.js';
 import { platformAggregate, classifyObservation, renderPlatforms, attachToCandidates, PLATFORM_CLASSES } from './platforms.js';
@@ -49,6 +52,9 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops add --source URL --target URL [--intent wanted|expected] [--scope …]
                 [--anchor TEXT] [--rel a,b] [--ref TEXT] [--tag t --tag t] [--note TEXT]
   agentlinkops index pull --watch-id ID [--limit N] [--before ID]
+  agentlinkops lifecycle get|update|clear|renew|report
+  agentlinkops admission list|add|update|remove|evaluate|reevaluate|receipt --project ID
+  agentlinkops disavow list|history|propose|import|export|approve|reject|delete
   agentlinkops index import FILE | export [--out FILE] | csv URLS.csv [--out FILE]
   agentlinkops index check-csv URLS.csv --connection-id ID --request-id ID --out FILE
   agentlinkops import FILE --target DOMAIN [--from SUPPLIER] [--map source=COL,target=COL]
@@ -67,7 +73,7 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops citation run PANEL.json [--dir DIR] [--samples N] [--max-usd USD] [--json]
                                             one fixed-n AI-citation epoch; evidence under
                                             .agentlinkops/citations/; live engines need
-                                            PERPLEXITY_API_KEY, the mock engine costs nothing
+                                            engine-specific setup; the mock engine makes no paid calls
   agentlinkops receive --body FILE --headers FILE   signed notification; authenticated pull
   agentlinkops connect --workspace ID --project-id ID [--origin URL] [--selection FILE]
   agentlinkops tools [TOOLSET] [--json] [--refresh]   cloud commands by toolset (offline snapshot;
@@ -80,7 +86,9 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
                                             detected agent client (Claude Code, Codex, Cursor,
                                             Gemini CLI, Hermes); stores no credential
   agentlinkops agent status                 what is installed where
-  agentlinkops sync [--push-only] [--pull-only] [--dry-run] [--include-wanted]
+  agentlinkops agent remove [--scope project|user] [--apply] [--json]
+  agentlinkops agent recover [--scope project|user] [--apply] [--json]
+  agentlinkops sync [--push-only] [--pull-only] [--dry-run] [--include-wanted] [--lifecycle]
                                             AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY
   agentlinkops check [--filter TEXT] [--all] [--json] [--fail-on-unknown]
   agentlinkops doctor                       verify ledger, verifier, cloud reachability, token
@@ -137,9 +145,12 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
 
   let syncLock = null;
   try {
+    if (command === 'lifecycle') return await lifecycleMain(args,{cwd,env,fetchImpl,out});
+    if (command === 'admission') { const config=await loadConfig({cwd}); return await admissionMain(argv.slice(1),{client:createClient({...cloudConnection(config,env),fetchImpl}),out,err}); }
+    if (command === 'disavow') return await disavowMain(args,{cwd,env,fetchImpl,out});
     if (command === 'index') return await indexMain(args,{cwd,env,fetchImpl,out});
     if (command === 'setup') return await setupPlanMain(argv, { cwd, out });
-    if (command === 'tools' || command === 'describe' || command === 'call') return await commandsMain(argv, { cwd, out, err });
+    if (command === 'tools' || command === 'describe' || command === 'call') return await commandsMain(argv, { cwd, out, err, env, fetchImpl });
     if (command === 'skill') return await skillMain(argv, { out });
     if (command === 'agent') return await agentMain(argv, { cwd, out, err });
     if (command === 'connect') {
@@ -517,6 +528,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       }
       const state = await readState(config.paths.state);
       if (args['pull-only'] && args['push-only']) throw new ConfigError('Choose --pull-only or --push-only.');
+      if(args.lifecycle&&args['push-only'])throw new ConfigError('--lifecycle requires a pull; omit --push-only.');
       const selection = { includeWanted: args['include-wanted'] === true, ledgerIds: config.cloud?.ledgerIds ?? null };
       if (args['dry-run']) { out(JSON.stringify({ network: false, rows: args['pull-only'] ? [] : syncPlan(ledger.entries, state, selection) }, null, 2)); return 0; }
       const connection = cloudConnection(config);
@@ -546,6 +558,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
         // expiry on one cannot move the other.
         const targets = await pullTargetEvents(client, next);
         const index = await watchIndex(client, next);
+        if(args.lifecycle)next.lifecycle=await pullLifecycleMirrors(client,next,{projectId:connection.projectId,index,ledgerIds:selection.ledgerIds??ledger.entries.map(entry=>entry.id)});
         const { fresh, duplicates } = await persistPulledHistory(config, pulled.events, targets.events, index);
         next.cursors = { ...(next.cursors ?? {}), events: pulled.cursor, target_events: targets.cursor };
         next.gaps = [...(next.gaps ?? []), ...pulled.gaps, ...targets.gaps];

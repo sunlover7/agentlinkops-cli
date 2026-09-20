@@ -3,12 +3,16 @@
 // script, the MCP router, the CLI index and the generators all read the same definitions.
 // Rules: docs/technical/AGENT-SURFACE-CONTRACT.md (DP-0036).
 
-export const TOOLSETS = ['monitoring','evidence','discovery','library','competitors','reports','workspace','notifications','webhooks'];
+export const TOOLSETS = ['monitoring','evidence','discovery','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
 
 // One line per toolset: what the group is for. Printed by the site brief, the REST index and the
 // catalog snapshot so the same wording reaches every client; a toolset without a summary is a
 // gate failure in the measurement script.
 export const TOOLSET_SUMMARIES = {
+  admission: 'Project rules, URL previews and retained admission decisions.',
+  disavow: 'Propose, review and export website disavow rules.',
+  lifecycle: 'Placement costs, expiry, renewal events and currency reports.',
+  digests: 'Own-address digest preferences, delivery history and exact events.',
   monitoring: 'Watch earned links and destination URLs: create, list, update, import, export, recheck.',
   evidence: 'What a check observed: histories, snapshots, change feeds, check jobs, published contacts.',
   discovery: 'Import candidate rows, read stored runs, verify selected candidates, enroll them.',
@@ -51,7 +55,7 @@ export function oneLiner(description, max = 60) {
 }
 
 // entries: [{ name, description, toolset, tier, readOnly }]. Grouped, one line per command.
-export function manifestText(entries, { max = 52 } = {}) {
+export function manifestText(entries, { max = 36 } = {}) {
   const groups = new Map(TOOLSETS.map(t => [t, []]));
   for (const entry of entries) (groups.get(entry.toolset) ?? groups.set(entry.toolset, []).get(entry.toolset)).push(entry);
   const lines = ['Commands by toolset (name: what it does). Use search_tools or describe_tools for the full schema before calling.'];

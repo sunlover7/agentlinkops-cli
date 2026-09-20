@@ -35,3 +35,7 @@ On the CLI the same three verbs are `agentlinkops tools [TOOLSET]`, `agentlinkop
 ## Installed skill set
 
 Run `agentlinkops skill --list` for the versioned set installed with this CLI. It includes connect (access and evidence rules), discovery (sourced prospect research), campaigns (campaign judgment), CRM (local records) and assets (a specific linkable resource). Read an individual skill with its full name, for example `agentlinkops skill agentlinkops-discovery`. Research and local work do not require buying a supplier subscription.
+
+## Choose the task
+
+Use `agentlinkops setup --plan --goal GOAL --mode MODE` to inspect requirements without changing records. Goals include `build-content`, `prepare-campaign` and `verify-links`; modes are `local`, `hosted` and `external`. Read the [site and context brief](../../references/recipes/site-context-brief.md) when the task needs a site brief. Route sourced drafts to `agentlinkops-assets`, campaign handoffs to `agentlinkops-campaigns`, and placement reconciliation to `agentlinkops-crm`. The [recipe catalog](../../references/recipes/catalog.json) records versions, required inputs and untested capabilities.

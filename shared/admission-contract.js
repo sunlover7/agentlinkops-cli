@@ -1,0 +1,16 @@
+import {z} from 'zod';
+const id=z.string().min(1).max(200),kind=z.enum(['reject_domain','reject_url_pattern','require_pattern','domain_cap']);
+export const admissionRuleInput=z.object({projectId:id,kind,value:z.string().min(1).max(300),enabled:z.boolean().optional(),note:z.string().max(1000).optional()}).strict();
+export const admissionUpdateInput=z.object({projectId:id,ruleId:id,revision:z.number().int().positive(),value:z.string().min(1).max(300).optional(),enabled:z.boolean().optional(),note:z.string().max(1000).optional()}).strict();
+export const admissionDeleteInput=z.object({projectId:id,ruleId:id,revision:z.number().int().positive()}).strict();
+export const admissionListInput=z.object({projectId:id,limit:z.number().int().min(1).max(100).optional(),cursor:z.string().max(4096).optional()}).strict();
+export const admissionEvaluateInput=z.object({projectId:id,urls:z.array(z.string().max(2048)).min(1).max(200),context:z.enum(['point','import']).optional()}).strict();
+export const admissionRecordInput=z.object({projectId:id,operationId:id,context:z.enum(['import','candidate','candidate_batch','serve']),subjects:z.array(z.object({key:id,url:z.string().max(2048)}).strict()).min(1).max(1000)}).strict();
+export const admissionRule=z.object({id,workspace_id:id,project_id:id,kind,value:z.string(),source:z.literal('manual'),enabled:z.boolean(),note:z.string(),revision:z.number().int().positive(),created_by:id,created_at:z.string(),updated_at:z.string()}).strict();
+export const admissionDecision=z.object({index:z.number().int().nonnegative(),url:z.string(),normalized_url:z.string().nullable(),host:z.string().nullable(),decision:z.enum(['admitted','rejected']),reason:z.string(),rule_kind:z.string().nullable(),rule_id:id.nullable(),rule_value:z.string().nullable(),cap:z.object({limit:z.number().int().positive(),used:z.number().int().nonnegative()}).strict().nullable()}).strict();
+export const admissionSummary=z.object({total:z.number().int(),admitted:z.number().int(),rejected:z.number().int(),by_rule:z.record(z.string(),z.number().int())}).strict();
+export const admissionListOutput=z.object({rules:z.array(admissionRule),revision:z.number().int().nonnegative(),managed_disavow_count:z.number().int().nonnegative(),cursor:z.string().nullable()}).strict();
+export const admissionMutationOutput=z.object({rule:admissionRule,revision:z.number().int().nonnegative(),created:z.boolean()}).strict();
+export const admissionDeleteOutput=z.object({deleted:z.literal(true),rule_id:id,revision:z.number().int().nonnegative()}).strict();
+export const admissionEvaluateOutput=z.object({decisions:z.array(admissionDecision),summary:admissionSummary,policy_revision:z.number().int().nonnegative(),disavow_revision:z.number().int().nonnegative(),context:z.enum(['point','import']),recorded:z.literal(false)}).strict();
+export const admissionRecordedOutput=z.object({operation_id:id,project_id:id,context:z.enum(['import','candidate','candidate_batch','serve']),decisions:z.array(admissionDecision.extend({subject_key:id})),summary:admissionSummary,policy_revision:z.number().int().nonnegative(),disavow_revision:z.number().int().nonnegative(),replayed:z.boolean()}).strict();

@@ -3,7 +3,15 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
-## 0.6.2 (unreleased)
+## 0.6.3 (2026-09-20)
+
+- Agent installation preserves customer edits and supports previewed removal and interrupted-install recovery.
+- Four versioned recipes ship within the existing five product skills, with native Codex discovery and bounded recovery evaluation.
+- Admission and disavow commands expose rule checks, retained decisions and deterministic customer-owned exports. Approval requires a signed-in owner or administrator.
+- Lifecycle commands retain supplied deal metadata in currency minor units. Explicit lifecycle sync mirrors hosted facts without overwriting the local ledger.
+- The command catalog includes retained profile distributions, per-widget exports and historical link location evidence. Unknown evidence remains unknown.
+
+## 0.6.2 (2026-09-20)
 
 - Citation panels support competitor targets and explicit locale contexts. New panels default to the free mock engine; prompt suggestions remain editable.
 - Citation reports show bounded epoch history, retained evidence and unknown results. Local cadence commands preserve configured paths and require explicit webhook opt-in.

@@ -17,3 +17,5 @@ If the user authorizes outreach, use their existing email tool and honor their s
 When a placement is earned, save source and destination URLs and its relationship to the opportunity. Use connected monitoring tools when requested; local campaign work remains useful without cloud access. Do not promise rankings, response rates, exhaustive competitor coverage, or improvements unsupported by evidence.
 
 For citation panels, read [the panel authoring reference](../../references/citation-panels.md). Gather real audience questions with the user's available sources and record where each came from. `agentlinkops citation panel` drafts editable JSON with a mock engine by default. Suggested questions are not evidence of search demand. Choose a live engine only after checking the user's access and budget; keep citations, mentions, competitors and locale context separate in the results.
+
+Use the [campaign handoff recipe](../../references/recipes/qualified-campaign-handoff.md) when preparing records and reviewed drafts for the person's CRM or sender. It defines checkpoints and later readback before treating an uncertain write as complete.

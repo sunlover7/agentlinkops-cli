@@ -11,3 +11,5 @@ Preserve the project's rendering and routing conventions. Inspect nearby pages b
 Write plainly and specifically. Remove repetition and generic filler without deleting necessary evidence. Add internal links only where the destination answers the reader's next relevant question; inspect the actual routes before linking. Check for an existing competing page before creating a new URL.
 
 Use the site's existing validation commands appropriate to the change. Record the final target URL, reader benefit and evidence in the AgentLinkOps product/campaign record using [the CRM contract](../../references/cli.md). A completed local edit does not establish that the page is deployed or that a publisher accepted it.
+
+Read the [sourced asset recipe](../../references/recipes/sourced-linkable-asset.md) when preparing a draft with review receipts and a publication state. Use the [site brief](../../references/recipes/site-context-brief.md) if the audience or evidence needs clarification.

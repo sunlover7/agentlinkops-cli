@@ -6,6 +6,7 @@
 // number that is wrong in a way they discover months later.
 import { readFile, writeFile, mkdir, rename, open, unlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import {lifecycleDeal,emptyDeal} from '../shared/lifecycle-contract.js';
 
 export const INTENTS = Object.freeze(['wanted', 'expected', 'retired']);
 export const SCOPES = Object.freeze(['exact', 'domain', 'subdomain', 'path']);
@@ -17,7 +18,7 @@ export const DEFAULT_CADENCE = Object.freeze({ wanted: 'weekly', expected: 'dail
 
 // Stable key order, so `fmt` produces a diff that names the entry that changed rather than
 // reordering every line.
-const KEY_ORDER = ['id', 'intent', 'source', 'target', 'scope', 'expect', 'cadence', 'ref', 'origin', 'tags', 'added', 'note'];
+const KEY_ORDER = ['id', 'intent', 'source', 'target', 'scope', 'expect', 'cadence', 'ref', 'origin', 'tags', 'added', 'note', 'deal'];
 
 // Where an entry came from, when it was not typed by hand. `placement_run` is adopt-side
 // lineage, not import-side: a run's queue holds decisions already made and its output reports
@@ -114,6 +115,11 @@ export function normalizeEntry(input, { assignId = false } = {}) {
       if (typeof input[field] !== 'string') problems.push(`${field} must be a string`);
       else entry[field] = input[field];
     }
+  }
+  if ('deal' in input) {
+    const parsed=lifecycleDeal.safeParse(input.deal===null?emptyDeal():input.deal);
+    if(!parsed.success)problems.push('deal must contain valid lifecycle fields with paired cost/currency');
+    else entry.deal=parsed.data;
   }
   // An unknown key is kept rather than discarded: it is the customer's file, and a future
   // version of this tool may well mean something by it.

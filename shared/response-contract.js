@@ -1,3 +1,4 @@
+import {lifecycleOutput} from './lifecycle-contract.js';
 import {searchConnectionsResponse,searchRowsResponse,searchSyncResponse,searchPropertiesResponse,searchStartResponse,searchConnection,searchImportResponse} from './search-connection-contract.js';
 import {z} from 'zod';
 export const objectResponse=z.looseObject({});
@@ -29,6 +30,7 @@ export const candidateVerificationBatchResponse=z.looseObject({
   replayed:z.boolean().optional(),
 });
 export const candidateMonitoringResponse=z.looseObject({
+  lifecycle:lifecycleOutput.optional(),
   watch:z.looseObject({id:z.string(),source_url:z.string(),target_url:z.string(),status:z.enum(['active','paused']),observation_state:objectResponse}),verification_job_id:z.string(),candidate_id:z.string(),run_id:z.string(),
   local_reference:z.string().nullable(),replayed:z.boolean(),recurring_monitoring_created:z.literal(true),
 });

@@ -68,3 +68,21 @@ test('a partially refused upload persists successful mapping but exits nonzero',
  assert.equal(JSON.parse(await readFile(join(dir,'state.json'),'utf8')).watches.lk_aaaaaaaa,'wat_ok');
  assert.equal(await readFile(join(dir,'links.jsonl'),'utf8'),ledger);
 });
+test('pull-only lifecycle recovers a fresh clone from scoped hosted references without rewriting the ledger',async t=>{
+ const cwd=await mkdtemp(join(tmpdir(),'lifecycle-recover-'));t.after(()=>rm(cwd,{recursive:true,force:true}));
+ const dir=join(cwd,'.agentlinkops');await mkdir(dir);const ledger=JSON.stringify(entry('lk_aaaaaaaa'))+'\n';
+ await writeFile(join(dir,'links.jsonl'),ledger);await writeFile(join(dir,'config.json'),JSON.stringify({project:{id:'prj_one'},cloud:{origin:'https://api.example',token:'fixture'}}));
+ const {emptyDeal}=await import('../shared/lifecycle-contract.js');const original=globalThis.fetch;const calls=[];
+ globalThis.fetch=async(url,options)=>{const u=new URL(url);calls.push(u.pathname);
+  if(u.pathname.includes('/commands/')){const input=JSON.parse(options.body);assert.deepEqual(input,{projectId:'prj_one',watchId:'wat_one'});return Response.json({projectId:'prj_one',watchId:'wat_one',revision:3,deal:{...emptyDeal(),costMinor:29,currency:'USD'},createdAt:null,updatedAt:null});}
+  assert.equal(u.searchParams.get('projectId'),'prj_one');
+  if(u.pathname.includes('events'))return Response.json({events:[],next_cursor:'cursor',has_more:false});
+  return Response.json({items:[{id:'wat_one',project_id:'prj_one',local_reference:'lk_aaaaaaaa'}],next_cursor:null});
+ };t.after(()=>{globalThis.fetch=original;});
+ assert.equal(await main(['sync','--pull-only','--lifecycle'],{cwd,out:()=>{},err:assert.fail}),0);
+ const state=JSON.parse(await readFile(join(dir,'state.json'),'utf8'));assert.equal(state.lifecycle.rows.lk_aaaaaaaa.deal.costMinor,29);assert.equal(state.lifecycle.rows.lk_aaaaaaaa.revision,3);assert.equal(await readFile(join(dir,'links.jsonl'),'utf8'),ledger);assert.ok(calls.includes('/v1/commands/get_link_lifecycle'));
+ const saved=await readFile(join(dir,'state.json'),'utf8');globalThis.fetch=async()=>{throw Error('fixture unavailable');};
+ const errors=[];assert.equal(await main(['sync','--pull-only','--lifecycle'],{cwd,out:()=>{},err:v=>errors.push(v)}),2);assert.equal(await readFile(join(dir,'state.json'),'utf8'),saved);
+ assert.equal(await main(['sync','--dry-run','--lifecycle'],{cwd,out:()=>{},err:assert.fail}),0);
+ assert.equal(await main(['sync','--push-only','--lifecycle'],{cwd,out:()=>{},err:()=>{}}),2);
+});

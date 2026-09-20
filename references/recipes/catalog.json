@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentlinkops_recipe_catalog",
+  "version": "1.0.5",
+  "reviewedAt": "2026-09-20",
+  "convention": "AgentLinkOps package convention; not an industry schema",
+  "recipes": [
+    {
+      "id": "site-context-brief",
+      "version": "1.0.0",
+      "path": "site-context-brief.md",
+      "goals": [
+        "build-content",
+        "prepare-campaign"
+      ],
+      "modes": [
+        "local",
+        "hosted",
+        "external"
+      ],
+      "requiredInputs": "Site, audience, supplied pages or context, requested outcome",
+      "expectedArtifact": "Dated site brief with evidence limits and next task",
+      "availability": {
+        "suppliedInputPreparation": "accountless",
+        "hostedOperations": "require verified permission and available service access",
+        "vendorConnections": "optional; untested"
+      },
+      "tested": {
+        "endToEnd": "not-run",
+        "clients": [],
+        "tools": [],
+        "vendors": []
+      },
+      "skill": "agentlinkops-connect"
+    },
+    {
+      "id": "sourced-linkable-asset",
+      "version": "1.0.0",
+      "path": "sourced-linkable-asset.md",
+      "goals": [
+        "build-content"
+      ],
+      "modes": [
+        "local",
+        "hosted",
+        "external"
+      ],
+      "requiredInputs": "Site brief, reader task, source material, output destination",
+      "expectedArtifact": "Sourced draft with review receipts and publication state",
+      "availability": {
+        "suppliedInputPreparation": "accountless",
+        "hostedOperations": "require verified permission and available service access",
+        "vendorConnections": "optional; untested"
+      },
+      "tested": {
+        "endToEnd": "not-run",
+        "clients": [],
+        "tools": [],
+        "vendors": []
+      },
+      "skill": "agentlinkops-assets"
+    },
+    {
+      "id": "qualified-campaign-handoff",
+      "version": "1.0.5",
+      "path": "qualified-campaign-handoff.md",
+      "goals": [
+        "prepare-campaign"
+      ],
+      "modes": [
+        "local",
+        "hosted",
+        "external"
+      ],
+      "requiredInputs": "Product brief, asset state, candidate records, chosen CRM or sender, outreach constraints",
+      "expectedArtifact": "Qualified candidates, reviewed draft, field mapping and readback or portable handoff",
+      "availability": {
+        "suppliedInputPreparation": "accountless",
+        "hostedOperations": "require verified permission and available service access",
+        "vendorConnections": "optional; untested"
+      },
+      "tested": {
+        "endToEnd": "not-run",
+        "clients": [],
+        "tools": [],
+        "vendors": []
+      },
+      "skill": "agentlinkops-campaigns"
+    },
+    {
+      "id": "placement-reconciliation",
+      "version": "1.0.4",
+      "path": "placement-reconciliation.md",
+      "goals": [
+        "verify-links"
+      ],
+      "modes": [
+        "local",
+        "hosted",
+        "external"
+      ],
+      "requiredInputs": "Exact source URL, destination and match scope, claim reference",
+      "expectedArtifact": "Dated observation, reconciled claim and optional monitoring plan",
+      "availability": {
+        "suppliedInputPreparation": "accountless",
+        "hostedOperations": "require verified permission and available service access",
+        "vendorConnections": "optional; untested"
+      },
+      "tested": {
+        "endToEnd": "not-run",
+        "clients": [],
+        "tools": [],
+        "vendors": []
+      },
+      "skill": "agentlinkops-crm"
+    }
+  ],
+  "sources": [
+    {
+      "title": "Local CRM contract and ledger connection guide",
+      "publisher": "AgentLinkOps",
+      "publicationDate": null,
+      "reviewedAt": "2026-09-13",
+      "url": "../cli.md"
+    },
+    {
+      "title": "Campaign guidance",
+      "publisher": "AgentLinkOps",
+      "publicationDate": null,
+      "reviewedAt": "2026-09-13",
+      "url": "../../skills/agentlinkops-campaigns/SKILL.md"
+    },
+    {
+      "title": "Asset guidance",
+      "publisher": "AgentLinkOps",
+      "publicationDate": null,
+      "reviewedAt": "2026-09-13",
+      "url": "../../skills/agentlinkops-assets/SKILL.md"
+    },
+    {
+      "title": "Recipe command notes",
+      "publisher": "AgentLinkOps",
+      "publicationDate": "2026-09-20",
+      "reviewedAt": "2026-09-20",
+      "url": "command-notes.md"
+    }
+  ]
+}

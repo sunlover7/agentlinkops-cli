@@ -65,7 +65,7 @@ const USAGE = `agentlinkops citation — AI citation watches in this repository
 
 Panel (JSON): targets (domain or url, brand, aliases), prompts, engines
 ([{ "engine": "mock" | "perplexity", "model": "…" }]), optional samples and maxUsd.
-Live engines need the matching environment credential (PERPLEXITY_API_KEY); the mock
+Live engines need their configured credentials or a usable browser session; the mock
 engine runs everything at zero cost. Every run states its estimated spend, and the
 cap reserves estimated cost before each call. A supplier charge above that estimate
 is recorded as an overrun and stops subsequent calls.

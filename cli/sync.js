@@ -1,3 +1,4 @@
+import {lifecycleOutput} from '../shared/lifecycle-contract.js';
 import {observationFromSnapshot,eventSnapshot} from '../shared/observation-event.js';
 // `agentlinkops sync`: expectations up, events and evidence references down.
 //
@@ -180,4 +181,21 @@ export async function watchIndex(client, state) {
     cursor = result.next_cursor;
   }
   throw new CloudError('WATCH_INDEX_LIMIT', 502);
+}
+
+
+// Optional read-only deal mirror. One failure leaves the previous mirror untouched.
+// The caller saves it only after every selected watch has been read and scoped.
+export async function pullLifecycleMirrors(client,state,{projectId,index=null,ledgerIds=null,now=()=>new Date().toISOString()}={}){
+ const candidates=index?[...index].map(([watchId,ledgerId])=>[ledgerId,watchId]):Object.entries(state.watches??{});
+ const selected=ledgerIds===null?null:new Set(ledgerIds),mapping=candidates.filter(([id])=>!selected||selected.has(id));
+ if(new Set(mapping.map(([id])=>id)).size!==mapping.length)throw new CloudError('LIFECYCLE_MAPPING_CONFLICT',0);
+ if(mapping.length>1000)throw new CloudError('LIFECYCLE_MIRROR_LIMIT',0);
+ const rows={};
+ for(const [ledgerId,watchId] of mapping){
+  const value=lifecycleOutput.parse(await client.callCommand('get_link_lifecycle',{projectId,watchId}));
+  if(value.projectId!==projectId||value.watchId!==watchId)throw new CloudError('LIFECYCLE_MIRROR_SCOPE',0);
+  rows[ledgerId]={...value,observedAt:now()};
+ }
+ return {projectId,rows};
 }

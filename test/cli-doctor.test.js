@@ -199,3 +199,31 @@ test('disagreeing token spellings reach the user as the exit-2 message, not an u
   assert.ok(err.some(line => /AGENTLINKOPS_TOKEN and LINKTRAIL_TOKEN disagree/u.test(line)), err.join('\n'));
   assert.equal(`${out.join('\n')}${err.join('\n')}`.includes(TOKEN), false, 'no value is printed');
 });
+
+
+test('citation diagnostics never infer live readiness from credentials or expose their values', async t => {
+  const { root } = await setup(t);
+  for (const env of [{}, { PERPLEXITY_API_KEY: 'withdrawn-secret' },
+    { DATAFORSEO_LOGIN: 'supplier-login-secret' },
+    { DATAFORSEO_LOGIN: 'supplier-login-secret', DATAFORSEO_PASSWORD: 'supplier-password-secret' }]) {
+    let requests = 0;
+    const { code, text } = await run(root, { env, fetchImpl: async () => { requests++; throw new Error('unexpected network'); } });
+    assert.equal(code, 0);
+    assert.match(text, /skip\s+citations\s+—\s+.*live engines were not checked/);
+    assert.match(text, /selected engine credentials or browser session/);
+    assert.match(text, /Mock runs work offline/);
+    assert.equal(text.includes('google-aio credentials are set but unverified'), Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD));
+    assert.doesNotMatch(text, /PERPLEXITY_API_KEY|live citation runs available/);
+    for (const secret of Object.values(env)) assert.equal(text.includes(secret), false);
+    assert.equal(requests, 0);
+  }
+});
+
+test('top-level help exposes installer removal and recovery with explicit apply', async () => {
+  const lines = [];
+  assert.equal(await main(['--help'], { out: line => lines.push(String(line)), err: () => {} }), 0);
+  const text = lines.join('\n');
+  for (const command of ['remove', 'recover']) {
+    assert.ok(text.includes(`agentlinkops agent ${command} [--scope project|user] [--apply] [--json]`));
+  }
+});

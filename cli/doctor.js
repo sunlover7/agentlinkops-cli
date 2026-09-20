@@ -252,14 +252,13 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
       checks.push({ status: 'skip', name: 'token', detail: `set in ${source}; not verified (cloud unreachable)` });
     }
   }
-  // Citation engines: presence only, never the value. A missing credential is a skip,
-  // not a failure — the mock engine runs everything, and a repository that never set a
-  // live key has not broken anything it asked for.
-  if (env.PERPLEXITY_API_KEY) {
-    checks.push({ status: 'ok', name: 'citations', detail: 'PERPLEXITY_API_KEY is set; live citation runs available' });
-  } else {
-    checks.push({ status: 'skip', name: 'citations', detail: 'no engine credential set; mock citation runs work, live runs need PERPLEXITY_API_KEY' });
-  }
+  // Doctor does not contact citation providers or validate saved browser sessions.
+  // Environment presence must not imply an engine can run successfully.
+  const aioCredentials = Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD);
+  checks.push({
+    status: 'skip', name: 'citations',
+    detail: `${aioCredentials ? 'google-aio credentials are set but unverified; ' : ''}live engines were not checked; configure the selected engine credentials or browser session. Mock runs work offline`,
+  });
 
   // Browser engines: the Camoufox stack. Each missing piece names its fix; none
   // of it fails doctor, because API and mock engines do not need it.

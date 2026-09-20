@@ -33,13 +33,13 @@ export const resolveName = (commands, name) => commands.find(c => c.name === nam
 // The index: grouped by toolset, one line per command, core and write and admission marked.
 export function renderIndex(commands, { toolset = null, json = false } = {}) {
   const selected = toolset ? commands.filter(c => c.toolset === toolset) : commands;
-  if (json) return JSON.stringify({ toolsets: toolset ? { [toolset]: CATALOG_TOOLSETS[toolset] } : CATALOG_TOOLSETS, commands: selected.map(c => ({ name: c.name, toolset: c.toolset, tier: c.tier, readOnly: c.readOnly, summary: oneLiner(c.description, 96), ...(c.admissionGated ? { admission: 'gated' } : {}), ...(c.aliases?.length ? { aliases: c.aliases } : {}) })), next: 'Run `agentlinkops describe NAME` for a schema, then `agentlinkops call NAME --args JSON`.' });
+  if (json) return JSON.stringify({ toolsets: toolset ? { [toolset]: CATALOG_TOOLSETS[toolset] } : CATALOG_TOOLSETS, commands: selected.map(c => ({ name: c.name, toolset: c.toolset, tier: c.tier, readOnly: c.readOnly, summary: oneLiner(c.description, 64), ...(c.admissionGated ? { admission: 'gated' } : {}), ...(c.aliases?.length ? { aliases: c.aliases } : {}) })), next: 'Run `agentlinkops describe NAME` for a schema, then `agentlinkops call NAME --args JSON`.' });
   const groups = new Map();
   for (const c of selected) (groups.get(c.toolset) ?? groups.set(c.toolset, []).get(c.toolset)).push(c);
   const lines = [];
   for (const [group, members] of [...groups].sort()) {
-    lines.push(CATALOG_TOOLSETS[group] ? `${group}: ${CATALOG_TOOLSETS[group]}` : `${group}:`);
-    for (const c of members.sort((a, b) => a.name.localeCompare(b.name))) lines.push(`  ${c.name}${c.tier === 'core' ? ' (core)' : ''}${c.readOnly ? '' : ' [write]'}${c.admissionGated ? ' [admission-gated]' : ''}  ${oneLiner(c.description, 36)}`);
+    lines.push(CATALOG_TOOLSETS[group] ? `${group}: ${oneLiner(CATALOG_TOOLSETS[group], 44)}` : `${group}:`);
+    for (const c of members.sort((a, b) => a.name.localeCompare(b.name))) lines.push(`  ${c.name}${c.tier === 'core' ? ' (core)' : ''}${c.readOnly ? '' : ' [write]'}${c.admissionGated ? ' [admission-gated]' : ''}  ${oneLiner(c.description, 22)}`);
     lines.push('');
   }
   lines.push(`${selected.length} commands${toolset ? ` in ${toolset}` : ''}. describe NAME shows the schema; call NAME --args JSON runs it.`);

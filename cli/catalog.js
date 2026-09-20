@@ -2,6 +2,10 @@
 // The CLI's offline catalog: names, toolsets, tiers, aliases, scopes, descriptions and schemas.
 export const CATALOG_SOURCE = 'src/tool-registry.js';
 export const CATALOG_TOOLSETS = {
+ "admission": "Project rules, URL previews and retained admission decisions.",
+ "disavow": "Propose, review and export website disavow rules.",
+ "lifecycle": "Placement costs, expiry, renewal events and currency reports.",
+ "digests": "Own-address digest preferences, delivery history and exact events.",
  "monitoring": "Watch earned links and destination URLs: create, list, update, import, export, recheck.",
  "evidence": "What a check observed: histories, snapshots, change feeds, check jobs, published contacts.",
  "discovery": "Import candidate rows, read stored runs, verify selected candidates, enroll them.",
@@ -13,6 +17,5444 @@ export const CATALOG_TOOLSETS = {
  "webhooks": "Webhook endpoints, state, secrets and delivery records."
 };
 export const CATALOG_COMMANDS = [
+ {
+  "name": "get_profile_distributions",
+  "toolset": "reports",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "distribution",
+   "profile",
+   "index",
+   "comparison"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read retained monitored distributions, optional frozen inventory comparison and a selected index-source timeline. No collection or provider request.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "status": {
+     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "type": "string",
+     "enum": [
+      "all",
+      "active",
+      "paused"
+     ]
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "comparison": {
+     "description": "The comparison value; allowed values and bounds are specified in this schema.",
+     "type": "object",
+     "properties": {
+      "setId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "revision": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "inventoryIds": {
+       "minItems": 1,
+       "maxItems": 11,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       }
+      }
+     },
+     "required": [
+      "setId",
+      "revision",
+      "inventoryIds"
+     ],
+     "additionalProperties": false
+    },
+    "indexSourceKey": {
+     "description": "The index source key value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 512
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "monitored": {
+     "type": "object",
+     "properties": {
+      "schema_version": {
+       "type": "number",
+       "const": 1
+      },
+      "workspace_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "generated_at": {
+       "type": "string"
+      },
+      "status_filter": {
+       "type": "string",
+       "enum": [
+        "all",
+        "active",
+        "paused"
+       ]
+      },
+      "coverage": {
+       "type": "object",
+       "properties": {
+        "basis": {
+         "type": "string",
+         "const": "latest_retained_attempt_per_watch"
+        },
+        "whole_web_coverage": {
+         "type": "boolean",
+         "const": false
+        },
+        "total_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "scanned_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "eligible_present_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "included_present_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "excluded_evidence_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "occurrences": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "scanned_bytes": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "partial": {
+         "type": "boolean"
+        },
+        "limitations": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "overlapping_watches_deduplicated": {
+         "type": "boolean",
+         "const": false
+        }
+       },
+       "required": [
+        "basis",
+        "whole_web_coverage",
+        "total_watches",
+        "scanned_watches",
+        "eligible_present_watches",
+        "included_present_watches",
+        "excluded_evidence_watches",
+        "occurrences",
+        "scanned_bytes",
+        "partial",
+        "limitations",
+        "overlapping_watches_deduplicated"
+       ],
+       "additionalProperties": false
+      },
+      "distributions": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "object",
+        "properties": {
+         "unit": {
+          "type": "string",
+          "enum": [
+           "watches",
+           "occurrences",
+           "anchor_terms"
+          ]
+         },
+         "denominator": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "known_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "unknown_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "unknown_share": {
+          "anyOf": [
+           {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "items": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "value": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "count": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "share": {
+             "type": "number",
+             "minimum": 0,
+             "maximum": 1
+            }
+           },
+           "required": [
+            "value",
+            "count",
+            "share"
+           ],
+           "additionalProperties": false
+          }
+         },
+         "other_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "truncated": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "unit",
+         "denominator",
+         "known_count",
+         "unknown_count",
+         "unknown_share",
+         "items",
+         "other_count",
+         "truncated"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "notes": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "required": [
+      "schema_version",
+      "workspace_id",
+      "project_id",
+      "generated_at",
+      "status_filter",
+      "coverage",
+      "distributions",
+      "notes"
+     ],
+     "additionalProperties": false
+    },
+    "comparison": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "set_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "revision": {
+         "type": "integer",
+         "exclusiveMinimum": 0,
+         "maximum": 9007199254740991
+        },
+        "whole_web_coverage": {
+         "type": "boolean",
+         "const": false
+        },
+        "absence_claim": {
+         "type": "string",
+         "const": "not_supported"
+        },
+        "pooled": {
+         "type": "boolean",
+         "const": false
+        },
+        "datasets": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "inventory_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+           },
+           "member_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+           },
+           "member_target": {
+            "type": "string"
+           },
+           "provider": {
+            "type": "string"
+           },
+           "data_mode": {
+            "type": "string"
+           },
+           "captured_at": {
+            "type": "string"
+           },
+           "member_role": {
+            "type": "string",
+            "enum": [
+             "customer",
+             "competitor"
+            ]
+           },
+           "retrieved_from": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "retrieved_to": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "coverage": {
+            "type": "string"
+           },
+           "row_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "basis": {
+            "type": "string",
+            "const": "frozen_inventory_rows"
+           },
+           "distributions": {
+            "type": "object",
+            "propertyNames": {
+             "type": "string"
+            },
+            "additionalProperties": {
+             "type": "object",
+             "properties": {
+              "unit": {
+               "type": "string",
+               "enum": [
+                "watches",
+                "occurrences",
+                "anchor_terms",
+                "inventory_rows"
+               ]
+              },
+              "denominator": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "known_count": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "unknown_count": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "unknown_share": {
+               "anyOf": [
+                {
+                 "type": "number",
+                 "minimum": 0,
+                 "maximum": 1
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "items": {
+               "type": "array",
+               "items": {
+                "type": "object",
+                "properties": {
+                 "value": {
+                  "type": [
+                   "string",
+                   "null"
+                  ]
+                 },
+                 "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                 },
+                 "share": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                 }
+                },
+                "required": [
+                 "value",
+                 "count",
+                 "share"
+                ],
+                "additionalProperties": false
+               }
+              },
+              "other_count": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "truncated": {
+               "type": "boolean"
+              }
+             },
+             "required": [
+              "unit",
+              "denominator",
+              "known_count",
+              "unknown_count",
+              "unknown_share",
+              "items",
+              "other_count",
+              "truncated"
+             ],
+             "additionalProperties": false
+            }
+           }
+          },
+          "required": [
+           "inventory_id",
+           "member_id",
+           "member_target",
+           "provider",
+           "data_mode",
+           "captured_at",
+           "member_role",
+           "retrieved_from",
+           "retrieved_to",
+           "coverage",
+           "row_count",
+           "basis",
+           "distributions"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "notes": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "set_id",
+        "revision",
+        "whole_web_coverage",
+        "absence_claim",
+        "pooled",
+        "datasets",
+        "notes"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "index": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "source_key": {
+         "type": "string"
+        },
+        "basis": {
+         "type": "string",
+         "const": "latest_retained_receipt_per_watch_for_source"
+        },
+        "total_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "scanned_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "partial": {
+         "type": "boolean"
+        },
+        "expired_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "missing_watches": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "distribution": {
+         "type": "object",
+         "properties": {
+          "unit": {
+           "type": "string",
+           "enum": [
+            "watches",
+            "occurrences",
+            "anchor_terms",
+            "inventory_rows"
+           ]
+          },
+          "denominator": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "known_count": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "unknown_count": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "unknown_share": {
+           "anyOf": [
+            {
+             "type": "number",
+             "minimum": 0,
+             "maximum": 1
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "items": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "value": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             "share": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+             }
+            },
+            "required": [
+             "value",
+             "count",
+             "share"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "other_count": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "truncated": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "unit",
+          "denominator",
+          "known_count",
+          "unknown_count",
+          "unknown_share",
+          "items",
+          "other_count",
+          "truncated"
+         ],
+         "additionalProperties": false
+        },
+        "notes": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "source_key",
+        "basis",
+        "total_watches",
+        "scanned_watches",
+        "partial",
+        "expired_watches",
+        "missing_watches",
+        "distribution",
+        "notes"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "monitored",
+    "comparison",
+    "index"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "export_profile_distribution",
+  "toolset": "reports",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "distribution",
+   "export",
+   "csv",
+   "json"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Export one retained distribution as JSON or spreadsheet-safe CSV with dataset coverage and evidence basis.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "status": {
+     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "type": "string",
+     "enum": [
+      "all",
+      "active",
+      "paused"
+     ]
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "comparison": {
+     "description": "The comparison value; allowed values and bounds are specified in this schema.",
+     "type": "object",
+     "properties": {
+      "setId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "revision": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "inventoryIds": {
+       "minItems": 1,
+       "maxItems": 11,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       }
+      }
+     },
+     "required": [
+      "setId",
+      "revision",
+      "inventoryIds"
+     ],
+     "additionalProperties": false
+    },
+    "indexSourceKey": {
+     "description": "The index source key value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 512
+    },
+    "dimension": {
+     "type": "string",
+     "enum": [
+      "source_host",
+      "source_tld",
+      "watch_created_month",
+      "anchor",
+      "anchor_term",
+      "landing_url",
+      "rel_set",
+      "link_nofollow",
+      "ugc",
+      "sponsored",
+      "page_nofollow",
+      "link_type",
+      "language",
+      "google_index"
+     ],
+     "description": "The dimension value; allowed values and bounds are specified in this schema."
+    },
+    "format": {
+     "type": "string",
+     "enum": [
+      "json",
+      "csv"
+     ],
+     "description": "The format value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "dimension",
+    "format"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "filename": {
+     "type": "string"
+    },
+    "content_type": {
+     "type": "string"
+    },
+    "text": {
+     "type": "string"
+    },
+    "dimension": {
+     "type": "string"
+    },
+    "report": {
+     "type": "object",
+     "properties": {
+      "monitored": {
+       "type": "object",
+       "properties": {
+        "schema_version": {
+         "type": "number",
+         "const": 1
+        },
+        "workspace_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "project_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "generated_at": {
+         "type": "string"
+        },
+        "status_filter": {
+         "type": "string",
+         "enum": [
+          "all",
+          "active",
+          "paused"
+         ]
+        },
+        "coverage": {
+         "type": "object",
+         "properties": {
+          "basis": {
+           "type": "string",
+           "const": "latest_retained_attempt_per_watch"
+          },
+          "whole_web_coverage": {
+           "type": "boolean",
+           "const": false
+          },
+          "total_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "scanned_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "eligible_present_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "included_present_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "excluded_evidence_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "occurrences": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "scanned_bytes": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "partial": {
+           "type": "boolean"
+          },
+          "limitations": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "overlapping_watches_deduplicated": {
+           "type": "boolean",
+           "const": false
+          }
+         },
+         "required": [
+          "basis",
+          "whole_web_coverage",
+          "total_watches",
+          "scanned_watches",
+          "eligible_present_watches",
+          "included_present_watches",
+          "excluded_evidence_watches",
+          "occurrences",
+          "scanned_bytes",
+          "partial",
+          "limitations",
+          "overlapping_watches_deduplicated"
+         ],
+         "additionalProperties": false
+        },
+        "distributions": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "object",
+          "properties": {
+           "unit": {
+            "type": "string",
+            "enum": [
+             "watches",
+             "occurrences",
+             "anchor_terms"
+            ]
+           },
+           "denominator": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "known_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "unknown_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "unknown_share": {
+            "anyOf": [
+             {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "items": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "properties": {
+              "value": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "count": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "share": {
+               "type": "number",
+               "minimum": 0,
+               "maximum": 1
+              }
+             },
+             "required": [
+              "value",
+              "count",
+              "share"
+             ],
+             "additionalProperties": false
+            }
+           },
+           "other_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "truncated": {
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "unit",
+           "denominator",
+           "known_count",
+           "unknown_count",
+           "unknown_share",
+           "items",
+           "other_count",
+           "truncated"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "notes": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "schema_version",
+        "workspace_id",
+        "project_id",
+        "generated_at",
+        "status_filter",
+        "coverage",
+        "distributions",
+        "notes"
+       ],
+       "additionalProperties": false
+      },
+      "comparison": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "set_id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "revision": {
+           "type": "integer",
+           "exclusiveMinimum": 0,
+           "maximum": 9007199254740991
+          },
+          "whole_web_coverage": {
+           "type": "boolean",
+           "const": false
+          },
+          "absence_claim": {
+           "type": "string",
+           "const": "not_supported"
+          },
+          "pooled": {
+           "type": "boolean",
+           "const": false
+          },
+          "datasets": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "inventory_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+             },
+             "member_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+             },
+             "member_target": {
+              "type": "string"
+             },
+             "provider": {
+              "type": "string"
+             },
+             "data_mode": {
+              "type": "string"
+             },
+             "captured_at": {
+              "type": "string"
+             },
+             "member_role": {
+              "type": "string",
+              "enum": [
+               "customer",
+               "competitor"
+              ]
+             },
+             "retrieved_from": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "retrieved_to": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "coverage": {
+              "type": "string"
+             },
+             "row_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             "basis": {
+              "type": "string",
+              "const": "frozen_inventory_rows"
+             },
+             "distributions": {
+              "type": "object",
+              "propertyNames": {
+               "type": "string"
+              },
+              "additionalProperties": {
+               "type": "object",
+               "properties": {
+                "unit": {
+                 "type": "string",
+                 "enum": [
+                  "watches",
+                  "occurrences",
+                  "anchor_terms",
+                  "inventory_rows"
+                 ]
+                },
+                "denominator": {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 9007199254740991
+                },
+                "known_count": {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 9007199254740991
+                },
+                "unknown_count": {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 9007199254740991
+                },
+                "unknown_share": {
+                 "anyOf": [
+                  {
+                   "type": "number",
+                   "minimum": 0,
+                   "maximum": 1
+                  },
+                  {
+                   "type": "null"
+                  }
+                 ]
+                },
+                "items": {
+                 "type": "array",
+                 "items": {
+                  "type": "object",
+                  "properties": {
+                   "value": {
+                    "type": [
+                     "string",
+                     "null"
+                    ]
+                   },
+                   "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                   },
+                   "share": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                   }
+                  },
+                  "required": [
+                   "value",
+                   "count",
+                   "share"
+                  ],
+                  "additionalProperties": false
+                 }
+                },
+                "other_count": {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 9007199254740991
+                },
+                "truncated": {
+                 "type": "boolean"
+                }
+               },
+               "required": [
+                "unit",
+                "denominator",
+                "known_count",
+                "unknown_count",
+                "unknown_share",
+                "items",
+                "other_count",
+                "truncated"
+               ],
+               "additionalProperties": false
+              }
+             }
+            },
+            "required": [
+             "inventory_id",
+             "member_id",
+             "member_target",
+             "provider",
+             "data_mode",
+             "captured_at",
+             "member_role",
+             "retrieved_from",
+             "retrieved_to",
+             "coverage",
+             "row_count",
+             "basis",
+             "distributions"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "notes": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "set_id",
+          "revision",
+          "whole_web_coverage",
+          "absence_claim",
+          "pooled",
+          "datasets",
+          "notes"
+         ],
+         "additionalProperties": false
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "index": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "source_key": {
+           "type": "string"
+          },
+          "basis": {
+           "type": "string",
+           "const": "latest_retained_receipt_per_watch_for_source"
+          },
+          "total_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "scanned_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "partial": {
+           "type": "boolean"
+          },
+          "expired_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "missing_watches": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "distribution": {
+           "type": "object",
+           "properties": {
+            "unit": {
+             "type": "string",
+             "enum": [
+              "watches",
+              "occurrences",
+              "anchor_terms",
+              "inventory_rows"
+             ]
+            },
+            "denominator": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "known_count": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "unknown_count": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "unknown_share": {
+             "anyOf": [
+              {
+               "type": "number",
+               "minimum": 0,
+               "maximum": 1
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "items": {
+             "type": "array",
+             "items": {
+              "type": "object",
+              "properties": {
+               "value": {
+                "type": [
+                 "string",
+                 "null"
+                ]
+               },
+               "count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+               },
+               "share": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+               }
+              },
+              "required": [
+               "value",
+               "count",
+               "share"
+              ],
+              "additionalProperties": false
+             }
+            },
+            "other_count": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "truncated": {
+             "type": "boolean"
+            }
+           },
+           "required": [
+            "unit",
+            "denominator",
+            "known_count",
+            "unknown_count",
+            "unknown_share",
+            "items",
+            "other_count",
+            "truncated"
+           ],
+           "additionalProperties": false
+          },
+          "notes": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "source_key",
+          "basis",
+          "total_watches",
+          "scanned_watches",
+          "partial",
+          "expired_watches",
+          "missing_watches",
+          "distribution",
+          "notes"
+         ],
+         "additionalProperties": false
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "monitored",
+      "comparison",
+      "index"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "filename",
+    "content_type",
+    "text",
+    "dimension",
+    "report"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_link_locator",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "locator",
+   "occurrence",
+   "snapshot",
+   "context"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read matching occurrence positions and context from one retained snapshot. No current visual visibility or new crawl.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the watch returned by its create or list operation."
+    },
+    "observationId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "ID of a saved observation; this does not fetch a new publisher page."
+    },
+    "offset": {
+     "description": "The offset value; allowed values and bounds are specified in this schema.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 999
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    }
+   },
+   "required": [
+    "projectId",
+    "watchId",
+    "observationId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "workspace_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "project_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "watch_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "observation_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "observed_at": {
+     "type": "string"
+    },
+    "latest": {
+     "type": "boolean"
+    },
+    "basis": {
+     "type": "string",
+     "const": "retained_observation"
+    },
+    "availability": {
+     "type": "string",
+     "enum": [
+      "complete",
+      "incomplete",
+      "not_present"
+     ]
+    },
+    "total_occurrences": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "items": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "occurrence_index": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "anchor": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "target_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "rel": {
+        "anyOf": [
+         {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "context": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "location": {
+        "anyOf": [
+         {
+          "type": "object",
+          "properties": {
+           "line": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "column": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           }
+          },
+          "required": [
+           "line",
+           "column",
+           "offset"
+          ],
+          "additionalProperties": false
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "visibility": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      },
+      "required": [
+       "occurrence_index",
+       "anchor",
+       "target_url",
+       "rel",
+       "context",
+       "location",
+       "visibility"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "next_offset": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "notes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "workspace_id",
+    "project_id",
+    "watch_id",
+    "observation_id",
+    "observed_at",
+    "latest",
+    "basis",
+    "availability",
+    "total_occurrences",
+    "items",
+    "next_offset",
+    "notes"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_link_lifecycle",
+  "toolset": "lifecycle",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "lifecycle",
+   "rules",
+   "website"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read supplied cost, acquisition, expiry and opaque contact metadata for one monitored placement.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the watch returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId",
+    "watchId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "deal": {
+     "type": "object",
+     "properties": {
+      "costMinor": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 1000000000000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "currency": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "USD",
+          "EUR",
+          "GBP",
+          "JPY",
+          "CAD",
+          "AUD",
+          "NZD",
+          "CHF",
+          "CNY",
+          "HKD",
+          "SGD",
+          "INR",
+          "KRW",
+          "BRL",
+          "MXN",
+          "SEK",
+          "NOK",
+          "DKK",
+          "PLN",
+          "CZK",
+          "HUF",
+          "ZAR",
+          "AED",
+          "SAR",
+          "ILS",
+          "THB",
+          "TRY",
+          "IDR",
+          "MYR",
+          "PHP",
+          "VND",
+          "KWD",
+          "BHD",
+          "OMR"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "acquiredOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "expiresOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "renewalWindowDays": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 365
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactRef": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,119}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactLabel": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 120
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "dealNote": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 1000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "costMinor",
+      "currency",
+      "acquiredOn",
+      "expiresOn",
+      "renewalWindowDays",
+      "contactRef",
+      "contactLabel",
+      "dealNote"
+     ],
+     "additionalProperties": false
+    },
+    "createdAt": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "updatedAt": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "watchId",
+    "projectId",
+    "revision",
+    "deal",
+    "createdAt",
+    "updatedAt"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "update_link_lifecycle",
+  "toolset": "lifecycle",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "lifecycle",
+   "rules",
+   "website"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Set or explicitly clear placement deal fields at an expected revision. Costs use integer currency minor units; no payment or message is sent.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the watch returned by its create or list operation."
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Immutable set revision to read or compare."
+    },
+    "deal": {
+     "type": "object",
+     "properties": {
+      "costMinor": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 1000000000000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "currency": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "USD",
+          "EUR",
+          "GBP",
+          "JPY",
+          "CAD",
+          "AUD",
+          "NZD",
+          "CHF",
+          "CNY",
+          "HKD",
+          "SGD",
+          "INR",
+          "KRW",
+          "BRL",
+          "MXN",
+          "SEK",
+          "NOK",
+          "DKK",
+          "PLN",
+          "CZK",
+          "HUF",
+          "ZAR",
+          "AED",
+          "SAR",
+          "ILS",
+          "THB",
+          "TRY",
+          "IDR",
+          "MYR",
+          "PHP",
+          "VND",
+          "KWD",
+          "BHD",
+          "OMR"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "acquiredOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "expiresOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "renewalWindowDays": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 365
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactRef": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,119}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactLabel": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 120
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "dealNote": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 1000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "additionalProperties": false,
+     "description": "The deal value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "watchId",
+    "revision",
+    "deal"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "deal": {
+     "type": "object",
+     "properties": {
+      "costMinor": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 1000000000000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "currency": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "USD",
+          "EUR",
+          "GBP",
+          "JPY",
+          "CAD",
+          "AUD",
+          "NZD",
+          "CHF",
+          "CNY",
+          "HKD",
+          "SGD",
+          "INR",
+          "KRW",
+          "BRL",
+          "MXN",
+          "SEK",
+          "NOK",
+          "DKK",
+          "PLN",
+          "CZK",
+          "HUF",
+          "ZAR",
+          "AED",
+          "SAR",
+          "ILS",
+          "THB",
+          "TRY",
+          "IDR",
+          "MYR",
+          "PHP",
+          "VND",
+          "KWD",
+          "BHD",
+          "OMR"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "acquiredOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "expiresOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "renewalWindowDays": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 365
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactRef": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,119}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactLabel": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 120
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "dealNote": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 1000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "costMinor",
+      "currency",
+      "acquiredOn",
+      "expiresOn",
+      "renewalWindowDays",
+      "contactRef",
+      "contactLabel",
+      "dealNote"
+     ],
+     "additionalProperties": false
+    },
+    "createdAt": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "updatedAt": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "watchId",
+    "projectId",
+    "revision",
+    "deal",
+    "createdAt",
+    "updatedAt"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "record_lifecycle_renewals",
+  "toolset": "lifecycle",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "lifecycle",
+   "rules",
+   "website"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Retain due renewal-window events for one project without sending messages or changing monitoring state. Repeated calls do not duplicate a window.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "limit": {
+     "default": 100,
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "emitted": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "evaluated": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "more": {
+     "type": "boolean"
+    },
+    "asOf": {
+     "type": "string"
+    },
+    "delivery": {
+     "type": "string",
+     "const": "retained_only"
+    }
+   },
+   "required": [
+    "emitted",
+    "evaluated",
+    "more",
+    "asOf",
+    "delivery"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_lifecycle_report",
+  "toolset": "lifecycle",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "lifecycle",
+   "rules",
+   "website"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Group retained supplied costs by destination host, placement state, acquisition month and currency. No currency conversion or financial-loss estimate.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "from": {
+     "description": "The from value; allowed values and bounds are specified in this schema.",
+     "type": "string"
+    },
+    "to": {
+     "description": "The to value; allowed values and bounds are specified in this schema.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "periodBasis": {
+     "type": "string",
+     "const": "customer_supplied_acquired_on"
+    },
+    "buckets": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "website": {
+        "type": "string"
+       },
+       "state": {
+        "type": "string"
+       },
+       "period": {
+        "type": "string"
+       },
+       "currency": {
+        "type": "string",
+        "enum": [
+         "USD",
+         "EUR",
+         "GBP",
+         "JPY",
+         "CAD",
+         "AUD",
+         "NZD",
+         "CHF",
+         "CNY",
+         "HKD",
+         "SGD",
+         "INR",
+         "KRW",
+         "BRL",
+         "MXN",
+         "SEK",
+         "NOK",
+         "DKK",
+         "PLN",
+         "CZK",
+         "HUF",
+         "ZAR",
+         "AED",
+         "SAR",
+         "ILS",
+         "THB",
+         "TRY",
+         "IDR",
+         "MYR",
+         "PHP",
+         "VND",
+         "KWD",
+         "BHD",
+         "OMR"
+        ]
+       },
+       "placements": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "costMinor": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "confirmedMissingCostMinor": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "lostBeforeExpiryCostMinor": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "website",
+       "state",
+       "period",
+       "currency",
+       "placements",
+       "costMinor",
+       "confirmedMissingCostMinor",
+       "lostBeforeExpiryCostMinor"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "noCost": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "excludedUndated": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "scope": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "projectId",
+    "periodBasis",
+    "buckets",
+    "noCost",
+    "excludedUndated",
+    "scope"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "reevaluate_admission",
+  "toolset": "admission",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "admission",
+   "reevaluate",
+   "report"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Report how current rules classify retained watches or candidates. Never changes records or requests checks; per-import domain caps do not apply.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "source": {
+     "type": "string",
+     "enum": [
+      "watches",
+      "candidates"
+     ],
+     "description": "The source value; allowed values and bounds are specified in this schema."
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "maxLength": 1024
+    }
+   },
+   "required": [
+    "projectId",
+    "source"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "project_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "source": {
+     "type": "string",
+     "enum": [
+      "watches",
+      "candidates"
+     ]
+    },
+    "rows": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "subject_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "decision": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "url": {
+          "type": "string"
+         },
+         "normalized_url": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "host": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "decision": {
+          "type": "string",
+          "enum": [
+           "admitted",
+           "rejected"
+          ]
+         },
+         "reason": {
+          "type": "string"
+         },
+         "rule_kind": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "rule_id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "rule_value": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "cap": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+             },
+             "used": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             }
+            },
+            "required": [
+             "limit",
+             "used"
+            ],
+            "additionalProperties": false
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "index",
+         "url",
+         "normalized_url",
+         "host",
+         "decision",
+         "reason",
+         "rule_kind",
+         "rule_id",
+         "rule_value",
+         "cap"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "required": [
+       "subject_id",
+       "decision"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "page_summary": {
+     "type": "object",
+     "properties": {
+      "total": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "admitted": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "rejected": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "by_rule": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      }
+     },
+     "required": [
+      "total",
+      "admitted",
+      "rejected",
+      "by_rule"
+     ],
+     "additionalProperties": false
+    },
+    "policy_revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "disavow_revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "next_cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "report_only": {
+     "type": "boolean",
+     "const": true
+    },
+    "snapshot": {
+     "type": "boolean",
+     "const": false
+    },
+    "domain_cap_applied": {
+     "type": "boolean",
+     "const": false
+    }
+   },
+   "required": [
+    "project_id",
+    "source",
+    "rows",
+    "page_summary",
+    "policy_revision",
+    "disavow_revision",
+    "next_cursor",
+    "has_more",
+    "report_only",
+    "snapshot",
+    "domain_cap_applied"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_admission_decisions",
+  "toolset": "admission",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "admission",
+   "decisions",
+   "receipt"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Read the immutable decisions for one prior admission operation. Historical admission is not authorization for new work.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "operationId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the operation returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId",
+    "operationId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "operation_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "project_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "context": {
+     "type": "string",
+     "enum": [
+      "import",
+      "candidate",
+      "candidate_batch",
+      "serve"
+     ]
+    },
+    "decisions": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "index": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "url": {
+        "type": "string"
+       },
+       "normalized_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "host": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "decision": {
+        "type": "string",
+        "enum": [
+         "admitted",
+         "rejected"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       },
+       "rule_kind": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "rule_id": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "rule_value": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "cap": {
+        "anyOf": [
+         {
+          "type": "object",
+          "properties": {
+           "limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+           },
+           "used": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           }
+          },
+          "required": [
+           "limit",
+           "used"
+          ],
+          "additionalProperties": false
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "subject_key": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       }
+      },
+      "required": [
+       "index",
+       "url",
+       "normalized_url",
+       "host",
+       "decision",
+       "reason",
+       "rule_kind",
+       "rule_id",
+       "rule_value",
+       "cap",
+       "subject_key"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "summary": {
+     "type": "object",
+     "properties": {
+      "total": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "admitted": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "rejected": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "by_rule": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      }
+     },
+     "required": [
+      "total",
+      "admitted",
+      "rejected",
+      "by_rule"
+     ],
+     "additionalProperties": false
+    },
+    "policy_revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "disavow_revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "replayed": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "operation_id",
+    "project_id",
+    "context",
+    "decisions",
+    "summary",
+    "policy_revision",
+    "disavow_revision",
+    "replayed"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_admission_rules",
+  "toolset": "admission",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "admission",
+   "rules",
+   "website"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "List website admission rules and the count of active human-approved disavow rules. No checks are requested.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "maxLength": 4096
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "reject_domain",
+         "reject_url_pattern",
+         "require_pattern",
+         "domain_cap"
+        ]
+       },
+       "value": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string",
+        "const": "manual"
+       },
+       "enabled": {
+        "type": "boolean"
+       },
+       "note": {
+        "type": "string"
+       },
+       "revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "updated_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "kind",
+       "value",
+       "source",
+       "enabled",
+       "note",
+       "revision",
+       "created_by",
+       "created_at",
+       "updated_at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "managed_disavow_count": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "rules",
+    "revision",
+    "managed_disavow_count",
+    "cursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "add_admission_rule",
+  "toolset": "admission",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "admission",
+   "rules",
+   "website"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:write"
+  ],
+  "readOnly": false,
+  "description": "Add a customer-selected admission rule for a website. Existing monitoring history is preserved.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "reject_domain",
+      "reject_url_pattern",
+      "require_pattern",
+      "domain_cap"
+     ],
+     "description": "The kind value; allowed values and bounds are specified in this schema."
+    },
+    "value": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 300,
+     "description": "The value value; allowed values and bounds are specified in this schema."
+    },
+    "enabled": {
+     "description": "The enabled value; allowed values and bounds are specified in this schema.",
+     "type": "boolean"
+    },
+    "note": {
+     "description": "The note value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "maxLength": 1000
+    }
+   },
+   "required": [
+    "projectId",
+    "kind",
+    "value"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rule": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "workspace_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "reject_domain",
+        "reject_url_pattern",
+        "require_pattern",
+        "domain_cap"
+       ]
+      },
+      "value": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string",
+       "const": "manual"
+      },
+      "enabled": {
+       "type": "boolean"
+      },
+      "note": {
+       "type": "string"
+      },
+      "revision": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "created_by": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "created_at": {
+       "type": "string"
+      },
+      "updated_at": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "workspace_id",
+      "project_id",
+      "kind",
+      "value",
+      "source",
+      "enabled",
+      "note",
+      "revision",
+      "created_by",
+      "created_at",
+      "updated_at"
+     ],
+     "additionalProperties": false
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "created": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "rule",
+    "revision",
+    "created"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "update_admission_rule",
+  "toolset": "admission",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "admission",
+   "rules",
+   "website"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:write"
+  ],
+  "readOnly": false,
+  "description": "Update a website admission rule at its expected revision. Reload on a revision conflict.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "ruleId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the rule returned by its create or list operation."
+    },
+    "revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Immutable set revision to read or compare."
+    },
+    "value": {
+     "description": "The value value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 300
+    },
+    "enabled": {
+     "description": "The enabled value; allowed values and bounds are specified in this schema.",
+     "type": "boolean"
+    },
+    "note": {
+     "description": "The note value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "maxLength": 1000
+    }
+   },
+   "required": [
+    "projectId",
+    "ruleId",
+    "revision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rule": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "workspace_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "reject_domain",
+        "reject_url_pattern",
+        "require_pattern",
+        "domain_cap"
+       ]
+      },
+      "value": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string",
+       "const": "manual"
+      },
+      "enabled": {
+       "type": "boolean"
+      },
+      "note": {
+       "type": "string"
+      },
+      "revision": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "created_by": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "created_at": {
+       "type": "string"
+      },
+      "updated_at": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "workspace_id",
+      "project_id",
+      "kind",
+      "value",
+      "source",
+      "enabled",
+      "note",
+      "revision",
+      "created_by",
+      "created_at",
+      "updated_at"
+     ],
+     "additionalProperties": false
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "created": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "rule",
+    "revision",
+    "created"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "delete_admission_rule",
+  "toolset": "admission",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "admission",
+   "rules",
+   "website"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:write"
+  ],
+  "readOnly": false,
+  "description": "Remove one website admission rule at its expected revision. Retained decisions and monitoring history remain available.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "ruleId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the rule returned by its create or list operation."
+    },
+    "revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Immutable set revision to read or compare."
+    }
+   },
+   "required": [
+    "projectId",
+    "ruleId",
+    "revision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "deleted": {
+     "type": "boolean",
+     "const": true
+    },
+    "rule_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "deleted",
+    "rule_id",
+    "revision"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "evaluate_admission",
+  "toolset": "admission",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "admission",
+   "rules",
+   "website"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Preview decisions for up to 200 URLs against current website rules. Returns matched rules and counts without storing decisions or requesting checks.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "urls": {
+     "minItems": 1,
+     "maxItems": 200,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "maxLength": 2048
+     },
+     "description": "The urls value; allowed values and bounds are specified in this schema."
+    },
+    "context": {
+     "description": "The context value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "enum": [
+      "point",
+      "import"
+     ]
+    }
+   },
+   "required": [
+    "projectId",
+    "urls"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "decisions": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "index": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "url": {
+        "type": "string"
+       },
+       "normalized_url": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "host": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "decision": {
+        "type": "string",
+        "enum": [
+         "admitted",
+         "rejected"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       },
+       "rule_kind": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "rule_id": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "rule_value": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "cap": {
+        "anyOf": [
+         {
+          "type": "object",
+          "properties": {
+           "limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+           },
+           "used": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           }
+          },
+          "required": [
+           "limit",
+           "used"
+          ],
+          "additionalProperties": false
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [
+       "index",
+       "url",
+       "normalized_url",
+       "host",
+       "decision",
+       "reason",
+       "rule_kind",
+       "rule_id",
+       "rule_value",
+       "cap"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "summary": {
+     "type": "object",
+     "properties": {
+      "total": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "admitted": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "rejected": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "by_rule": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      }
+     },
+     "required": [
+      "total",
+      "admitted",
+      "rejected",
+      "by_rule"
+     ],
+     "additionalProperties": false
+    },
+    "policy_revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "disavow_revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "context": {
+     "type": "string",
+     "enum": [
+      "point",
+      "import"
+     ]
+    },
+    "recorded": {
+     "type": "boolean",
+     "const": false
+    }
+   },
+   "required": [
+    "decisions",
+    "summary",
+    "policy_revision",
+    "disavow_revision",
+    "context",
+    "recorded"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_owner_digest",
+  "toolset": "digests",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "owner digest",
+   "email",
+   "website",
+   "notifications"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "events:read"
+  ],
+  "readOnly": true,
+  "description": "Read your own website digest settings. Requires a signed-in owner or administrator.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "frequency": {
+     "type": "string",
+     "enum": [
+      "off",
+      "daily",
+      "weekly"
+     ]
+    },
+    "categories": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "enum": [
+       "placements",
+       "destinations",
+       "competitors",
+       "index",
+       "renewals"
+      ]
+     }
+    },
+    "recipient": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "hourUtc": {
+     "type": "number",
+     "const": 3
+    },
+    "weekdayUtc": {
+     "type": "number",
+     "const": 1
+    },
+    "nextAt": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "delivery": {
+     "type": "string",
+     "enum": [
+      "disabled",
+      "ready"
+     ]
+    }
+   },
+   "required": [
+    "projectId",
+    "revision",
+    "frequency",
+    "categories",
+    "recipient",
+    "hourUtc",
+    "weekdayUtc",
+    "nextAt",
+    "delivery"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "save_owner_digest",
+  "toolset": "digests",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "owner digest",
+   "email",
+   "website",
+   "notifications"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "notifications:write"
+  ],
+  "readOnly": false,
+  "description": "Set your own website digest to off, daily or weekly at 03:00 UTC. No recipient override; live delivery remains separately gated.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Immutable set revision to read or compare."
+    },
+    "frequency": {
+     "type": "string",
+     "enum": [
+      "off",
+      "daily",
+      "weekly"
+     ],
+     "description": "The frequency value; allowed values and bounds are specified in this schema."
+    },
+    "categories": {
+     "minItems": 1,
+     "maxItems": 5,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "enum": [
+       "placements",
+       "destinations",
+       "competitors",
+       "index",
+       "renewals"
+      ]
+     },
+     "description": "The categories value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "revision",
+    "frequency",
+    "categories"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "frequency": {
+     "type": "string",
+     "enum": [
+      "off",
+      "daily",
+      "weekly"
+     ]
+    },
+    "categories": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "enum": [
+       "placements",
+       "destinations",
+       "competitors",
+       "index",
+       "renewals"
+      ]
+     }
+    },
+    "recipient": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "hourUtc": {
+     "type": "number",
+     "const": 3
+    },
+    "weekdayUtc": {
+     "type": "number",
+     "const": 1
+    },
+    "nextAt": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "delivery": {
+     "type": "string",
+     "enum": [
+      "disabled",
+      "ready"
+     ]
+    }
+   },
+   "required": [
+    "projectId",
+    "revision",
+    "frequency",
+    "categories",
+    "recipient",
+    "hourUtc",
+    "weekdayUtc",
+    "nextAt",
+    "delivery"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_owner_digest_deliveries",
+  "toolset": "digests",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "owner digest",
+   "email",
+   "website",
+   "notifications"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "events:read"
+  ],
+  "readOnly": true,
+  "description": "Read your website digest handoff states, signed provider outcomes and remaining outbox capacity. Accepted does not mean delivered.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "before": {
+     "description": "The before value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "deliveries": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "state": {
+        "type": "string",
+        "enum": [
+         "pending",
+         "sending",
+         "accepted",
+         "unknown",
+         "cancelled",
+         "failed"
+        ]
+       },
+       "providerState": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "delivered",
+           "bounced",
+           "complained",
+           "failed",
+           "suppressed"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "windowEnd": {
+        "type": "string"
+       },
+       "createdAt": {
+        "type": "string"
+       },
+       "updatedAt": {
+        "type": "string"
+       },
+       "errorCode": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      },
+      "required": [
+       "id",
+       "state",
+       "providerState",
+       "windowEnd",
+       "createdAt",
+       "updatedAt",
+       "errorCode"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "capacity": {
+     "type": "object",
+     "properties": {
+      "used": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "limit": {
+       "type": "number",
+       "const": 100
+      },
+      "unresolved": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "blocked": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "used",
+      "limit",
+      "unresolved",
+      "blocked"
+     ],
+     "additionalProperties": false
+    },
+    "nextCursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "deliveries",
+    "capacity",
+    "nextCursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_owner_digest_event",
+  "toolset": "digests",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "owner digest",
+   "email",
+   "website",
+   "notifications"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "events:read"
+  ],
+  "readOnly": true,
+  "description": "Read the exact retained website event linked from an owner digest. Expired or unavailable history is explicit.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "category": {
+     "type": "string",
+     "enum": [
+      "placements",
+      "destinations",
+      "competitors",
+      "index",
+      "renewals"
+     ],
+     "description": "The category value; allowed values and bounds are specified in this schema."
+    },
+    "eventId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the event returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId",
+    "category",
+    "eventId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "category": {
+     "type": "string",
+     "enum": [
+      "placements",
+      "destinations",
+      "competitors",
+      "index",
+      "renewals"
+     ]
+    },
+    "type": {
+     "type": "string"
+    },
+    "subjectId": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "at": {
+     "type": "string"
+    },
+    "state": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "sourceUrl": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "targetUrl": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "sourceAvailable": {
+     "type": "boolean"
+    },
+    "expiresOn": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "projectId",
+    "category",
+    "type",
+    "subjectId",
+    "at",
+    "state",
+    "sourceUrl",
+    "targetUrl",
+    "sourceAvailable",
+    "expiresOn"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_disavow_rules",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "List proposed, approved or rejected website disavow rules. Proposals do not affect export or admission.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "status": {
+     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "type": "string",
+     "enum": [
+      "proposed",
+      "active",
+      "rejected"
+     ]
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "maxLength": 4096
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "domain",
+         "url"
+        ]
+       },
+       "value": {
+        "type": "string"
+       },
+       "identity": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string",
+        "enum": [
+         "manual",
+         "import",
+         "agent_proposal"
+        ]
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "proposed",
+         "active",
+         "rejected"
+        ]
+       },
+       "comments": {
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 120,
+         "format": "starts_with",
+         "pattern": "^#.*"
+        }
+       },
+       "revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "approved_by": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "updated_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "kind",
+       "value",
+       "identity",
+       "source",
+       "status",
+       "comments",
+       "revision",
+       "created_by",
+       "approved_by",
+       "created_at",
+       "updated_at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "rules",
+    "revision",
+    "cursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "propose_disavow_rule",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Propose one disavow rule. Activating a rule requires a signed-in owner or administrator; agent credentials cannot approve.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "domain",
+      "url"
+     ],
+     "description": "The kind value; allowed values and bounds are specified in this schema."
+    },
+    "value": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 2048,
+     "description": "The value value; allowed values and bounds are specified in this schema."
+    },
+    "comments": {
+     "description": "The comments value; allowed values and bounds are specified in this schema.",
+     "maxItems": 8,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "maxLength": 120,
+      "format": "starts_with",
+      "pattern": "^#.*"
+     }
+    },
+    "source": {
+     "description": "The source value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "enum": [
+      "manual",
+      "agent_proposal"
+     ]
+    },
+    "status": {
+     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "type": "string",
+     "enum": [
+      "proposed",
+      "active"
+     ]
+    }
+   },
+   "required": [
+    "projectId",
+    "kind",
+    "value"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "domain",
+         "url"
+        ]
+       },
+       "value": {
+        "type": "string"
+       },
+       "identity": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string",
+        "enum": [
+         "manual",
+         "import",
+         "agent_proposal"
+        ]
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "proposed",
+         "active",
+         "rejected"
+        ]
+       },
+       "comments": {
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 120,
+         "format": "starts_with",
+         "pattern": "^#.*"
+        }
+       },
+       "revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "approved_by": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "updated_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "kind",
+       "value",
+       "identity",
+       "source",
+       "status",
+       "comments",
+       "revision",
+       "created_by",
+       "approved_by",
+       "created_at",
+       "updated_at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "created": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "unchanged": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "rules",
+    "created",
+    "unchanged",
+    "revision"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "import_disavow_rules",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Import a Google-format disavow file as inert proposals. Existing rules are not replaced; human approval is required before export.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "text": {
+     "type": "string",
+     "maxLength": 163840,
+     "description": "The text value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "text"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "domain",
+         "url"
+        ]
+       },
+       "value": {
+        "type": "string"
+       },
+       "identity": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string",
+        "enum": [
+         "manual",
+         "import",
+         "agent_proposal"
+        ]
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "proposed",
+         "active",
+         "rejected"
+        ]
+       },
+       "comments": {
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 120,
+         "format": "starts_with",
+         "pattern": "^#.*"
+        }
+       },
+       "revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "approved_by": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "updated_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "kind",
+       "value",
+       "identity",
+       "source",
+       "status",
+       "comments",
+       "revision",
+       "created_by",
+       "approved_by",
+       "created_at",
+       "updated_at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "created": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "unchanged": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "rules",
+    "created",
+    "unchanged",
+    "revision"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "review_disavow_rule",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Approve or reject a rule at its current revision. Requires a signed-in owner or administrator; agent credentials cannot approve.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "ruleId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the rule returned by its create or list operation."
+    },
+    "revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Immutable set revision to read or compare."
+    },
+    "decision": {
+     "type": "string",
+     "enum": [
+      "approve",
+      "reject"
+     ],
+     "description": "The decision value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "ruleId",
+    "revision",
+    "decision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "domain",
+         "url"
+        ]
+       },
+       "value": {
+        "type": "string"
+       },
+       "identity": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string",
+        "enum": [
+         "manual",
+         "import",
+         "agent_proposal"
+        ]
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "proposed",
+         "active",
+         "rejected"
+        ]
+       },
+       "comments": {
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 120,
+         "format": "starts_with",
+         "pattern": "^#.*"
+        }
+       },
+       "revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "approved_by": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "updated_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "kind",
+       "value",
+       "identity",
+       "source",
+       "status",
+       "comments",
+       "revision",
+       "created_by",
+       "approved_by",
+       "created_at",
+       "updated_at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "created": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "unchanged": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "rules",
+    "created",
+    "unchanged",
+    "revision"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "delete_disavow_rule",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Remove one rule at its current revision. Requires a signed-in owner or administrator. Monitoring history is retained.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "ruleId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the rule returned by its create or list operation."
+    },
+    "revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Immutable set revision to read or compare."
+    }
+   },
+   "required": [
+    "projectId",
+    "ruleId",
+    "revision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "deleted": {
+     "type": "boolean",
+     "const": true
+    },
+    "rule_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "deleted",
+    "rule_id",
+    "revision"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "export_disavow_rules",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": false,
+  "description": "Export approved rules as deterministic Google-format text and record its hash receipt. Never submits to Google.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "filename": {
+     "type": "string",
+     "const": "disavow.txt"
+    },
+    "content_type": {
+     "type": "string",
+     "const": "text/plain; charset=utf-8"
+    },
+    "text": {
+     "type": "string"
+    },
+    "receipt": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "workspace_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "format_version": {
+       "type": "number",
+       "const": 1
+      },
+      "sha256": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "stored_active_count": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "effective_count": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "byte_length": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "collection_revision": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "source_revisions": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         "revision": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+         }
+        },
+        "required": [
+         "id",
+         "revision"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "created_by": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "created_at": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "workspace_id",
+      "project_id",
+      "format_version",
+      "sha256",
+      "stored_active_count",
+      "effective_count",
+      "byte_length",
+      "collection_revision",
+      "source_revisions",
+      "created_by",
+      "created_at"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "filename",
+    "content_type",
+    "text",
+    "receipt"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_disavow_exports",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "List dated disavow export receipts with content hashes and source rule revisions.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "maxLength": 4096
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "receipts": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "format_version": {
+        "type": "number",
+        "const": 1
+       },
+       "sha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "stored_active_count": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "effective_count": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "byte_length": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "collection_revision": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "source_revisions": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "revision": {
+           "type": "integer",
+           "exclusiveMinimum": 0,
+           "maximum": 9007199254740991
+          }
+         },
+         "required": [
+          "id",
+          "revision"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "created_by": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "created_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "format_version",
+       "sha256",
+       "stored_active_count",
+       "effective_count",
+       "byte_length",
+       "collection_revision",
+       "source_revisions",
+       "created_by",
+       "created_at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "receipts",
+    "cursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
  {
   "name": "preview_resource_deletion",
   "toolset": "workspace",
@@ -3804,6 +9246,134 @@ export const CATALOG_COMMANDS = [
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
+    },
+    "deal": {
+     "description": "The deal value; allowed values and bounds are specified in this schema.",
+     "type": "object",
+     "properties": {
+      "costMinor": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 1000000000000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "currency": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "USD",
+          "EUR",
+          "GBP",
+          "JPY",
+          "CAD",
+          "AUD",
+          "NZD",
+          "CHF",
+          "CNY",
+          "HKD",
+          "SGD",
+          "INR",
+          "KRW",
+          "BRL",
+          "MXN",
+          "SEK",
+          "NOK",
+          "DKK",
+          "PLN",
+          "CZK",
+          "HUF",
+          "ZAR",
+          "AED",
+          "SAR",
+          "ILS",
+          "THB",
+          "TRY",
+          "IDR",
+          "MYR",
+          "PHP",
+          "VND",
+          "KWD",
+          "BHD",
+          "OMR"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "acquiredOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "expiresOn": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "renewalWindowDays": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 365
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactRef": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,119}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "contactLabel": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 120
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "dealNote": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 1000
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "additionalProperties": false
+    },
+    "dealRevision": {
+     "description": "The deal revision value; allowed values and bounds are specified in this schema.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
     }
    },
    "required": [
@@ -3816,6 +9386,178 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "lifecycle": {
+     "type": "object",
+     "properties": {
+      "watchId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "projectId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "revision": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "deal": {
+       "type": "object",
+       "properties": {
+        "costMinor": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 1000000000000
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "currency": {
+         "anyOf": [
+          {
+           "type": "string",
+           "enum": [
+            "USD",
+            "EUR",
+            "GBP",
+            "JPY",
+            "CAD",
+            "AUD",
+            "NZD",
+            "CHF",
+            "CNY",
+            "HKD",
+            "SGD",
+            "INR",
+            "KRW",
+            "BRL",
+            "MXN",
+            "SEK",
+            "NOK",
+            "DKK",
+            "PLN",
+            "CZK",
+            "HUF",
+            "ZAR",
+            "AED",
+            "SAR",
+            "ILS",
+            "THB",
+            "TRY",
+            "IDR",
+            "MYR",
+            "PHP",
+            "VND",
+            "KWD",
+            "BHD",
+            "OMR"
+           ]
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "acquiredOn": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "expiresOn": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "renewalWindowDays": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 1,
+           "maximum": 365
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "contactRef": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,119}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "contactLabel": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 120
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "dealNote": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 1000
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "costMinor",
+        "currency",
+        "acquiredOn",
+        "expiresOn",
+        "renewalWindowDays",
+        "contactRef",
+        "contactLabel",
+        "dealNote"
+       ],
+       "additionalProperties": false
+      },
+      "createdAt": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "updatedAt": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "watchId",
+      "projectId",
+      "revision",
+      "deal",
+      "createdAt",
+      "updatedAt"
+     ],
+     "additionalProperties": false
+    },
     "watch": {
      "type": "object",
      "properties": {
