@@ -27,14 +27,20 @@ test('malformed local evidence prevents sync rather than silently dropping rows'
 import { mkdir, readFile, symlink } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { syncEvidence } from '../src/citations/sync.js';
-async function evidenceFixture(count = 6) {
+import { evidenceEnvelopeSchema } from '../src/citations/contract.js';
+async function evidenceFixture(count = 6, options = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'citation-evidence-sync-'));
   const epoch = 'fixture-epoch'; await mkdir(join(dir, 'citations/evidence', epoch), { recursive: true });
   const rows = [];
   for (let i = 0; i < count; i++) {
-    const digest = i.toString(16).padStart(64, '0');
-    const envelope = { schema_version: 1, epoch_id: epoch, cell_id: 'mock:builtin|q|d:example.com', run_index: i, prompt: 'Fixture prompt', engine_identity: 'mock:builtin', provider_model_version: 'mock:1', answer: 'Fixture answer', citations: [], usage: { input_tokens: 0, output_tokens: 0 }, cost_estimate_usd: 0, at: new Date().toISOString(), screenshot_file: 'fixture.png' };
-    await writeFile(join(dir, 'citations/evidence', epoch, digest + '.json'), JSON.stringify(envelope, null, 2));
+    const identity = options.engine ?? 'mock:builtin';
+    const envelope = { schema_version: 1, epoch_id: epoch, cell_id: `${identity}|q|d:example.com`, run_index: i,
+      prompt: 'Fixture prompt', engine_identity: identity, provider_model_version: 'mock:1',
+      answer: options.answer ?? 'Fixture answer', citations: [], fan_out: [], usage: { input_tokens: 0, output_tokens: 0 },
+      cost_estimate_usd: 0, at: new Date().toISOString() };
+    const digest = createHash('sha256').update(JSON.stringify(envelope)).digest('hex');
+    envelope.screenshot_file = `${digest}.screenshot.png`;
+    await writeFile(join(dir, 'citations/evidence', epoch, digest + '.json'), JSON.stringify(evidenceEnvelopeSchema.parse(envelope), null, 2));
     rows.push({ epoch_id: epoch, cell_id: envelope.cell_id, run_index: i, evidence_sha256: digest });
   }
   await writeFile(join(dir, 'citations-observations.jsonl'), rows.map(JSON.stringify).join('\n'));
@@ -47,7 +53,7 @@ test('evidence sync preserves exact bytes and SHA, batches five, never uploads p
     assert.deepEqual(batches.map(batch => batch.records.length), [5, 1]); assert.equal(result.synced, 6);
     const record = batches[0].records[0]; const text = await readFile(fixture.path, 'utf8');
     assert.equal(record.envelopeJson, text); assert.equal(record.sha256, createHash('sha256').update(text).digest('hex'));
-    assert.notEqual(record.sha256, record.localEvidenceSha256); assert.deepEqual(record.screenshot, { reference: 'fixture.png', sha256: null });
+    assert.notEqual(record.sha256, record.localEvidenceSha256); assert.deepEqual(record.screenshot, { reference: `${fixture.rows[0].evidence_sha256}.screenshot.png`, sha256: null });
     assert.ok(!JSON.stringify(batches).includes('base64'));
   } finally { await rm(fixture.dir, { recursive: true, force: true }); }
 });
@@ -63,22 +69,16 @@ test('evidence sync rejects malformed identity and escaping symlinks before send
   } finally { await rm(fixture.dir, { recursive: true, force: true }); }
 });
 test('missing or unproven legacy AIO evidence produces explicit partial reasons', async () => {
-  const fixture = await evidenceFixture(2);
+  const fixture = await evidenceFixture(2, {engine:'google-aio:api'});
   try {
     await rm(fixture.path);
-    const other = join(fixture.dir, 'citations/evidence/fixture-epoch', fixture.rows[1].evidence_sha256 + '.json');
-    await writeFile(other, (await readFile(other, 'utf8')).replace('"engine_identity": "mock:builtin"', '"engine_identity": "google-aio:api"'));
     const result = await syncEvidence({ dir: fixture.dir, projectId: 'p', cliVersion: '0.6.2', api: async () => assert.fail('must not send') });
     assert.equal(result.skipped, 2); assert.deepEqual(result.reasons, { missing_envelope: 1, legacy_aio_without_provenance: 1 });
   } finally { await rm(fixture.dir, { recursive: true, force: true }); }
 });
 test('evidence batching respects encoded request bytes and preflights the full selection', async () => {
-  const fixture = await evidenceFixture(5); const batches = [];
+  const fixture = await evidenceFixture(5, {answer:'x'.repeat(48000)}); const batches = [];
   try {
-    for (const row of fixture.rows) {
-      const path = join(fixture.dir, 'citations/evidence/fixture-epoch', row.evidence_sha256 + '.json');
-      const envelope = JSON.parse(await readFile(path, 'utf8')); envelope.answer = 'x'.repeat(48000); await writeFile(path, JSON.stringify(envelope));
-    }
     const run = () => syncEvidence({ dir: fixture.dir, projectId: 'p', cliVersion: '0.6.2', api: async (_, init) => batches.push(init.body) });
     await run(); assert.deepEqual(batches.map(batch => batch.records.length), [4, 1]);
     assert.ok(batches.every(batch => Buffer.byteLength(JSON.stringify(batch)) <= 196608));
@@ -97,4 +97,34 @@ test('legacy smoothed rates are explicitly projected without rewriting evidence'
  assert.equal(result.normalized_rates,1); assert.match(result.normalization,/unchanged/);
  assert.equal(await readFile(join(dir,'citations-epochs.jsonl'),'utf8'),text);
  } finally {await rm(dir,{recursive:true,force:true});}
+});
+
+test('evidence sync rejects changed answer, citations and screenshot binding before any upload', async () => {
+  const fixture = await evidenceFixture(6); let sends = 0;
+  const path = join(fixture.dir, 'citations/evidence/fixture-epoch', fixture.rows[5].evidence_sha256 + '.json');
+  try {
+    const original = await readFile(path, 'utf8');
+    for (const mutation of [
+      value => { value.answer = 'Changed answer'; },
+      value => { value.unverified_extra = 'fixture-private-sentinel'; },
+      value => { value.usage.unverified_extra = 'fixture-private-sentinel'; },
+      value => { value.citations = [{url:'https://example.com/changed'}]; },
+      value => { value.screenshot_file = `${'a'.repeat(64)}.screenshot.png`; },
+    ]) {
+      const envelope = JSON.parse(original); mutation(envelope);
+      await writeFile(path, JSON.stringify(envelope));
+      await assert.rejects(syncEvidence({dir:fixture.dir,projectId:'p',cliVersion:'0.6.6',api:async()=>sends++}), /digest/);
+      assert.equal(sends, 0, 'full selection must validate before first batch');
+    }
+  } finally { await rm(fixture.dir, {recursive:true,force:true}); }
+});
+
+test('conflicting duplicate envelope references reject the complete selection before upload', async () => {
+  const fixture = await evidenceFixture(1); let sends = 0;
+  try {
+    const rows = [fixture.rows[0], {...fixture.rows[0],run_index:99}];
+    await writeFile(join(fixture.dir,'citations-observations.jsonl'),rows.map(JSON.stringify).join('\n'));
+    await assert.rejects(syncEvidence({dir:fixture.dir,projectId:'p',cliVersion:'0.6.6',api:async()=>sends++}), /Conflicting/);
+    assert.equal(sends,0);
+  } finally {await rm(fixture.dir,{recursive:true,force:true});}
 });

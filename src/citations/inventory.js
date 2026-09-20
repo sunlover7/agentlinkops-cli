@@ -1,20 +1,45 @@
 import { readFile, readdir, lstat, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { citationPanelSchema, evidenceEnvelopeSchema, targetKey } from './contract.js';
+import { citationPanelSchema, evidenceEnvelopeSchema, observationRowSchema, targetKey } from './contract.js';
 import { panelEpochs } from './report.js';
+import { verifyLocalEvidenceDigest } from './evidence-integrity.js';
 import { analyzeRetainedAnswer } from './match.js';
 import { parseOpportunityRecord, opportunityRecordId, ELIGIBILITY_GATES } from '../../shared/opportunity-record.js';
 const hash = value => createHash('sha256').update(value).digest('hex');
+
+async function observationReferences(root, epochId, cells) {
+  const path = join(root, 'citations-observations.jsonl');
+  let text;
+  try {
+    if (!(await lstat(path)).isFile() || !(await realpath(path)).startsWith(root + '/')) throw new Error('Unsafe observation ledger');
+    text = await readFile(path, 'utf8');
+  } catch (error) { if (error.code === 'ENOENT') return new Map(); throw error; }
+  const references = new Map();
+  for (const line of text.split('\n').filter(line => line.trim())) {
+    let raw;
+    try { raw = JSON.parse(line); } catch { throw new Error('Invalid observation ledger JSON'); }
+    if (raw.epoch_id !== epochId || !cells.some(cell => cell.cell_id === raw.cell_id)) continue;
+    const parsed = observationRowSchema.safeParse(raw);
+    if (!parsed.success || !/^[a-f0-9]{64}$/.test(parsed.data.evidence_sha256)) throw new Error('Invalid retained observation reference');
+    const row = parsed.data, identity = `${row.cell_id}|${row.run_index}`;
+    const previous = references.get(identity);
+    if (previous && JSON.stringify(previous) !== JSON.stringify(row)) throw new Error('Conflicting retained observation identity');
+    references.set(identity, row);
+  }
+  return references;
+}
 
 export async function freezeCitationInventory({ dir, panel: input, epochId }) {
   const panel = citationPanelSchema.parse(input);
   const epochs = await panelEpochs({ dir, panel });
   const cells = epochId ? epochs.find(rows => rows[0]?.epoch_id === epochId) : epochs[0];
   if (!cells) throw new Error('No matching panel epoch to freeze');
+  if (cells.some(cell => !Number.isSafeInteger(cell.n) || cell.n < 0 || !Number.isSafeInteger(cell.unknowns) || cell.unknowns < 0 || !Number.isSafeInteger(cell.n + cell.unknowns))) throw new Error('Invalid retained epoch sample counts');
   epochId = cells[0].epoch_id;
   if (!/^[A-Za-z0-9_.-]+$/.test(epochId) || ['.', '..'].includes(epochId)) throw new Error('Invalid epoch reference');
   const root = await realpath(resolve(dir)); const evidenceDir = join(root, 'citations/evidence', epochId);
+  const references = await observationReferences(root, epochId, cells);
   let files = [];
   try {
     if (!(await lstat(evidenceDir)).isDirectory() || !(await realpath(evidenceDir)).startsWith(root + '/')) throw new Error('Unsafe evidence directory');
@@ -28,21 +53,26 @@ export async function freezeCitationInventory({ dir, panel: input, epochId }) {
     let envelope, text;
     try { text = await readFile(path, 'utf8'); envelope = evidenceEnvelopeSchema.parse(JSON.parse(text)); }
     catch { invalid++; continue; }
-    if (envelope.epoch_id !== epochId || !cells.some(cell => cell.cell_id === envelope.cell_id)) continue;
+    const cell = cells.find(cell => cell.cell_id === envelope.cell_id);
+    if (envelope.epoch_id !== epochId || !cell) { invalid++; continue; }
     const identity = `${envelope.cell_id}|${envelope.run_index}`;
+    const reference = references.get(identity), digest = file.slice(0, -5);
+    if (!reference || reference.evidence_sha256 !== digest || envelope.run_index >= cell.n + cell.unknowns ||
+        !verifyLocalEvidenceDigest({ envelope, text, digest })) { invalid++; continue; }
     if (identities.has(identity)) throw new Error('Duplicate observation identity in retained evidence'); identities.add(identity);
     const [, promptId, key] = envelope.cell_id.split('|');
     const target = panel.targets.find(target => targetKey(target) === key);
     if (!target) continue;
     const prompt = panel.prompts.find(prompt => { const id = prompt.id ?? hash(prompt.text).slice(0, 10); return id === promptId || promptId?.startsWith(`${id}@`); });
-    const analysis = envelope.engine_identity.startsWith('google-aio:') && !envelope.provenance ? { mentioned: null, cited: null, outcome: 'unknown' } : analyzeRetainedAnswer(target, envelope);
+    if (!prompt || prompt.text !== envelope.prompt || envelope.engine_identity !== envelope.cell_id.split('|')[0]) { invalid++; continue; }
+    const analysis = reference.outcome === 'unknown' || (envelope.engine_identity.startsWith('google-aio:') && !envelope.provenance) ? { mentioned: null, cited: null, outcome: 'unknown' } : analyzeRetainedAnswer(target, envelope);
     observations.push({ cell_id: envelope.cell_id, run_index: envelope.run_index, engine_identity: envelope.engine_identity,
       prompt_id: promptId, prompt: envelope.prompt, headline_eligible: !prompt?.branded, prompt_provenance: prompt?.provenance ?? null,
       intent_cluster: prompt?.intent_cluster ?? null, target: key, observed_at: envelope.at,
       provider_model_version: envelope.provider_model_version, locale_context: envelope.locale_context ?? null,
       mentioned: analysis.mentioned, cited: analysis.cited, outcome: analysis.outcome,
       citations: analysis.outcome === 'unknown' ? [] : envelope.citations,
-      evidence_sha256: hash(text), fixture: envelope.engine_identity.startsWith('mock:') });
+      evidence_sha256: hash(text), local_evidence_sha256: digest, fixture: envelope.engine_identity.startsWith('mock:') });
   }
   const expected = cells.reduce((count, cell) => count + (cell.n ?? 0) + (cell.unknowns ?? 0), 0);
   const payload = { schema_version: 1, kind: 'frozen_citation_inventory', epoch_id: epochId, frozen_at: new Date().toISOString(),

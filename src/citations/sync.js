@@ -8,6 +8,7 @@
 // truth; the hosted view is a projection.
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { verifyLocalEvidenceDigest } from './evidence-integrity.js';
 
 export async function syncEpochs({ dir, api, workspaceId, projectId }) {
   if (!api || !workspaceId || !projectId) {
@@ -83,7 +84,7 @@ export async function syncEvidence({ dir, api, projectId, cliVersion }) {
   try { text = await readFile(join(root, 'citations-observations.jsonl'), 'utf8'); }
   catch (error) { if (error.code !== 'ENOENT') throw error; return { synced: 0, total: 0, skipped: 0, errors: 0, reasons: {} }; }
   const rows = text.split('\n').filter(line => line.trim()).map(line => JSON.parse(line));
-  const records = []; const reasons = {}; const seen = new Set();
+  const records = []; const reasons = {}; const seen = new Map();
   const skip = reason => { reasons[reason] = (reasons[reason] ?? 0) + 1; };
   const hash = bytes => createHash('sha256').update(bytes).digest('hex');
   async function safeFile(path) {
@@ -95,13 +96,19 @@ export async function syncEvidence({ dir, api, projectId, cliVersion }) {
   for (const row of rows) {
     if (!/^[A-Za-z0-9_.-]+$/.test(row.epoch_id ?? '') || ['.', '..'].includes(row.epoch_id) || !/^[a-f0-9]{64}$/.test(row.evidence_sha256 ?? '')) throw new Error('Malformed local evidence reference');
     const path = join(root, 'citations/evidence', row.epoch_id, `${row.evidence_sha256}.json`);
-    if (seen.has(path)) continue; seen.add(path);
+    const identity = JSON.stringify([row.epoch_id, row.cell_id, row.run_index]);
+    if (seen.has(path)) {
+      if (seen.get(path) !== identity) throw new Error('Conflicting local evidence reference');
+      continue;
+    }
+    seen.set(path, identity);
     let file;
     try { file = await safeFile(path); } catch (error) { if (error.code === 'ENOENT') { skip('missing_envelope'); continue; } throw error; }
     if ((await lstat(file)).size > limits.envelopeBytes) throw new Error('Evidence envelope exceeds the upload limit');
     const envelopeJson = await readFile(file, 'utf8');
     const envelope = evidenceEnvelopeSchema.parse(JSON.parse(envelopeJson));
     if (envelope.epoch_id !== row.epoch_id || envelope.cell_id !== row.cell_id || envelope.run_index !== row.run_index) throw new Error('Evidence identity does not match its observation');
+    if (!verifyLocalEvidenceDigest({ envelope, text: envelopeJson, digest: row.evidence_sha256 })) throw new Error('Evidence digest does not match its retained observation');
     if (envelope.engine_identity.startsWith('google-aio:') && !envelope.provenance) { skip('legacy_aio_without_provenance'); continue; }
     const record = { envelopeJson, sha256: hash(envelopeJson), cliVersion, localEvidenceSha256: row.evidence_sha256 };
     if (envelope.screenshot_file) {
