@@ -3,6 +3,13 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.6 (2026-09-20)
+
+- Retain supplied browser usage receipts in a bounded local journal after each attempt and cleanup. Missing meter values remain unknown; failed writes stop the run.
+- Close browser adapters after failed runs and admission errors. Cleanup uncertainty stays explicit in retained receipts.
+- Check citation files against their recorded observation hashes before freezing reports or uploading evidence. Changed or unreferenced files cannot silently add samples.
+- Include retained inspection-attempt status and rolling website quota in the command response schema.
+
 ## 0.6.5 (2026-09-20)
 
 - Browser measurement requires a configured proxy. Authorized direct diagnostics need an explicit setting; missing proxy configuration never selects direct traffic.

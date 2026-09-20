@@ -149,14 +149,15 @@ its sample size, classified against the previous epoch as declined, grown or
 not_distinguishable, or `insufficient_data` when n is too thin to interpret.
 
 ```sh
-export PERPLEXITY_API_KEY=...          # live engine; omit it and the mock engine runs at $0
+agentlinkops citation panel --domain example.com --brand Example --out panel.json
 agentlinkops citation run panel.json --max-usd 1.00
 ```
 
-The panel is JSON: `targets` (domain or url, brand, aliases), `prompts`, `engines`
-(`mock` or `perplexity`), optional `samples` and `maxUsd`. Every run writes immutable
-content-addressed answer snapshots plus append-only observation and epoch rows under
-`.agentlinkops/citations/`. The runner reserves estimated cost before each call and retry. A reported supplier
+New panels use the free mock engine. A live engine requires its own configuration and credentials;
+missing credentials never select mock results. The JSON panel contains `targets`, `prompts`,
+`engines`, optional `samples` and `maxUsd`. Answer snapshots live in
+`.agentlinkops/citations/evidence/`; observation and epoch ledgers live at the `.agentlinkops/` root.
+The runner reserves estimated cost before each call and retry. A reported supplier
 overrun stops later calls; estimates do not enforce a provider invoice cap. A budget
 abort leaves a partial-epoch receipt and exit code 2. A cell
 that declined with complete evidence exits 1, like an expected link observed absent.
@@ -165,6 +166,16 @@ Browser measurement requires `AGENTLINKOPS_PROXY_URL` and refuses direct fallbac
 For an explicitly authorized direct diagnostic, set `AGENTLINKOPS_BROWSER_EGRESS=direct-diagnostic`
 and leave the proxy unset. The standard URL proxy provides no actual usage meter;
 its cost remains an estimate. Browser login and live account acceptance are separate.
+
+Browser epochs retain supplied usage and cleanup receipts in
+`.agentlinkops/citations/egress/<epochId>.jsonl`. Unknown meter values stay null. A missing
+final record means the journal is incomplete; it does not establish complete costs or cleanup.
+Journals stop at 10,000 records or 8 MiB, and a failed write stops further samples.
+
+Frozen inventories and evidence uploads check files against their retained observation hashes.
+Historical hashes verify the recorded answer fields and screenshot filename; they do not prove
+when an answer was captured or authenticate old screenshot pixels. Hosted uploads retain a
+separate hash of the exact uploaded file bytes.
 
 ## Environment variables
 

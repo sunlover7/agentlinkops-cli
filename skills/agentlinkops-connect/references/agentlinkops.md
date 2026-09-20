@@ -9,7 +9,7 @@ records. This page is the complete agent reference: the same text prints from
 full once per session, then use `describe` for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.3. 125 commands in 13 toolsets.
+Pack version 0.6.5. 125 commands in 13 toolsets.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)

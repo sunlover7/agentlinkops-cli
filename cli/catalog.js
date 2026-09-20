@@ -14687,6 +14687,111 @@ export const CATALOG_COMMANDS = [
        "type": "null"
       }
      ]
+    },
+    "attemptSummary": {
+     "type": "object",
+     "properties": {
+      "observedAt": {
+       "type": "string"
+      },
+      "latestAttempt": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string",
+           "pattern": "^[a-f0-9]{64}$"
+          },
+          "admittedAt": {
+           "type": "string"
+          },
+          "status": {
+           "type": "string",
+           "enum": [
+            "in_progress",
+            "unsettled",
+            "completed"
+           ]
+          },
+          "receiptId": {
+           "anyOf": [
+            {
+             "type": "string",
+             "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "leaseExpiresAt": {
+           "type": [
+            "string",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "admittedAt",
+          "status",
+          "receiptId",
+          "leaseExpiresAt"
+         ],
+         "additionalProperties": false
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "unsettledCount": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "observedAt",
+      "latestAttempt",
+      "unsettledCount"
+     ],
+     "additionalProperties": false
+    },
+    "websiteQuota": {
+     "type": "object",
+     "properties": {
+      "windowStart": {
+       "type": "string"
+      },
+      "observedAt": {
+       "type": "string"
+      },
+      "admitted": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "remaining": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "windowStart",
+      "observedAt",
+      "admitted",
+      "limit",
+      "remaining"
+     ],
+     "additionalProperties": false
     }
    },
    "required": [
