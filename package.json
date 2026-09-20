@@ -1,7 +1,7 @@
 {
   "name": "agentlinkops",
-  "version": "0.5.1",
-  "description": "A backlink ledger that lives in your repository: local link checks with dated evidence, supplier-export imports and optional sync to the hosted AgentLinkOps service.",
+  "version": "0.6.2",
+  "description": "A backlink and AI citation ledger that lives in your repository: local link and citation checks with dated evidence, supplier-export imports and optional sync to the hosted AgentLinkOps service.",
   "author": "AgentLinkOps (https://agentlinkops.com)",
   "license": "Apache-2.0",
   "type": "module",
@@ -46,9 +46,12 @@
     "mcp",
     "backlinks",
     "seo",
+    "citation-monitoring",
+    "ai-citations",
     "agent",
     "cli",
     "link-monitoring",
+    "citation-watch",
     "ledger",
     "jsonl"
   ],
@@ -56,6 +59,7 @@
     "@modelcontextprotocol/server": "2.0.0",
     "parse5": "8.0.1",
     "turndown": "^7.2.4",
+    "undici": "7.29.0",
     "zod": "4.6.0"
   },
   "devDependencies": {

@@ -1,0 +1,82 @@
+{
+  "version": "0.0.0",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "cost": 0.0012,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "09211815-1535-0067-0000-7b8e2b4e5c91",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "cost": 0.0012,
+      "result_count": 1,
+      "result": [
+        {
+          "keyword": "what is backlink monitoring",
+          "type": "organic",
+          "se_domain": "google.com",
+          "location_code": 2840,
+          "language_code": "en",
+          "check_url": "https://www.google.com/search?q=what%20is%20backlink%20monitoring&num=10&hl=en&gl=us&gws_rd=cr",
+          "datetime": "2026-09-18 18:15:03 +00:00",
+          "item_types": ["ai_overview", "organic", "featured_snippet", "people_also_ask"],
+          "se_results_count": 12400000,
+          "items": [
+            {
+              "type": "ai_overview",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "position": "top",
+              "xpath": "/html[1]/body[1]/div[6]/div[2]/div[9]/div[1]/div[2]/div[2]/div[1]/div[1]",
+              "text": "Backlink monitoring is the process of regularly tracking and analyzing the links pointing to your website from other sites. It involves checking whether your existing backlinks are still active, identifying new backlinks as they appear, and analyzing the quality and relevance of those links. Effective backlink monitoring helps you maintain a healthy link profile, identify potentially harmful links, and find opportunities for new link building. Common tools for backlink monitoring include Ahrefs, Semrush, and Moz, which provide comprehensive dashboards for tracking your link profile over time.",
+              "items": [
+                {
+                  "type": "ai_overview_item",
+                  "source": "backlinkmonitoring.ai",
+                  "domain": "backlinkmonitoring.ai",
+                  "title": "What Is Backlink Monitoring and Why It Matters",
+                  "url": "https://backlinkmonitoring.ai/blog/what-is-backlink-monitoring",
+                  "snippet": "Backlink monitoring is the practice of regularly tracking and analyzing inbound links to your website..."
+                },
+                {
+                  "type": "ai_overview_item",
+                  "source": "adaptify.ai",
+                  "domain": "adaptify.ai",
+                  "title": "What is Backlink Monitoring and Why Your SEO Needs It",
+                  "url": "https://adaptify.ai/blog/what-is-backlink-monitoring-and-why-your-seo-needs-it",
+                  "snippet": "Effective backlink monitoring helps you maintain a healthy link profile and identify harmful links..."
+                },
+                {
+                  "type": "ai_overview_item",
+                  "source": "lynkdog.com",
+                  "domain": "lynkdog.com",
+                  "title": "Backlink Monitoring: A Complete Beginner's Guide",
+                  "url": "https://lynkdog.com/blog/backlink-monitoring-beginners-guide",
+                  "snippet": "Backlink monitoring involves checking whether your existing backlinks are still active..."
+                },
+                {
+                  "type": "ai_overview_item",
+                  "source": "brand24.com",
+                  "domain": "brand24.com",
+                  "title": "Backlinks Monitoring 101: Tools, Tips, and Best Practices",
+                  "url": "https://brand24.com/blog/backlinks-monitoring-101/",
+                  "snippet": "Common tools for backlink monitoring include Ahrefs, Semrush, and Moz..."
+                }
+              ]
+            },
+            {
+              "type": "organic",
+              "rank_group": 1,
+              "rank_absolute": 2,
+              "url": "https://backlinko.com/hub/seo/backlinks",
+              "domain": "backlinko.com",
+              "title": "What Are Backlinks in SEO & Why You Need Them"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

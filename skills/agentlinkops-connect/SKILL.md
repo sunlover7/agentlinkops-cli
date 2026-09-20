@@ -31,3 +31,7 @@ On the CLI the same three verbs are `agentlinkops tools [TOOLSET]`, `agentlinkop
 - Take every id from a response; `describe` before a write; never invent a command name or an argument.
 - `monitor_link` creates metered recurring checks; it is never a connection test. `get_workspace` is.
 - AgentLinkOps does not send outreach and does not browse sites for you; campaign strategy, outreach and the CRM stay in the person's own tools and records (`agentlinkops-campaigns`, `agentlinkops-crm`).
+
+## Installed skill set
+
+Run `agentlinkops skill --list` for the versioned set installed with this CLI. It includes connect (access and evidence rules), discovery (sourced prospect research), campaigns (campaign judgment), CRM (local records) and assets (a specific linkable resource). Read an individual skill with its full name, for example `agentlinkops skill agentlinkops-discovery`. Research and local work do not require buying a supplier subscription.

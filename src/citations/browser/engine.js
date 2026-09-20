@@ -10,13 +10,25 @@
 // This module imports playwright-core lazily: a CLI install without the
 // browser tooling still runs every non-browser engine, and `citation doctor`
 // reports the gap instead of the whole CLI failing to load.
-import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { EngineError } from '../adapter.js';
 
-const lazy = async (path) => import(path);
+const MODULE_LOADERS = {
+  'playwright-core': () => import('playwright-core'),
+  'node:fs/promises': () => import('node:fs/promises'),
+  './gen/core/providers/index.js': () => import('./gen/core/providers/index.js'),
+  './providers.js': () => import('./providers.js'),
+  './gen/lib/browser/camoufox.js': () => import('./gen/lib/browser/camoufox.js'),
+  './gen/lib/browser/display.js': () => import('./gen/lib/browser/display.js'),
+  './shims/utils.js': () => import('./shims/utils.js'),
+  './gen/lib/browser/domOps.js': () => import('./gen/lib/browser/domOps.js'),
+};
+const lazy = async path => {
+  if (!MODULE_LOADERS[path]) throw new Error('Unsupported browser module');
+  return MODULE_LOADERS[path]();
+};
 
 let playwrightFirefox = null;
 async function firefox() {
@@ -30,11 +42,19 @@ async function firefox() {
   return playwrightFirefox;
 }
 
-export const BROWSER_PROVIDERS = Object.freeze(['chatgpt', 'perplexity', 'gemini', 'claude', 'ai-overview']);
+export const BROWSER_PROVIDERS = Object.freeze(['chatgpt', 'perplexity', 'gemini', 'claude', 'ai-overview', 'grok', 'copilot', 'bing', 'duckai']);
 
-// Nominal per-answer estimate: ~0.3 MB through a residential proxy at ~$7/GB,
-// plus slack for the page itself. Checked BEFORE the run by the budget cap.
-const NOMINAL_COST_USD = 0.004;
+// Per-engine nominal estimates for the pre-call budget check. Measured from
+// actual proxy burn during the 2026-09-17/18 sessions: browser engines burn
+// 3-8 MB per observation (full page + assets) while the duck HTTP lane uses
+// kilobytes. These are the estimates the cap enforces against, checked BEFORE
+// each call. These are estimates, not metered bandwidth or a hard invoice cap.
+const ENGINE_NOMINAL_COST = Object.freeze({
+  chatgpt: 0.03, 'ai-overview': 0.03, copilot: 0.03, grok: 0.03,
+  gemini: 0.03, claude: 0.03, perplexity: 0.02, bing: 0.02,
+  duckai: 0.001,
+});
+const DEFAULT_NOMINAL_COST = 0.03;
 
 function parseProxyUrl(raw) {
   if (!raw) return null;
@@ -50,36 +70,44 @@ function parseProxyUrl(raw) {
   }
 }
 
-export function createBrowserEngine({ engineName, env = process.env, onEvent = () => {} } = {}) {
+export function createBrowserEngine({ engineName, env = process.env, onEvent = () => {}, runtime = {} } = {}) {
   if (!BROWSER_PROVIDERS.includes(engineName)) {
     throw new EngineError(`unknown browser engine: ${engineName} (known: ${BROWSER_PROVIDERS.join(', ')})`);
   }
   const identity = { engine: engineName, provider: 'web-own-browser', model: engineName };
-  const sessionDir = join(homedir(), '.agentlinkops', 'citations', 'sessions');
+  const sessionDir = runtime.sessionDir ?? join(homedir(), '.agentlinkops', 'citations', 'sessions');
+  const load = runtime.loadModule ?? lazy;
+  const platform = runtime.platform ?? process.platform;
 
   let browserHandle = null;   // { browser, cleanup } for the whole epoch
   let displayHandle = null;
   let providerConfig = null;
+  async function closeQuietly(action) {
+    let timer;
+    try { await Promise.race([Promise.resolve().then(action).catch(() => null), new Promise(resolve => { timer = setTimeout(resolve, runtime.cleanupTimeoutMs ?? 5000); })]); }
+    finally { clearTimeout(timer); }
+  }
 
   async function ensureProviderConfig() {
     if (providerConfig) return providerConfig;
-    const { PROVIDER_CONFIGS } = await lazy('./gen/core/providers/index.js');
-    providerConfig = PROVIDER_CONFIGS[engineName];
+    const { PROVIDER_CONFIGS } = await load('./gen/core/providers/index.js');
+    const { OWN_PROVIDER_CONFIGS } = await load('./providers.js');
+    providerConfig = OWN_PROVIDER_CONFIGS[engineName] ?? PROVIDER_CONFIGS[engineName];
     if (!providerConfig) throw new EngineError(`no provider config for ${engineName}`);
     return providerConfig;
   }
 
   async function ensureBrowser() {
     if (browserHandle) return browserHandle;
-    const [{ resolveCamoufoxLaunchOptions }, display, { firefox: launchFirefox }] = [
-      await lazy('./gen/lib/browser/camoufox.js'),
-      await lazy('./gen/lib/browser/display.js'),
-      { firefox: await firefox() },
+    const [{ resolveCamoufoxLaunchOptions }, display, fw] = [
+      await load('./gen/lib/browser/camoufox.js'),
+      await load('./gen/lib/browser/display.js'),
+      runtime.firefox ?? await firefox(),
     ];
 
     // Linux without a display gets the vendored self-bootstrapped Xvfb — the
     // engines that block headless render headfully inside a virtual display.
-    if (process.platform === 'linux' && !display.detectDisplay()) {
+    if (platform === 'linux' && !display.detectDisplay()) {
       displayHandle = await display.ensureDisplay({ allowExistingDisplay: false });
       onEvent(`display: ${displayHandle.display}`);
     }
@@ -90,16 +118,21 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     const options = await resolveCamoufoxLaunchOptions({
       provider: engineName,
       proxy: proxy ?? undefined,
+      // The virtual display handle must travel into the launch payload: the
+      // resolver exports DISPLAY for the browser process it configures.
+      display: displayHandle?.display,
       // "virtual" on Linux = headful Firefox inside Xvfb; true headless is the
       // detection magnet the research warned about.
-      headlessMode: process.platform === 'linux' ? 'virtual' : 'headful',
+      headlessMode: platform === 'linux' ? 'virtual' : 'headful',
     });
-    const browser = await launchFirefox({ ...options, executablePath: options.executablePath, proxy });
+    const launchOpts = { ...options, executablePath: options.executablePath };
+    if (proxy) launchOpts.proxy = proxy;
+    const browser = await fw.launch(launchOpts);
 
     browserHandle = {
       browser,
       cleanup: async () => {
-        await browser.close().catch(() => null);
+        await closeQuietly(() => browser.close());
         await displayHandle?.cleanup?.().catch(() => null);
         displayHandle = null;
       },
@@ -109,60 +142,187 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
 
   async function loadStorageState() {
     try {
-      const { readFile } = await lazy('node:fs/promises');
+      const { readFile } = await load('node:fs/promises');
       return JSON.parse(await readFile(join(sessionDir, `${engineName}.json`), 'utf8'));
     } catch {
       return undefined; // anonymous session: several surfaces work logged-out
     }
   }
 
+  // Stock playwright-core editor finder. The vendored finder checks
+  // Locator.getEditableState(), a patchright-only API that silently nulls on
+  // stock playwright and rejects every candidate; this version expresses the
+  // same intent (visible, sized, editable, enabled) with portable calls.
+  // Pierces shadow DOM because some surfaces nest their composer inside one.
+  async function findEditor(page, selectors) {
+    for (const selector of selectors) {
+      const nodes = page.locator(selector);
+      const count = await nodes.count().catch(() => 0);
+      for (let i = 0; i < count; i += 1) {
+        const el = nodes.nth(i);
+        if (!(await el.isVisible().catch(() => false))) continue;
+        const box = await el.boundingBox().catch(() => null);
+        if (!box || box.width < 8 || box.height < 8) continue;
+        await el.scrollIntoViewIfNeeded().catch(() => {});
+        if (!(await el.isEditable().catch(() => false))) continue;
+        if (!(await el.isEnabled().catch(() => false))) continue;
+        return { locator: el, selector };
+      }
+    }
+    // Shadow DOM fallback: pierce roots for composer elements not reachable
+    // through the document-level selectors above.
+    const shadowSpot = await page.evaluate(() => {
+      const all = [];
+      const walk = (root) => {
+        for (const el of root.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]')) all.push(el);
+        for (const el of root.querySelectorAll('*')) { if (el.shadowRoot) walk(el.shadowRoot); }
+      };
+      walk(document);
+      for (const el of all) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 60 && r.height > 10) return { found: true, tag: el.tagName };
+      }
+      return { found: false };
+    }).catch(() => ({ found: false }));
+    if (shadowSpot.found) {
+      // A composer exists in shadow DOM but our selectors can't reach it.
+      // Fall through to the generic locator on the broadest selector.
+      const broad = page.locator('textarea, [contenteditable="true"], [role="textbox"]').first();
+      if (await broad.isVisible().catch(() => false)) return { locator: broad, selector: 'shadow-dom-fallback' };
+    }
+    return null;
+  }
+
   return {
     identity,
-    estimateCostUsd: () => NOMINAL_COST_USD,
+    estimateCostUsd: () => ENGINE_NOMINAL_COST[engineName] ?? DEFAULT_NOMINAL_COST,
 
     async run({ prompt }) {
       const config = await ensureProviderConfig();
-      const { browser, cleanup } = await ensureBrowser();
+      const { browser } = await ensureBrowser();
+      const storageState = await loadStorageState();
       const context = await browser.newContext({
-        storageState: await loadStorageState(),
+        storageState,
         locale: 'en-US',
         timezoneId: 'America/New_York',
       });
       try {
+      // Route-level asset stripping (opt out with AGENTLINKOPS_BROWSER_KEEP_ASSETS=1):
+      // images and media are the bulk of the 3-8 MB measured per observation.
+      // Fonts stay — font metrics are part of the fingerprint surface.
+      if (env.AGENTLINKOPS_BROWSER_KEEP_ASSETS !== '1') {
+        await context.route('**/*', (route) => {
+          const type = route.request().resourceType();
+          if (type === 'image' || type === 'media') return route.abort();
+          return route.continue();
+        });
+      }
         const page = await context.newPage();
+        const { runPageDomOp } = await load('./gen/lib/browser/domOps.js');
+        page.runDomOp = (operation, params = {}) => runPageDomOp(page, operation, params);
+        let answer = '';
         page.setDefaultTimeout(45_000);
 
         if (config.navigateToPrompt) {
           await config.navigateToPrompt(page, prompt);
+        } else if (engineName === 'grok') {
+          // Probe-proven grok flow: the composer's position moves with each
+          // randomized fingerprint, so its live rect is located in-page and
+          // clicked at the computed center — never a fixed coordinate.
+          await page.goto('https://grok.com/', { waitUntil: 'domcontentloaded', timeout: 60_000 });
+          await page.waitForTimeout(12_000);
+          let spot = null;
+          for (let attempt = 0; attempt < 3 && !spot; attempt += 1) {
+            spot = await page.evaluate(() => {
+              // Pierce shadow DOM: grok's composer may live inside a shadow root.
+              const els = [];
+              const walk = (root) => {
+                for (const el of root.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]')) els.push(el);
+                for (const el of root.querySelectorAll('*')) { if (el.shadowRoot) walk(el.shadowRoot); }
+              };
+              walk(document);
+              for (const el of els) {
+                const r = el.getBoundingClientRect();
+                if (r.width > 60 && r.height > 10) return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + Math.min(Math.max(r.height / 2, 12), 40)) };
+              }
+              return null;
+            });
+            if (!spot) await page.waitForTimeout(7000);
+          }
+          if (!spot) throw new EngineError('grok: no composer found after settle retries (surface may be gated or changed)', { retriable: true });
+          await page.mouse.click(spot.x, spot.y);
+          await page.waitForTimeout(1000);
+          await page.keyboard.type(prompt, { delay: 90 });
+          await page.waitForTimeout(1200);
+          await page.keyboard.press('Enter');
+        } else if (engineName === 'duckai') {
+          // The page's own JS solves the VQD challenge; the chat call runs
+          // in-page with native cookies and headers. Claude Haiku, anonymous.
+          await page.waitForTimeout(6000);
+          const { duckChat } = await load('./providers.js');
+          const chat = await duckChat(page, prompt);
+          if (!chat.message || chat.message.trim().length < 40) {
+            throw new EngineError(`duckai: empty chat response (models seen: ${(chat.models ?? []).slice(0, 5).join(',')})`, { retriable: true });
+          }
+          answer = chat.message;
+        } else if (engineName === 'bing') {
+          // Pure navigation: the prompt IS the URL. No editor, no typing, no
+          // modal — the generative answer block renders with its citations.
+          await page.goto(`https://www.bing.com/search?q=${encodeURIComponent(prompt)}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+          await config.waitForResponse(page);
         } else {
           await page.goto(config.url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
           await config.postNavigationHook?.(page);
-          await config.beforePromptHook?.(page);
 
-          const { findActiveEditorCandidate } = await lazy('./gen/lib/input/editor/findEditor.js');
-          const { PROVIDER_EDITOR_SELECTORS } = await lazy('./shims/utils.js');
-          const editor = await findActiveEditorCandidate(page, PROVIDER_EDITOR_SELECTORS[engineName]);
-          if (!editor) throw new EngineError(`${engineName}: no prompt editor found (surface may be gated or changed)`);
+          // Hydration retry: first paint is not hydration. Poll for a real editor.
+          const { PROVIDER_EDITOR_SELECTORS } = await load('./shims/utils.js');
+          let editor = null;
+          const editorDeadline = Date.now() + 50_000;
+          while (!editor && Date.now() < editorDeadline) {
+            await config.beforePromptHook?.(page).catch(() => {});
+            editor = await findEditor(page, PROVIDER_EDITOR_SELECTORS[engineName]);
+            if (!editor) await page.waitForTimeout(3000);
+          }
+          if (!editor) throw new EngineError(`${engineName}: no prompt editor found after hydration retries (surface may be gated or changed)`, { retriable: true });
 
-          const { insertPromptIntoEditor } = await lazy('./gen/lib/input/editor/promptInput.js');
-          await insertPromptIntoEditor(page, editor.locator, prompt, engineName);
+          // Humanized typing: instant fill is a bot tell. Real keystrokes with
+          // jittered cadence; fill stays as the recovery path when typing fails.
+          await editor.locator.click().catch(() => {});
+          await page.waitForTimeout(400);
+          const typeDelay = 70 + Math.floor(Math.random() * 110);
+          await editor.locator.pressSequentially(prompt, { delay: typeDelay }).catch(async () => {
+            await editor.locator.fill(prompt);
+          });
+          await page.waitForTimeout(600);
+          const typedCheck = await editor.locator.inputValue().catch(() => '');
+          if (typedCheck.trim().length === 0) {
+            await editor.locator.fill(prompt).catch(() => {});
+          }
           await config.afterTypingHook?.(page);
           await config.beforeSubmitHook?.(page);
 
-          const { findEnabledSendButton } = await lazy('./gen/lib/input/editor/findSendButton.js');
-          const { PROVIDER_SUBMIT_BTN_SELECTORS } = await lazy('./shims/utils.js');
-          const send = await findEnabledSendButton(page, PROVIDER_SUBMIT_BTN_SELECTORS[engineName]);
-          if (send) { await send.click(); }
+          // Submit: the surface's own send button when it exposes one; Enter fallback.
+          // Submission is verified: the composer clears or a user turn appears.
+          const send = await page.locator('button[aria-label="Send message"], button[data-testid="send-button"], button[aria-label*="Submit" i], button[aria-label*="Send" i]').first();
+          if (await send.isVisible().catch(() => false)) { await send.click(); }
           else { await editor.locator.press('Enter'); }
+          await page.waitForTimeout(2500);
         }
         await config.afterSubmitHook?.(page);
 
         await config.waitForResponse(page);
-        const answer = await config.extractResponse(page);
-        if (!answer || answer.trim().length === 0) {
-          throw new EngineError(`${engineName}: answer extracted empty`, { retriable: true });
-        }
-        const sources = await config.extractSources(page);
+        if (!answer) answer = await config.extractResponse(page);
+        if (!answer || answer.trim().length < 40) {
+          const reason = engineName === 'bing'
+            ? 'bing: no AI answer block rendered for this prompt (organic results only — never a citation verdict)'
+            : `${engineName}: answer extracted empty`;
+          throw new EngineError(reason, { retriable: true });        }
+        let extractionFailed = config.citationExtraction === 'unsupported';
+        const sources = await config.extractSources(page).catch(() => {
+          extractionFailed = true;
+          onEvent('sources extraction failed; observation retained as unknown');
+          return [];
+        });
         const screenshotPng = await page.screenshot({ fullPage: false }).catch(() => null);
 
         return {
@@ -170,26 +330,32 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
           provider: 'web-own-browser',
           model: engineName,
           providerModelVersion: `${engineName}-web`,
+          browserContext: { surface: 'web', authentication: storageState ? 'saved-session' : 'anonymous', account_tier: 'unknown' },
           answer,
-          citations: (sources ?? []).map((s) => ({ url: s.url, title: s.title ?? s.cited_text ?? null })).filter((c) => typeof c.url === 'string' && c.url.length > 0),
+          ...(extractionFailed ? { unknown: true, failure: { code: 'CITATION_EXTRACTION_UNAVAILABLE', message: 'Citation extraction was unavailable; this is not a confirmed absence' } } : {}),
+          citations: (sources ?? []).map((s) => ({ url: s.url, ...(s.title || s.cited_text ? { title: s.title ?? s.cited_text } : {}) })).filter((c) => typeof c.url === 'string' && c.url.length > 0),
           fanOut: [],
           usage: { input_tokens: 0, output_tokens: 0 },
-          costEstimateUsd: NOMINAL_COST_USD,
+          costEstimateUsd: ENGINE_NOMINAL_COST[engineName] ?? DEFAULT_NOMINAL_COST,
           screenshotPng,
         };
       } catch (cause) {
         if (cause instanceof EngineError) throw cause;
         const msg = String(cause?.message ?? cause);
         const retriable = /timeout|timed out|ERR_|net::|closed|Target closed/i.test(msg);
-        throw new EngineError(`${engineName}: browser run failed: ${msg}`, { retriable, cause });
+        const error = new EngineError(`${engineName}: browser run failed (${cause?.name === 'TypeError' ? 'compatibility error' : retriable ? 'timeout or connection error' : 'surface error'})`, { retriable, cause });
+        error.unknown = true;
+        throw error;
       } finally {
-        await context.close().catch(() => null);
+        await closeQuietly(() => context.close());
       }
     },
 
     // Called by the runner at epoch end.
     async close() {
       await browserHandle?.cleanup?.();
+      await displayHandle?.cleanup?.().catch(() => null);
+      displayHandle = null;
       browserHandle = null;
     },
   };

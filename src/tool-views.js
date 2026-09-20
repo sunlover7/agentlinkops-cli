@@ -51,7 +51,7 @@ export function oneLiner(description, max = 60) {
 }
 
 // entries: [{ name, description, toolset, tier, readOnly }]. Grouped, one line per command.
-export function manifestText(entries, { max = 60 } = {}) {
+export function manifestText(entries, { max = 52 } = {}) {
   const groups = new Map(TOOLSETS.map(t => [t, []]));
   for (const entry of entries) (groups.get(entry.toolset) ?? groups.set(entry.toolset, []).get(entry.toolset)).push(entry);
   const lines = ['Commands by toolset (name: what it does). Use search_tools or describe_tools for the full schema before calling.'];

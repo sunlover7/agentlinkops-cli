@@ -9,6 +9,11 @@ export function eventSnapshot(state) {
     schema_version: 1, target_scope: state.target_scope,
     check_state: latest.state ?? 'unknown', link_signature: latest.linkSignature ?? null,
     checker_version: latest.evidence?.checkerVersion ?? null,
+    // Hash the captured document, not the enclosing R2 receipt object. Older events
+    // lack these additive v1 fields and must remain unknown on replay.
+    evidence_sha256: latest.evidence?.sha256 ?? null,
+    evidence_method: latest.evidence?.method ?? null,
+    evidence_rendered: typeof latest.evidence?.rendered === 'boolean' ? latest.evidence.rendered : null,
     state: state.state || 'unknown', uncertain: state.uncertain ?? true,
     watch_id: state.watch_id, source_url: state.source_url, target_url: state.target_url,
     checked_at: state.checked_at, reason: latest.reason || null,
@@ -38,6 +43,12 @@ export function observationFromSnapshot(snapshot) {
     occurrencesTruncated: snapshot.occurrences_truncated ?? false,
     occurrenceCount: snapshot.occurrence_count ?? occurrences.length,
     linkSignature: snapshot.link_signature ?? latest.linkSignature ?? null,
-    evidence: {complete: snapshot.uncertain === false, checkerVersion: snapshot.checker_version ?? latest.evidence?.checkerVersion ?? null},
+    evidence: {
+      complete: snapshot.uncertain === false,
+      checkerVersion: snapshot.checker_version ?? latest.evidence?.checkerVersion ?? null,
+      sha256: snapshot.evidence_sha256 ?? latest.evidence?.sha256 ?? null,
+      method: snapshot.evidence_method ?? latest.evidence?.method ?? null,
+      rendered: snapshot.evidence_rendered ?? latest.evidence?.rendered ?? null,
+    },
   };
 }

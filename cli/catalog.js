@@ -4661,7 +4661,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Subscribe an HTTPS receiver to source or destination events, or periodic digests. Returns the signing secret once. Delivery is signed, at-least-once, and starts at the current sequence; deduplicate by AgentLinkOps-Delivery-Id (also sent as Linktrail-Delivery-Id during the compatibility window) and recover gaps through the event feed. A 410 receiver response disables delivery.",
+  "description": "Subscribe an HTTPS receiver to link, destination or citation events. Periodic digests support link events only. Returns the signing secret once. Delivery is signed, at-least-once, and starts at the current sequence; deduplicate by AgentLinkOps-Delivery-Id (also sent as Linktrail-Delivery-Id during the compatibility window) and recover gaps through the event feed. A 410 receiver response disables delivery.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -4701,7 +4701,8 @@ export const CATALOG_COMMANDS = [
       "type": "string",
       "enum": [
        "events",
-       "target_events"
+       "target_events",
+       "citation_events"
       ]
      }
     },
@@ -5970,6 +5971,1544 @@ export const CATALOG_COMMANDS = [
   }
  },
  {
+  "name": "list_citation_epochs",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "citations",
+   "epochs",
+   "answer history"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read saved citation epochs with sample counts, uncertainty intervals and comparison classifications. Unknown outcomes stay outside measured denominators. This reads retained rows and starts no measurement.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string"
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "projectId": {
+     "description": "Identifier of the project returned by its create or list operation.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "engine": {
+     "description": "The engine value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "maxLength": 60
+    },
+    "classification": {
+     "description": "The classification value; allowed values and bounds are specified in this schema.",
+     "type": "string",
+     "maxLength": 30
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "epochs": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "description": "Stored epoch row identifier."
+       },
+       "workspace_id": {
+        "type": "string",
+        "description": "Workspace that owns this row."
+       },
+       "project_id": {
+        "type": "string",
+        "description": "Project that owns this row."
+       },
+       "watch_id": {
+        "type": "string",
+        "description": "Citation watch associated with this cell."
+       },
+       "epoch_id": {
+        "type": "string",
+        "description": "Source epoch identifier."
+       },
+       "cell_id": {
+        "type": "string",
+        "description": "Engine, prompt and target cell identity."
+       },
+       "k": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991,
+        "description": "Successful samples citing the target."
+       },
+       "n": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991,
+        "description": "Samples with a known outcome."
+       },
+       "unknowns": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991,
+        "description": "Samples excluded because their outcome is unknown."
+       },
+       "rate": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "Citation share among known outcomes; null when none are known."
+       },
+       "ci_low": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "Lower interval bound; null without known outcomes."
+       },
+       "ci_high": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "Upper interval bound; null without known outcomes."
+       },
+       "classification": {
+        "type": "string",
+        "description": "Recorded epoch comparison classification."
+       },
+       "at": {
+        "type": "string",
+        "description": "Source observation time."
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "watch_id",
+       "epoch_id",
+       "cell_id",
+       "k",
+       "n",
+       "unknowns",
+       "rate",
+       "ci_low",
+       "ci_high",
+       "classification",
+       "at"
+      ],
+      "additionalProperties": {}
+     },
+     "description": "Saved epoch rows in this page."
+    },
+    "cursor": {
+     "description": "Opaque continuation; null at the end.",
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "epochs",
+    "cursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_citation_watches",
+  "toolset": "monitoring",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "citations",
+   "ai answers",
+   "panels"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "List accessible citation watches by project and lifecycle state. Imported local evidence creates paused mirrors and does not enable hosted measurement.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string"
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "projectId": {
+     "description": "Identifier of the project returned by its create or list operation.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "status": {
+     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "type": "string",
+     "enum": [
+      "active",
+      "paused"
+     ]
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watches": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "description": "Citation watch identifier."
+       },
+       "workspace_id": {
+        "type": "string",
+        "description": "Workspace that owns the watch."
+       },
+       "project_id": {
+        "type": "string",
+        "description": "Project that owns the watch."
+       },
+       "engine_identity": {
+        "type": "string",
+        "description": "Engine and provider identity."
+       },
+       "prompt_id": {
+        "type": "string",
+        "description": "Source prompt identifier."
+       },
+       "target_key": {
+        "type": "string",
+        "description": "Target scope identity."
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "active",
+         "paused"
+        ],
+        "description": "Watch lifecycle; imported mirrors start paused."
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "engine_identity",
+       "prompt_id",
+       "target_key",
+       "status"
+      ],
+      "additionalProperties": {}
+     },
+     "description": "Accessible citation watches in this page."
+    },
+    "cursor": {
+     "description": "Opaque continuation; null at the end.",
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "watches",
+    "cursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "sync_citation_epochs",
+  "toolset": "monitoring",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "citations",
+   "push epochs",
+   "sync"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Import local citation epochs into one accessible project. Identical retries are deduplicated; changed evidence for an existing epoch is rejected. Unknown rates remain null and imported watches stay paused.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "epochs": {
+     "minItems": 1,
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "workspace_id": {
+        "type": "string"
+       },
+       "project_id": {
+        "type": "string"
+       },
+       "epoch_id": {
+        "type": "string"
+       },
+       "cell_id": {
+        "type": "string"
+       },
+       "k": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "n": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "unknowns": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "mentioned": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "rate": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "ci_low": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "ci_high": {
+        "anyOf": [
+         {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "classification": {
+        "type": "string"
+       },
+       "baseline_epoch_id": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "baseline_rate": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "baseline_ci_low": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "baseline_ci_high": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "spent_estimate_usd": {
+        "type": "number",
+        "minimum": 0
+       },
+       "at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "workspace_id",
+       "project_id",
+       "epoch_id",
+       "cell_id",
+       "k",
+       "n",
+       "rate",
+       "ci_low",
+       "ci_high",
+       "classification",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "description": "The epochs value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "epochs"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "synced": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "New epoch rows stored."
+    },
+    "total": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Rows submitted, including unchanged retries."
+    }
+   },
+   "required": [
+    "synced",
+    "total"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "ingest_citation_evidence",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "citations",
+   "answer archive",
+   "evidence import"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Retain bounded customer-measured citation answer envelopes with verified content hashes. Import is idempotent and costs no answer checks. Screenshots remain local; recorded engine provenance is a customer claim.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "records": {
+     "minItems": 1,
+     "maxItems": 5,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "envelopeJson": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 65536
+       },
+       "sha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "cliVersion": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+       },
+       "localEvidenceSha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "screenshot": {
+        "type": "object",
+        "properties": {
+         "reference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9_.-]+$"
+         },
+         "sha256": {
+          "anyOf": [
+           {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "reference"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "required": [
+       "envelopeJson",
+       "sha256",
+       "cliVersion"
+      ],
+      "additionalProperties": false
+     },
+     "description": "The records value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "records"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "imported": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "deduplicated": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "total": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "charged_units": {
+     "type": "number",
+     "const": 0
+    },
+    "observations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "created": {
+        "type": "boolean"
+       },
+       "evidence_status": {
+        "type": "string",
+        "enum": [
+         "retained",
+         "expired"
+        ]
+       },
+       "sha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "expires_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "created",
+       "evidence_status",
+       "sha256",
+       "expires_at"
+      ],
+      "additionalProperties": false
+     }
+    }
+   },
+   "required": [
+    "imported",
+    "deduplicated",
+    "total",
+    "charged_units",
+    "observations"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_citation_observations",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "citations",
+   "observations",
+   "answer archive"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "List retained citation observation metadata within accessible projects. Expired bodies remain explicitly expired; no engine measurement starts.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "description": "Identifier of the project returned by its create or list operation.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "epochId": {
+     "description": "Identifier of the epoch returned by its create or list operation.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "cellId": {
+     "description": "Identifier of the cell returned by its create or list operation.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 4096
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "maxLength": 4096
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "observations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "epoch_id": {
+        "type": "string"
+       },
+       "cell_id": {
+        "type": "string"
+       },
+       "run_index": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "engine_identity": {
+        "type": "string"
+       },
+       "engine": {
+        "type": "string"
+       },
+       "provider": {
+        "type": "string"
+       },
+       "model": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "provider_model_version": {
+        "type": "string"
+       },
+       "prompt_sha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "content_sha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "local_evidence_sha256": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "ingest_cli_version": {
+        "type": "string"
+       },
+       "byte_length": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "observed_at": {
+        "type": "string"
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "expires_at": {
+        "type": "string"
+       },
+       "evidence_status": {
+        "type": "string",
+        "enum": [
+         "retained",
+         "expired"
+        ]
+       },
+       "screenshot": {
+        "type": "object",
+        "properties": {
+         "reference": {
+          "anyOf": [
+           {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "sha256": {
+          "anyOf": [
+           {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "retained": {
+          "type": "boolean",
+          "const": false
+         }
+        },
+        "required": [
+         "reference",
+         "sha256",
+         "retained"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "epoch_id",
+       "cell_id",
+       "run_index",
+       "engine_identity",
+       "engine",
+       "provider",
+       "model",
+       "provider_model_version",
+       "prompt_sha256",
+       "content_sha256",
+       "local_evidence_sha256",
+       "ingest_cli_version",
+       "byte_length",
+       "observed_at",
+       "created_at",
+       "expires_at",
+       "evidence_status",
+       "screenshot"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "observations",
+    "cursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "anchor_evidence",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "evidence",
+   "timestamp",
+   "external proof"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Request an independent FreeTSA timestamp for one retained observation digest. Sends only its SHA-256 and nonce; trusts the pinned external authority clock and key. Explicit opt-in; bounded retries.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "subject": {
+     "type": "string",
+     "enum": [
+      "link",
+      "target",
+      "citation"
+     ],
+     "description": "The subject value; allowed values and bounds are specified in this schema."
+    },
+    "observationId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "ID of a saved observation; this does not fetch a new publisher page."
+    }
+   },
+   "required": [
+    "subject",
+    "observationId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "workspace_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "project_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "subject": {
+     "type": "string",
+     "enum": [
+      "link",
+      "target",
+      "citation"
+     ]
+    },
+    "observation_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "digest": {
+     "type": "string",
+     "pattern": "^[a-f0-9]{64}$"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "pending",
+      "verified",
+      "failed"
+     ]
+    },
+    "attempts": {
+     "type": "integer",
+     "minimum": -9007199254740991,
+     "maximum": 9007199254740991
+    },
+    "created_at": {
+     "type": "string"
+    },
+    "last_error": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "queryBase64": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 1024
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "responseBase64": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 21848
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "verification": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "verified": {
+         "type": "boolean",
+         "const": true
+        },
+        "authority": {
+         "type": "string",
+         "const": "FreeTSA"
+        },
+        "method": {
+         "type": "string",
+         "const": "rfc3161-pinned-tsa"
+        },
+        "digest": {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        "anchored_at": {
+         "type": "string"
+        },
+        "serial": {
+         "type": "string"
+        },
+        "certificate_sha256": {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        "revocation_checked": {
+         "type": "boolean",
+         "const": false
+        },
+        "trust": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "verified",
+        "authority",
+        "method",
+        "digest",
+        "anchored_at",
+        "serial",
+        "certificate_sha256",
+        "revocation_checked",
+        "trust"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "workspace_id",
+    "project_id",
+    "subject",
+    "observation_id",
+    "digest",
+    "status",
+    "attempts",
+    "created_at",
+    "last_error",
+    "queryBase64",
+    "responseBase64",
+    "verification"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_evidence_anchor",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "evidence",
+   "timestamp",
+   "external proof"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read a portable external timestamp receipt for a link, target or citation observation. Verification is pinned to FreeTSA; online revocation is not checked. No witness request occurs on read.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "subject": {
+     "type": "string",
+     "enum": [
+      "link",
+      "target",
+      "citation"
+     ],
+     "description": "The subject value; allowed values and bounds are specified in this schema."
+    },
+    "observationId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "ID of a saved observation; this does not fetch a new publisher page."
+    }
+   },
+   "required": [
+    "subject",
+    "observationId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "workspace_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "project_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "subject": {
+     "type": "string",
+     "enum": [
+      "link",
+      "target",
+      "citation"
+     ]
+    },
+    "observation_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "digest": {
+     "type": "string",
+     "pattern": "^[a-f0-9]{64}$"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "pending",
+      "verified",
+      "failed"
+     ]
+    },
+    "attempts": {
+     "type": "integer",
+     "minimum": -9007199254740991,
+     "maximum": 9007199254740991
+    },
+    "created_at": {
+     "type": "string"
+    },
+    "last_error": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "queryBase64": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 1024
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "responseBase64": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 21848
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "verification": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "verified": {
+         "type": "boolean",
+         "const": true
+        },
+        "authority": {
+         "type": "string",
+         "const": "FreeTSA"
+        },
+        "method": {
+         "type": "string",
+         "const": "rfc3161-pinned-tsa"
+        },
+        "digest": {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        "anchored_at": {
+         "type": "string"
+        },
+        "serial": {
+         "type": "string"
+        },
+        "certificate_sha256": {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        "revocation_checked": {
+         "type": "boolean",
+         "const": false
+        },
+        "trust": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "verified",
+        "authority",
+        "method",
+        "digest",
+        "anchored_at",
+        "serial",
+        "certificate_sha256",
+        "revocation_checked",
+        "trust"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "workspace_id",
+    "project_id",
+    "subject",
+    "observation_id",
+    "digest",
+    "status",
+    "attempts",
+    "created_at",
+    "last_error",
+    "queryBase64",
+    "responseBase64",
+    "verification"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_citation_evidence",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "citations",
+   "answer evidence",
+   "content hash"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read one retained citation answer envelope and verify its exact content hash. Expired bodies return410; the hash does not prove an independent timestamp or provider authenticity.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "observationId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "ID of a saved observation; this does not fetch a new publisher page."
+    }
+   },
+   "required": [
+    "observationId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "observation": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "workspace_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "epoch_id": {
+       "type": "string"
+      },
+      "cell_id": {
+       "type": "string"
+      },
+      "run_index": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "engine_identity": {
+       "type": "string"
+      },
+      "engine": {
+       "type": "string"
+      },
+      "provider": {
+       "type": "string"
+      },
+      "model": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "provider_model_version": {
+       "type": "string"
+      },
+      "prompt_sha256": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "content_sha256": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "local_evidence_sha256": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "ingest_cli_version": {
+       "type": "string"
+      },
+      "byte_length": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "observed_at": {
+       "type": "string"
+      },
+      "created_at": {
+       "type": "string"
+      },
+      "expires_at": {
+       "type": "string"
+      },
+      "evidence_status": {
+       "type": "string",
+       "enum": [
+        "retained",
+        "expired"
+       ]
+      },
+      "screenshot": {
+       "type": "object",
+       "properties": {
+        "reference": {
+         "anyOf": [
+          {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 120,
+           "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "sha256": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-f0-9]{64}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retained": {
+         "type": "boolean",
+         "const": false
+        }
+       },
+       "required": [
+        "reference",
+        "sha256",
+        "retained"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "id",
+      "workspace_id",
+      "project_id",
+      "epoch_id",
+      "cell_id",
+      "run_index",
+      "engine_identity",
+      "engine",
+      "provider",
+      "model",
+      "provider_model_version",
+      "prompt_sha256",
+      "content_sha256",
+      "local_evidence_sha256",
+      "ingest_cli_version",
+      "byte_length",
+      "observed_at",
+      "created_at",
+      "expires_at",
+      "evidence_status",
+      "screenshot"
+     ],
+     "additionalProperties": false
+    },
+    "envelopeJson": {
+     "type": "string"
+    },
+    "integrity": {
+     "type": "object",
+     "properties": {
+      "sha256": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "verified": {
+       "type": "boolean",
+       "const": true
+      }
+     },
+     "required": [
+      "sha256",
+      "verified"
+     ],
+     "additionalProperties": false
+    },
+    "screenshot": {
+     "type": "object",
+     "properties": {
+      "reference": {
+       "anyOf": [
+        {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 120,
+         "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "sha256": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "retained": {
+       "type": "boolean",
+       "const": false
+      }
+     },
+     "required": [
+      "reference",
+      "sha256",
+      "retained"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "observation",
+    "envelopeJson",
+    "integrity",
+    "screenshot"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
   "name": "request_check",
   "toolset": "monitoring",
   "tier": "deferred",
@@ -6275,7 +7814,7 @@ export const CATALOG_COMMANDS = [
    "events:read"
   ],
   "readOnly": true,
-  "description": "Read change events from one feed using an opaque cursor: feed links for placement changes, feed targets for destination-health changes. The two feeds keep separate cursors; a broken destination does not imply its source backlink disappeared. Apply a full page locally before saving next_cursor.",
+  "description": "Read one independent change feed: links, targets or citations. Citation events compare eligible epochs, never single answers. Keep each feed cursor separate and apply a full page before saving next_cursor; unknown outcomes do not prove loss.",
   "examples": [
    {
     "feed": "links",
@@ -6295,7 +7834,8 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "enum": [
       "links",
-      "targets"
+      "targets",
+      "citations"
      ],
      "description": "Which change feed to read: links (placement changes) or targets (destination-health changes); each feed keeps its own cursor."
     },
@@ -6850,6 +8390,867 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {},
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "configure_index_observations",
+  "toolset": "monitoring",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "index status",
+   "google inspection",
+   "indexed"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:write"
+  ],
+  "readOnly": false,
+  "description": "Set website index-inspection opt-in, daily quota and cadence. Requires an owner or admin session; scheduled execution also requires operator activation.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "enabled": {
+     "type": "boolean",
+     "description": "The enabled value; allowed values and bounds are specified in this schema."
+    },
+    "dailyLimit": {
+     "description": "The daily limit value; allowed values and bounds are specified in this schema.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 2000
+    },
+    "retentionDays": {
+     "description": "The retention days value; allowed values and bounds are specified in this schema.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 90
+    },
+    "cadenceSeconds": {
+     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "type": "integer",
+     "minimum": 3600,
+     "maximum": 2592000
+    }
+   },
+   "required": [
+    "projectId",
+    "enabled"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256
+    },
+    "enabled": {
+     "type": "boolean"
+    },
+    "dailyLimit": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "retentionDays": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "cadenceSeconds": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "schedulingAvailable": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "projectId",
+    "enabled",
+    "dailyLimit",
+    "retentionDays",
+    "cadenceSeconds",
+    "schedulingAvailable"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_index_observation_settings",
+  "toolset": "monitoring",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "index status",
+   "google inspection",
+   "indexed"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Read website index-inspection opt-in, quota, retention and scheduler availability.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the project returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256
+    },
+    "enabled": {
+     "type": "boolean"
+    },
+    "dailyLimit": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "retentionDays": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "cadenceSeconds": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "schedulingAvailable": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "projectId",
+    "enabled",
+    "dailyLimit",
+    "retentionDays",
+    "cadenceSeconds",
+    "schedulingAvailable"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "inspect_index_status",
+  "toolset": "monitoring",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "index status",
+   "google inspection",
+   "indexed"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:write"
+  ],
+  "readOnly": false,
+  "description": "Inspect one monitored source URL through its authorized Google property. This reads Google indexed state, not the live page, and requests no crawl. Retry with the same request key.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "connectionId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the connection returned by its create or list operation."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the watch returned by its create or list operation."
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "pattern": "^[\\x21-\\x7e]{1,128}$",
+     "description": "Caller-generated key reused only for retries of the same operation and arguments in this workspace."
+    }
+   },
+   "required": [
+    "connectionId",
+    "watchId",
+    "idempotencyKey"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "observation": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "observationId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 256
+      },
+      "checkedAt": {
+       "type": "string"
+      },
+      "recordedAt": {
+       "type": "string"
+      },
+      "expiresAt": {
+       "type": "string"
+      },
+      "evidenceSha256": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "eventId": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "ignored": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "version": {
+       "type": "number",
+       "const": 1
+      },
+      "url": {
+       "type": "string",
+       "format": "uri"
+      },
+      "lane": {
+       "type": "string",
+       "enum": [
+        "gsc",
+        "licensed_site"
+       ]
+      },
+      "backend": {
+       "type": "string"
+      },
+      "source_key": {
+       "type": "string"
+      },
+      "tier": {
+       "type": "string",
+       "enum": [
+        "indexed",
+        "not_indexed",
+        "likely_indexed",
+        "not_found_in_site_query",
+        "unknown"
+       ]
+      },
+      "confidence": {
+       "type": "string",
+       "enum": [
+        "google_index_snapshot",
+        "search_result_sample",
+        "unknown"
+       ]
+      },
+      "reason": {
+       "type": "string"
+      },
+      "live_page_test": {
+       "type": "boolean",
+       "const": false
+      },
+      "submission_requested": {
+       "type": "boolean",
+       "const": false
+      }
+     },
+     "required": [
+      "id",
+      "observationId",
+      "checkedAt",
+      "recordedAt",
+      "expiresAt",
+      "evidenceSha256",
+      "eventId",
+      "ignored",
+      "version",
+      "url",
+      "lane",
+      "backend",
+      "source_key",
+      "tier",
+      "confidence",
+      "reason",
+      "live_page_test",
+      "submission_requested"
+     ],
+     "additionalProperties": {}
+    },
+    "rawResponse": {},
+    "evidenceAvailable": {
+     "type": "boolean"
+    },
+    "replayed": {
+     "type": "boolean"
+    },
+    "providerError": {
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "PROVIDER_PERMISSION_LOST",
+        "PROVIDER_RATE_LIMITED",
+        "PROVIDER_UNAVAILABLE",
+        "PROVIDER_RESPONSE_INVALID"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "observation",
+    "rawResponse",
+    "evidenceAvailable",
+    "replayed"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_index_observations",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "index status",
+   "google inspection",
+   "indexed"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Read dated index observations for one monitored source. Unknown and sampled evidence remain distinct from confirmed index states.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the watch returned by its create or list operation."
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "beforeId": {
+     "description": "Identifier of the before returned by its create or list operation.",
+     "type": "string",
+     "pattern": "^[a-f0-9]{64}$"
+    }
+   },
+   "required": [
+    "projectId",
+    "watchId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "observations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "observationId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+       },
+       "checkedAt": {
+        "type": "string"
+       },
+       "recordedAt": {
+        "type": "string"
+       },
+       "expiresAt": {
+        "type": "string"
+       },
+       "evidenceSha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "eventId": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "ignored": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "version": {
+        "type": "number",
+        "const": 1
+       },
+       "url": {
+        "type": "string",
+        "format": "uri"
+       },
+       "lane": {
+        "type": "string",
+        "enum": [
+         "gsc",
+         "licensed_site"
+        ]
+       },
+       "backend": {
+        "type": "string"
+       },
+       "source_key": {
+        "type": "string"
+       },
+       "tier": {
+        "type": "string",
+        "enum": [
+         "indexed",
+         "not_indexed",
+         "likely_indexed",
+         "not_found_in_site_query",
+         "unknown"
+        ]
+       },
+       "confidence": {
+        "type": "string",
+        "enum": [
+         "google_index_snapshot",
+         "search_result_sample",
+         "unknown"
+        ]
+       },
+       "reason": {
+        "type": "string"
+       },
+       "live_page_test": {
+        "type": "boolean",
+        "const": false
+       },
+       "submission_requested": {
+        "type": "boolean",
+        "const": false
+       }
+      },
+      "required": [
+       "id",
+       "observationId",
+       "checkedAt",
+       "recordedAt",
+       "expiresAt",
+       "evidenceSha256",
+       "eventId",
+       "ignored",
+       "version",
+       "url",
+       "lane",
+       "backend",
+       "source_key",
+       "tier",
+       "confidence",
+       "reason",
+       "live_page_test",
+       "submission_requested"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "nextCursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "observations",
+    "nextCursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_index_observation",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "index status",
+   "google inspection",
+   "indexed"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Read one index observation and its retained provider snapshot. Expired snapshots remain explicitly unavailable.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the watch returned by its create or list operation."
+    },
+    "receiptId": {
+     "type": "string",
+     "pattern": "^[a-f0-9]{64}$",
+     "description": "Identifier of the receipt returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId",
+    "watchId",
+    "receiptId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "observation": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "observationId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 256
+      },
+      "checkedAt": {
+       "type": "string"
+      },
+      "recordedAt": {
+       "type": "string"
+      },
+      "expiresAt": {
+       "type": "string"
+      },
+      "evidenceSha256": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "eventId": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "ignored": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "version": {
+       "type": "number",
+       "const": 1
+      },
+      "url": {
+       "type": "string",
+       "format": "uri"
+      },
+      "lane": {
+       "type": "string",
+       "enum": [
+        "gsc",
+        "licensed_site"
+       ]
+      },
+      "backend": {
+       "type": "string"
+      },
+      "source_key": {
+       "type": "string"
+      },
+      "tier": {
+       "type": "string",
+       "enum": [
+        "indexed",
+        "not_indexed",
+        "likely_indexed",
+        "not_found_in_site_query",
+        "unknown"
+       ]
+      },
+      "confidence": {
+       "type": "string",
+       "enum": [
+        "google_index_snapshot",
+        "search_result_sample",
+        "unknown"
+       ]
+      },
+      "reason": {
+       "type": "string"
+      },
+      "live_page_test": {
+       "type": "boolean",
+       "const": false
+      },
+      "submission_requested": {
+       "type": "boolean",
+       "const": false
+      }
+     },
+     "required": [
+      "id",
+      "observationId",
+      "checkedAt",
+      "recordedAt",
+      "expiresAt",
+      "evidenceSha256",
+      "eventId",
+      "ignored",
+      "version",
+      "url",
+      "lane",
+      "backend",
+      "source_key",
+      "tier",
+      "confidence",
+      "reason",
+      "live_page_test",
+      "submission_requested"
+     ],
+     "additionalProperties": {}
+    },
+    "rawResponse": {},
+    "evidenceAvailable": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "observation",
+    "rawResponse",
+    "evidenceAvailable"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_index_events",
+  "toolset": "evidence",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "index status",
+   "google inspection",
+   "indexed"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Read confirmed index-state transitions for one monitored source. Link presence remains independent; unknown probes do not prove deindexing.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 256,
+     "description": "Identifier of the watch returned by its create or list operation."
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    }
+   },
+   "required": [
+    "projectId",
+    "watchId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "events": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "receiptId": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+       },
+       "type": {
+        "type": "string",
+        "enum": [
+         "index.deindexed",
+         "index.reindexed"
+        ]
+       },
+       "createdAt": {
+        "type": "string"
+       },
+       "url": {
+        "type": "string",
+        "format": "uri"
+       },
+       "source_key": {
+        "type": "string"
+       },
+       "before": {
+        "type": "string",
+        "enum": [
+         "indexed",
+         "not_indexed"
+        ]
+       },
+       "after": {
+        "type": "string",
+        "enum": [
+         "indexed",
+         "not_indexed"
+        ]
+       },
+       "observation_ids": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 256
+        }
+       }
+      },
+      "required": [
+       "id",
+       "receiptId",
+       "type",
+       "createdAt",
+       "url",
+       "source_key",
+       "before",
+       "after",
+       "observation_ids"
+      ],
+      "additionalProperties": {}
+     }
+    }
+   },
+   "required": [
+    "events"
+   ],
    "additionalProperties": {}
   }
  },

@@ -12,10 +12,19 @@
 //
 // Self-contained: no external stylesheet, font, script or image. That makes it openable offline
 // forever, printable to PDF from any browser, and incapable of telling anyone it was opened.
+//
+// v2 makes the document a RECEIPT (DP-0004-T20): every row carries the observation behind it —
+// when it was observed, the content hash of what was captured, who checked, and a stable
+// evidence reference that resolves to the observation itself. One dataset feeds both exports:
+// this HTML view for a human client, and `report --json` for an agent, so the two can never
+// disagree about what was observed.
+import {indexRowsForUrl} from './index-observations.js';
+import {reconcileIndexObservations} from '../src/index-observation.js';
 import { createHash } from 'node:crypto';
 import { latestByEntry } from './mirror.js';
+import { mirrorEvidenceReference } from '../src/evidence-reference.js';
 
-export const REPORT_VERSION = 1;
+export const REPORT_VERSION = 2;
 
 /** HTML-escape. Every value below is publisher or customer content and none of it is trusted. */
 export const escape = value => String(value ?? '')
@@ -33,12 +42,14 @@ const STATE_LABEL = Object.freeze({
  * Selection happens here and nowhere else, so a caller can hold this object, assert it, and know
  * the rendered document is a pure function of it.
  */
-export function freezeDataset(entries, observations, { asOf, title = 'Backlink report', includeNotes = false, includeRetired = false } = {}) {
+export function freezeDataset(entries, observations, { asOf, title = 'Backlink report', includeNotes = false, includeRetired = false, indexObservations = [] } = {}) {
   const latest = latestByEntry(observations);
   const rows = entries
     .filter(entry => includeRetired || entry.intent !== 'retired')
     .map(entry => {
       const row = latest.get(entry.id) ?? null;
+      const indexRows=indexRowsForUrl(indexObservations,entry.source);
+      const origin = row?.source === 'cloud' ? 'cloud' : (row?.source ?? null);
       return {
         id: entry.id, intent: entry.intent, source: entry.source, target: entry.target, scope: entry.scope,
         expected_anchor: entry.expect?.anchor ?? null,
@@ -49,8 +60,34 @@ export function freezeDataset(entries, observations, { asOf, title = 'Backlink r
         checked_by: row?.source ?? null,
         anchor: row?.result?.occurrences?.[0]?.anchor ?? null,
         rel: row?.result?.occurrences?.[0]?.rel ?? [],
+        // The receipt block: what was observed, when, by which check, and how to point at the
+        // observation itself. Null on a never-checked row — an absent receipt is a fact here,
+        // not a missing field.
+        evidence: row ? {
+          observed_at: row.checked_at ?? null,
+          // The content hash of the captured document, present whenever the check recorded one.
+          // This is the field anchoring (DP-0042-T07) will make independently verifiable; it is
+          // in the export now so a document made today can be verified the day anchoring lands.
+          content_hash: row.result?.evidence?.sha256 ?? null,
+          // The hosted snapshot key, when this observation was synced from the workspace.
+          // Local checks never store publisher bytes anywhere, so null there means exactly that.
+          snapshot_key: row.evidence_key ?? null,
+          // Who ran the check: a local CLI run or the hosted scheduler. Two origins at the same
+          // instant are two observations, and a receipt that blurred them would blur method.
+          origin,
+          checker_version: row.checker_version ?? row.result?.evidence?.checkerVersion ?? null,
+          // Named, not implied: a static observation is not a claim about what a reader sees.
+          method: row.result?.evidence?.rendered === true || row.result?.evidence?.method === 'browser_html'
+            ? 'rendered' : row.result?.evidence?.rendered === false || row.result?.evidence?.method === 'http_html'
+              ? 'static_html' : null,
+          // The hosted observation id when the mirror row carries one (cloud-synced rows).
+          hosted_observation_id: row.cloud_observation_id ?? null,
+          // The stable reference that resolves to this observation from the repository mirror.
+          locator: mirrorEvidenceReference({ entryId: entry.id, checkedAt: row.checked_at ?? undefined, origin: origin ?? undefined }),
+        } : null,
         // Opt-in, because a note can hold commercial context — what a placement cost, what a
         // publisher said — and a report is the document most likely to be forwarded.
+        ...(indexRows.length?{index_observations:indexRows,index_reconciliation:reconcileIndexObservations(indexRows)}:{}),
         note: includeNotes ? (entry.note ?? null) : null,
         ref: includeNotes ? (entry.ref ?? null) : null,
       };
@@ -94,6 +131,8 @@ td.url{word-break:break-all;max-width:340px}
 .present{background:#eef7ee;border-color:#b6d7b6}
 .absent{background:#fdeeee;border-color:#e2b6b6}
 .unknown,.unchecked,.source_unavailable{background:#f6f6f6}
+code.hash{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.ref{font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all}
 .note{color:#555;font-size:12px}
 footer{margin-top:28px;padding-top:12px;border-top:1px solid #eee;color:#555;font-size:12px}
 .caveat{margin:18px 0;padding:10px 14px;border-left:3px solid #ddd;color:#444;font-size:13px}
@@ -110,13 +149,35 @@ export function renderReport(dataset, { brand = null } = {}) {
   const digest = createHash('sha256').update(JSON.stringify(dataset)).digest('hex');
   const card = (label, value) => `<div class="card"><b>${escape(value)}</b><span>${escape(label)}</span></div>`;
   const coverage = dataset.coverage;
+  // The receipt column. "hash not recorded" is stated rather than papered over: a local check
+  // that never completed a fetch has no hash, and a cloud-synced row may carry its snapshot key
+  // without a hash in an older event. Neither is a claim about the link.
+  const evidenceCell = row => {
+    if (!row.evidence) return '<span class="note">no observation</span>';
+    const hash = row.evidence.content_hash ? `<code class="hash">${escape(row.evidence.content_hash.slice(0, 12))}</code>` : '<span class="note">hash not recorded</span>';
+    const origin = row.evidence.origin === 'cloud' ? 'hosted check' : row.evidence.origin === 'local' ? 'local check' : 'unknown origin';
+    const checker = row.evidence.checker_version ? ` &middot; checker ${escape(row.evidence.checker_version)}` : '';
+    const method=row.evidence.method==='rendered'?'browser-rendered HTML':row.evidence.method==='static_html'?'static HTML':'method not recorded';
+    return `${hash}<div class="note">${escape(origin)}${checker}</div><div class="note">${method}</div>`;
+  };
+  const hasIndex=dataset.rows.some(row=>row.index_observations?.length);
   const rows = dataset.rows.map(row => `<tr>
       <td class="url"><a href="${escape(row.source)}">${escape(row.source)}</a></td>
       <td class="url">${escape(row.target)}</td>
       <td><span class="state ${escape(row.state)}">${escape(STATE_LABEL[row.state] ?? row.state)}</span></td>
       <td>${row.anchor ? escape(row.anchor) : '<span class="note">&mdash;</span>'}${(row.rel ?? []).length ? `<div class="note">rel: ${escape(row.rel.join(' '))}</div>` : ''}</td>
       <td>${row.checked_at ? escape(row.checked_at.slice(0, 10)) : '<span class="note">never</span>'}</td>
+      <td>${evidenceCell(row)}</td>
+      ${hasIndex?`<td>${(row.index_observations??[]).map(o=>`${escape(o.tier)} · ${escape(o.reason)}<div>${escape(o.checked_at)} · ${escape(o.backend)}</div><div class="ref">${escape(o.locator)}</div>`).join('<hr>')||'Not checked'}</td>`:''}
       ${dataset.include_notes ? `<td class="note">${escape(row.ref ?? '')}${row.note ? `<div>${escape(row.note)}</div>` : ''}</td>` : ''}
+    </tr>`).join('\n');
+  // Every row's full reference, printable: the table above stays readable while the document a
+  // client forwards still carries the complete handle for each observation behind it.
+  const receiptRows = dataset.rows.filter(row => row.evidence?.locator).map(row => `<tr>
+      <td>${escape(row.id)}</td>
+      <td>${escape(row.evidence.observed_at ?? 'unknown')}</td>
+      <td>${row.evidence.content_hash ? `<code class="hash">${escape(row.evidence.content_hash)}</code>` : '<span class="note">not recorded</span>'}</td>
+      <td class="ref">${escape(row.evidence.locator)}</td>
     </tr>`).join('\n');
 
   return `<!doctype html>
@@ -137,17 +198,29 @@ last observed, between ${escape(coverage.observed_from ?? 'n/a')} and ${escape(c
 The date at the top is when this document was prepared and does not make any observation newer
 than it is. ${coverage.never_checked ? `${coverage.never_checked} of ${dataset.totals.entries} links have never been checked and are listed as such.` : ''}</p>
 <p class="caveat"><strong>What a result means.</strong> &ldquo;Present&rdquo; means the link was in
-the HTML the publisher served. &ldquo;Could not check&rdquo; is not the same as
+the observed HTML. &ldquo;Could not check&rdquo; is not the same as
 &ldquo;not found&rdquo;: it means the page could not be read, and no conclusion was drawn.
-JavaScript execution and visual visibility were not checked.</p>
+Each receipt identifies the check method when it was recorded. A snapshot alone does not prove the link was visible on screen.</p>
 <table><thead><tr>
-<th>Source page</th><th>Target</th><th>Result</th><th>Anchor</th><th>Observed</th>${dataset.include_notes ? '<th>Notes</th>' : ''}
+<th>Source page</th><th>Target</th><th>Result</th><th>Anchor</th><th>Observed</th><th>Evidence</th>${hasIndex?'<th>Index evidence</th>':''}${dataset.include_notes ? '<th>Notes</th>' : ''}
 </tr></thead><tbody>
 ${rows}
 </tbody></table>
+${receiptRows ? `<h2>Evidence references</h2>
+<p class="caveat"><strong>What a reference is.</strong> Each row above was concluded from one
+saved observation. Its reference names that observation — which ledger entry, when it was
+checked, and whether the check ran locally or on the hosted service — and resolves to the
+recorded result from the repository that produced this document, with no account required. The
+content hash, where recorded, is the hash of the document that was captured at that moment;
+two captures of a changed page produce different hashes, which is what makes "the same
+evidence" checkable rather than claimed.</p>
+<table><thead><tr><th>Link</th><th>Observed at</th><th>Content hash</th><th>Reference</th></tr></thead><tbody>
+${receiptRows}
+</tbody></table>` : ''}
 <footer>
 AgentLinkOps report v${dataset.v}. Dataset digest <code>${escape(digest)}</code> &mdash; the same
-ledger and observations always produce this digest.
+ledger and observations always produce this digest. The same dataset exports as JSON
+(<code>agentlinkops report --json</code>) and carries the same digest.
 ${dataset.include_notes ? 'Private notes are included in this document.' : 'Private notes and references are excluded.'}
 </footer>
 </body></html>

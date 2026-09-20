@@ -14,6 +14,7 @@ export {
 const envQuiet = () => Boolean(process.env.AGENTLINKOPS_BROWSER_QUIET);
 
 export const logger = {
+  debug: (...args) => { if (!envQuiet()) console.error('[browser:debug]', ...args); },
   log: (...args) => { if (!envQuiet()) console.error('[browser]', ...args); },
   warn: (...args) => { if (!envQuiet()) console.error('[browser:warn]', ...args); },
   error: (...args) => { console.error('[browser:error]', ...args); },

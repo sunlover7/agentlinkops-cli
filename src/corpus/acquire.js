@@ -13,8 +13,11 @@ export const FETCH_KINDS = Object.freeze(['direct', 'rendered', 'proxied']);
 export const ACQUISITION_LIMITS = Object.freeze({ maxBytes: 2 * 1024 * 1024, timeoutMs: 20_000, maxRedirects: 5 });
 
 // Every way a page attempt can end. The frontier records the outcome; none of them is ever
-// allowed to reach the corpus as "this page has no links".
-export const OUTCOMES = Object.freeze(['fetched', 'not_found', 'blocked', 'unavailable', 'not_configured', 'deferred']);
+// allowed to reach the corpus as "this page has no links". `unchanged` is the conditional-GET
+// end: a 304 against validators we sent. It is a real observation with provenance, and it is
+// recorded in the refresh ledger (corpus_refresh_checks), never as a corpus_pages row — a page
+// we did not re-read is not a page we fetched, and the pages table has no vocabulary for it.
+export const OUTCOMES = Object.freeze(['fetched', 'not_found', 'blocked', 'unavailable', 'not_configured', 'deferred', 'unchanged']);
 
 const BLOCKED_REASONS = /^(robots_disallowed|robots_|access_challenge|source_http_(401|403|429))/;
 // A slot we could not take is not the publisher's fault and not a defect: retry it later.
@@ -48,7 +51,7 @@ export function createAcquisition(options = {}) {
   const runtimes = options.runtimes ?? {};
   const clock = options.now ?? (() => new Date().toISOString());
 
-  async function direct(url, beforeFetch) {
+  async function direct(url, beforeFetch, { validators = null, document = false } = {}) {
     // The public boundary is a property of the transport, not of this module. Refuse rather
     // than fetch on an unasserted one; a lexically public hostname can still resolve inside.
     if (options.publicFetchSafe !== true) throw new AcquisitionError('public_fetch_boundary_not_asserted');
@@ -57,9 +60,12 @@ export function createAcquisition(options = {}) {
     const trace = { finalUrl: url, redirects: [], robots: null, httpStatus: null };
     try {
       const fetcher = publicFetcher({ ...options, beforeFetch: beforeFetch ?? options.beforeFetch, maxBytes, maxRedirects: ACQUISITION_LIMITS.maxRedirects }, controller.signal);
-      const { response, body } = await fetcher.source(url, trace);
+      const { response, body, notModified, validators: earned } = await fetcher.source(url, trace, { validators, document });
+      if (notModified) return { outcome: 'unchanged', trace, html: null, validators: earned };
       if (NOT_FOUND.has(response.status)) return { outcome: 'not_found', trace, html: null };
-      return { outcome: 'fetched', trace, html: body?.text ?? '', bytes: body?.bytes ?? 0 };
+      return { outcome: 'fetched', trace, html: body?.text ?? '', bytes: body?.bytes ?? 0,
+        linkHeader: response.headers.get('link'),
+        validators: { etag: response.headers.get('etag'), lastModified: response.headers.get('last-modified') } };
     } finally {
       clearTimeout(timer);
     }
@@ -93,20 +99,26 @@ export function createAcquisition(options = {}) {
     /**
      * Acquires one page. Always resolves: an attempt that failed is a recorded outcome, not
      * a thrown error, because the corpus must keep attempted outcomes and not only successes.
+     *
+     * `{ validators }` makes the direct path a conditional GET: pass the ETag/Last-Modified a
+     * previous fetch of this URL earned, and an unchanged page comes back as outcome
+     * `unchanged` with `http_status` 304 and no body — a dated observation, not an absence.
      */
-    async fetchPage(rawUrl, { kind = 'direct', beforeFetch = null } = {}) {
+    async fetchPage(rawUrl, { kind = 'direct', beforeFetch = null, validators = null } = {}) {
       const at = clock();
       const base = { url: rawUrl, final_url: null, kind, http_status: null, robots: null,
-        html: null, body_truncated: false, fetched_at: at, reason: null };
+        html: null, body_truncated: false, fetched_at: at, reason: null, etag: null, last_modified: null };
       if (!FETCH_KINDS.includes(kind)) return { ...base, outcome: 'unavailable', reason: 'unsupported_fetch_kind' };
       const checked = validatePublicUrl(rawUrl);
       if (!checked.valid) return { ...base, outcome: 'unavailable', reason: `unsafe_url:${checked.reason}` };
 
       try {
         if (kind === 'direct') {
-          const { outcome, trace, html } = await direct(checked.url, beforeFetch);
+          const { outcome, trace, html, validators: earned, linkHeader } = await direct(checked.url, beforeFetch, { validators });
           return { ...base, outcome, final_url: trace.finalUrl, http_status: trace.httpStatus,
             robots: trace.robots, redirects: trace.redirects, html,
+            etag: earned?.etag ?? null, last_modified: earned?.lastModified ?? null,
+            link_header: linkHeader ?? null,
             // The verifier's reader refuses an oversized body outright, so a returned body was
             // read to the end. Truncation reaches extraction from runtimes with their own caps.
             body_truncated: false, render_ms: 0, proxy_bytes: 0 };
@@ -129,6 +141,33 @@ export function createAcquisition(options = {}) {
         const outcome = error instanceof AcquisitionError && /not_configured|not_asserted|_invalid$/.test(reason)
           ? 'not_configured' : classifyFailure(reason);
         return { ...base, outcome, reason };
+      }
+    },
+
+    /**
+     * Acquires one non-page document: a sitemap or an RSS/Atom feed. Same transport, same
+     * robots-per-hop, same public boundary and same outcome vocabulary as `fetchPage`; only
+     * the Accept header and the content-type gate differ, because the XML family is the
+     * expected representation here. Conditional GET works the same way — feeds revalidate too.
+     *
+     * The crawl loop never calls this; it exists for the freshness lanes (sitemap diffing,
+     * feed polling) that read publisher declarations rather than pages.
+     */
+    async fetchDocument(rawUrl, { beforeFetch = null, validators = null } = {}) {
+      const at = clock();
+      const base = { url: rawUrl, final_url: null, kind: 'direct', http_status: null,
+        body: null, fetched_at: at, reason: null, etag: null, last_modified: null };
+      const checked = validatePublicUrl(rawUrl);
+      if (!checked.valid) return { ...base, outcome: 'unavailable', reason: `unsafe_url:${checked.reason}` };
+      try {
+        const { outcome, trace, html, validators: earned, linkHeader } = await direct(checked.url, beforeFetch, { validators, document: true });
+        return { ...base, outcome, final_url: trace.finalUrl, http_status: trace.httpStatus,
+          body: outcome === 'fetched' ? html : null,
+          etag: earned?.etag ?? null, last_modified: earned?.lastModified ?? null,
+          link_header: linkHeader ?? null };
+      } catch (error) {
+        const reason = typeof error?.reason === 'string' ? error.reason : 'acquisition_error';
+        return { ...base, outcome: classifyFailure(reason), reason };
       }
     },
   };

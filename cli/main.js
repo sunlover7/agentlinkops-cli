@@ -30,14 +30,17 @@ import { attachReceiptPerformance } from './receipt-performance.js';
 import { contextPaths, loadContextConfig, readGscRows } from '../src/context/gsc.js';
 import { readGa4Rows } from '../src/context/ga4.js';
 import { mixMain } from './mix.js';
+import { locateOccurrences } from '../src/locator.js';
+import { mirrorEvidenceReference, parseEvidenceReference, describeEvidenceReference } from '../src/evidence-reference.js';
 import { doctorMain } from './doctor.js';
 import { gscLinksMain } from './gsc-browser.js';
 import { skillMain, NUDGE } from './skill.js';
+import { indexMain, readIndexReceipts, locateIndexReceipt } from './index-observations.js';
 import { citationMain } from './citation.js';
 
 const USAGE = `agentlinkops — a backlink ledger that lives in your repository
 
-  agentlinkops skill [--url]            print the agent reference; read it in full once per session
+  agentlinkops skill [--url|--list [--json]|NAME]  read the agent reference or a named skill
                                             before the first AgentLinkOps call
   agentlinkops init                   create .agentlinkops/ here
   agentlinkops migrate                rename an existing .linktrail/ to .agentlinkops/ (receipt; never merges)
@@ -45,6 +48,9 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
                 [--mode local|hosted|external]  read-only setup plan; no account required
   agentlinkops add --source URL --target URL [--intent wanted|expected] [--scope …]
                 [--anchor TEXT] [--rel a,b] [--ref TEXT] [--tag t --tag t] [--note TEXT]
+  agentlinkops index pull --watch-id ID [--limit N] [--before ID]
+  agentlinkops index import FILE | export [--out FILE] | csv URLS.csv [--out FILE]
+  agentlinkops index check-csv URLS.csv --connection-id ID --request-id ID --out FILE
   agentlinkops import FILE --target DOMAIN [--from SUPPLIER] [--map source=COL,target=COL]
                 [--exact-url] [--no-subdomains] [--generated-at ISO] [--json]
   agentlinkops adopt CRM.sqlite [--scope exact|domain] [--write]
@@ -86,7 +92,12 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops status [--json]
   agentlinkops diff [--json]
   agentlinkops report [--out FILE] [--title T] [--brand B] [--as-of ISO]
-                [--include-notes] [--include-retired] [--digest-only]
+                [--include-notes] [--include-retired] [--digest-only] [--json]
+                                            HTML by default; --json writes the same frozen
+                                            dataset as JSON (the machine receipt)
+  agentlinkops locate (--entry ID [--at ISO] | --ref REFERENCE)
+                                            resolve one observation to its occurrences and
+                                            evidence reference, from the local mirror only
   agentlinkops fmt
   agentlinkops compact [--apply]
 
@@ -112,7 +123,7 @@ function reportProblems(problems, what, out) {
   if (problems.length > 20) out(`  … and ${problems.length - 20} more`);
 }
 
-export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), out = console.log, err = console.error } = {}) {
+export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), out = console.log, err = console.error, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   if (argv[0] === 'gsc-links') return await gscLinksMain(argv, { cwd, out });
   // Citation watches keep their own files under .agentlinkops/citations/ and never
   // touch the link ledger, so they dispatch before its requirement like context does.
@@ -126,6 +137,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
 
   let syncLock = null;
   try {
+    if (command === 'index') return await indexMain(args,{cwd,env,fetchImpl,out});
     if (command === 'setup') return await setupPlanMain(argv, { cwd, out });
     if (command === 'tools' || command === 'describe' || command === 'call') return await commandsMain(argv, { cwd, out, err });
     if (command === 'skill') return await skillMain(argv, { out });
@@ -369,8 +381,26 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
         title: args.title === true ? 'Backlink report' : (args.title ?? 'Backlink report'),
         includeNotes: args['include-notes'] === true,
         includeRetired: args['include-retired'] === true,
+        indexObservations: await readIndexReceipts(config.paths.indexObservations),
       });
       if (args['digest-only']) { out(datasetDigest(dataset)); return 0; }
+      // `--json` selects the machine receipt: the SAME frozen dataset, not a second serializer,
+      // so an agent's JSON and a client's HTML cannot disagree about what was observed.
+      if (args.json) {
+        const json = JSON.stringify(dataset, null, 2);
+        if (args.out && args.out !== true) {
+          await mkdir(dirname(String(args.out)), { recursive: true });
+          await writeFile(String(args.out), json, 'utf8');
+          out(`${dataset.totals.entries} link(s), digest ${datasetDigest(dataset)}`);
+          out(`wrote ${args.out}`);
+        } else { out(json); }
+        // On the JSON stdout path the notices go to stderr: a consumer piping the machine
+        // receipt must receive exactly one parseable document, nothing after it.
+        const note = args.out && args.out !== true ? out : err;
+        if (!asOf) note('NOT reproducible: no --as-of, so the prepared date is today and tomorrow differs.');
+        if (dataset.include_notes) note('Private notes are IN this document.');
+        return 0;
+      }
       const html = renderReport(dataset, { brand: args.brand === true ? null : (args.brand ?? null) });
       if (args.out && args.out !== true) {
         await mkdir(dirname(String(args.out)), { recursive: true });
@@ -382,6 +412,55 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
         return 0;
       }
       out(html);
+      return 0;
+    }
+
+    if (command === 'locate') {
+      // The resolution side of the evidence reference (DP-0004-T21): a reference printed in an
+      // export must resolve to the observation it names, from the repository alone, with no
+      // account and no network. Hosted references name the workspace's own rows and resolve
+      // through the API; sending a reader there from an offline command would be a silent
+      // dependency on live session state, so it is refused with the command that works.
+      const ref = args.ref === true ? null : (args.ref ?? null);
+      const entryId = args.entry === true ? null : (args.entry ?? null);
+      const at = args.at === true ? null : (args.at ?? null);
+      let row = null;
+      if (ref) {
+        const parsed = parseEvidenceReference(String(ref));
+        if (!parsed) { err(`not an AgentLinkOps evidence reference: ${ref}`); return 2; }
+        if (parsed.subject === 'index') {
+          if(parsed.storage==='hosted'){err(describeEvidenceReference(ref).resolves[0]);return 2;}
+          out(JSON.stringify(locateIndexReceipt(await readIndexReceipts(config.paths.indexObservations),parsed.receiptId),null,2));return 0;
+        }
+        if (parsed.storage === 'hosted') {
+          err('hosted references resolve through the workspace API, not the local mirror:');
+          err(`  agentlinkops call locate_link --set observationId=${parsed.observationId}`);
+          return 2;
+        }
+        row = observations.rows.find(candidate => candidate.id === parsed.entryId
+          && String(candidate.checked_at) === parsed.checkedAt
+          && (candidate.source === 'cloud' ? 'cloud' : 'local') === parsed.origin) ?? null;
+        if (!row) { err(`no observation in this mirror matches ${ref}`); return 2; }
+      } else if (entryId) {
+        if (at && !Number.isFinite(Date.parse(String(at)))) { err(`--at is not a valid timestamp: ${at}`); return 2; }
+        const candidates = observations.rows.filter(candidate => candidate.id === String(entryId));
+        // `--at` is exact or it is an error: silently falling back to the latest observation
+        // would show a reader a different check while appearing to resolve the one they named.
+        row = at ? candidates.find(candidate => String(candidate.checked_at) === String(at)) ?? null
+          // Latest by checked_at, matching latestByEntry's rule, so `locate` and `report` never
+          // disagree about which observation a row's receipt describes.
+          : candidates.reduce((best, candidate) => (!best || String(candidate.checked_at) >= String(best.checked_at) ? candidate : best), null);
+        if (!row) { err(at ? `no observation of ${entryId} at ${at}` : `no observation of ${entryId} in this mirror`); return 2; }
+      } else { err('agentlinkops locate (--entry ID [--at ISO] | --ref REFERENCE)'); return 2; }
+      const entry = ledger.entries.find(candidate => candidate.id === row.id) ?? null;
+      const reference = mirrorEvidenceReference({ entryId: row.id, checkedAt: row.checked_at, origin: row.source === 'cloud' ? 'cloud' : 'local' });
+      out(JSON.stringify({
+        // The T05 locate view: positions, live-page handoff, evidence metadata, notes.
+        ...locateOccurrences({ ...row, id: row.cloud_observation_id ?? null }),
+        ledger_entry: entry ? { id: entry.id, source: entry.source, target: entry.target, scope: entry.scope } : null,
+        evidence_reference: reference,
+        reference_resolution: describeEvidenceReference(reference),
+      }, null, 2));
       return 0;
     }
 

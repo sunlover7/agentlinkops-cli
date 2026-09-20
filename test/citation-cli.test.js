@@ -81,3 +81,13 @@ test('citation run: a budget abort exits 2 and states the cap', async () => {
   assert.equal(code, 2);
   assert.ok(errLines.join('\n').includes('budget abort'));
 });
+
+test('citation run: AIO without credentials refuses before writing observations', async () => {
+  reset();
+  const cwd = await mkdtemp(join(tmpdir(), 'citation-cli-aio-'));
+  const panelPath = await writePanel(cwd, panel({}, { engines: [{ engine: 'google-aio' }] }));
+  const code = await citationMain(['run', panelPath], { cwd, out, err: errs, env: {} });
+  assert.equal(code, 2);
+  assert.match(errLines.join('\n'), /requires DATAFORSEO_LOGIN/);
+  await assert.rejects(readFile(join(cwd, '.agentlinkops/citations-observations.jsonl')), { code: 'ENOENT' });
+});

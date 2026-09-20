@@ -50,6 +50,7 @@ test('runner persists a screenshot sibling for browser-engine runs', async () =>
       return {
         engine: 'chatgpt', provider: 'web-own-browser', model: 'chatgpt',
         providerModelVersion: 'chatgpt-web',
+        browserContext: { surface: 'web', authentication: 'anonymous', account_tier: 'unknown' },
         answer: `Acme answer to: ${prompt}`,
         citations: [{ url: 'https://example.com/guide', title: 'Acme Guide' }],
         fanOut: [], usage: { input_tokens: 0, output_tokens: 0 },
@@ -83,6 +84,7 @@ test('runner persists a screenshot sibling for browser-engine runs', async () =>
     const env = JSON.parse(await readFile(join(dir, 'citations/evidence', result.epochId, j), 'utf8'));
     assert.equal(env.screenshot_file, `${j.replace('.json', '')}.screenshot.png`);
     assert.ok(env.engine_identity.startsWith('chatgpt:web-own-browser'));
+    assert.deepEqual(env.browser_context, { surface: 'web', authentication: 'anonymous', account_tier: 'unknown' });
   }
   const shotBytes = await readFile(join(dir, 'citations/evidence', result.epochId, shots[0]));
   assert.equal(shotBytes.toString('latin1').includes('fake-png-bytes'), true);

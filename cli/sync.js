@@ -151,7 +151,11 @@ export function cloudObservationRows(events, watchToLedger) {
     if (!ledgerId) continue;
     const observation = event.data?.after;
     if (!observation?.checked_at) continue;
-    rows.push({...observationRow(ledgerId, observationFromSnapshot(observation), { source: 'cloud', evidenceKey: event.data?.evidence_key ?? null }), projection_version: 1});
+    rows.push({...observationRow(ledgerId, observationFromSnapshot(observation), { source: 'cloud', evidenceKey: event.data?.evidence_key ?? null }),
+      // The hosted observation's own id, carried so a receipt export can name the workspace row
+      // (agentlinkops:evidence/1/link/hosted/<id>) alongside the mirror reference that resolves
+      // offline. Absent on snapshot-derived rows, which reconstruct state without observation ids.
+      cloud_observation_id: event.data?.observation_id ?? null, projection_version: 1});
   }
   return rows;
 }

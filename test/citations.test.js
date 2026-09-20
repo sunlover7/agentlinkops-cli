@@ -167,3 +167,34 @@ test('budget cap: the runner aborts BEFORE exceeding and records a partial recei
   // Partial tallies fall below the interpretation minimum and say so.
   assert.ok(result.cells.every((c) => c.classification === 'insufficient_data'));
 });
+
+test('all unknown runs preserve null rate and confidence limits', async () => {
+  const { EngineError } = await import('../src/citations/adapter.js');
+  const { rm } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'citations-unknown-'));
+  try {
+    const engines = new Map([[engineIdentity({ engine: 'mock' }), { estimateCostUsd: () => 0, run: async () => { throw new EngineError('unavailable', { retriable: true }); } }]]);
+    const result = await runEpoch(panelFor(), { dir, engines });
+    for (const row of result.cells) {
+      assert.equal(row.n, 0); assert.equal(row.rate, null); assert.equal(row.ci_low, null); assert.equal(row.ci_high, null);
+      assert.equal(row.classification, 'insufficient_data');
+    }
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test('epoch JSON carries supplemental corrected statistics without dropping fixed-n samples', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'citations-statistics-'));
+  const { rm } = await import('node:fs/promises');
+  try {
+    const engines = new Map([[engineIdentity({ engine: 'mock' }), createMockEngine()]]);
+    const result = await runEpoch(panelFor(), { dir, engines });
+    for (const cell of result.cells) {
+      assert.equal(cell.statistics.scope, 'fixed-epoch-supplemental');
+      assert.equal(cell.statistics.confidence_sequence.comparisons, result.cells.length);
+      assert.equal(cell.statistics.confidence_sequence.n, 10);
+      assert.equal(cell.statistics.epoch_comparison, null);
+      assert.equal(cell.statistics.changepoint.interpretation, 'exploratory');
+      assert.equal(cell.statistics.changepoint.run_length_posterior, undefined);
+    }
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

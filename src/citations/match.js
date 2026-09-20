@@ -118,3 +118,15 @@ export function classifyOutcome(target, run, verifyFetch) {
 }
 
 export { CITATION_OUTCOMES, outcomeRank };
+
+// Re-analyze retained answers without new provider requests or mutating evidence.
+// Mention and citation are independent facts: an answer may satisfy both.
+export function analyzeRetainedAnswer(target, evidence) {
+  if (!evidence || evidence.failure || evidence.unknown || typeof evidence.answer !== 'string') {
+    return { mentioned: null, cited: null, citedUrls: [], outcome: 'unknown' };
+  }
+  const citedUrls = matchCitations(target, evidence.citations ?? []);
+  const mentioned = matchMention(target, evidence.answer);
+  return { mentioned, cited: citedUrls.length > 0, citedUrls,
+    outcome: citedUrls.length ? 'cited' : mentioned ? 'mentioned' : 'not_cited' };
+}

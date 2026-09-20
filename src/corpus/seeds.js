@@ -18,7 +18,81 @@ export class SeedError extends Error {
   constructor(reason) { super(reason); this.name = 'SeedError'; this.reason = reason; }
 }
 
-function decodeXml(value) {
+// The seed-composition cap (DP-0049-T01 Fix 2). The birding corpus took 32.3% of its pages
+// from six .edu library-guide seed hosts and the citation graph followed the seeds: 59 of 100
+// shortlist rows were library infrastructure. The cap keeps one seed CLASS from dominating a
+// corpus no matter how large its sitemaps are, without touching the per-host cap that keeps
+// one large publisher from doing the same.
+export const SEED_COMPOSITION = Object.freeze({ maxShare: 1 / 3 });
+
+/**
+ * Parses a seeds file into ordered `{ host, class }` records. Every comment line opens a
+ * class for the host lines that follow it, so the class headers the earlier seed files
+ * already carried de facto ("--- surfaced by Q1 ... ---") became the explicit unit the
+ * composition cap enforces. A bare `#` with nothing after it resets to `unclassified`.
+ */
+export function parseSeedHosts(text) {
+  if (typeof text !== 'string') throw new SeedError('seeds_not_text');
+  const hosts = [];
+  let klass = 'unclassified';
+  for (const line of text.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('#')) {
+      const label = trimmed.replace(/^#+\s*/u, '').trim();
+      klass = label || 'unclassified';
+      continue;
+    }
+    hosts.push({ host: trimmed.toLowerCase(), class: klass });
+  }
+  return hosts;
+}
+
+/**
+ * Caps each class's seed-URL contribution. `classHosts` is one record per class in file
+ * order: `{ class, hosts: [[url, ...], ...] }` — the per-host URL lists AFTER the per-host
+ * cap, in admission order. A class over the cap is down-sampled round-robin across its
+ * hosts so the cut lands on every host evenly instead of beheading the last few; the share
+ * is computed against the PRE-CAP total and nothing is redistributed to other classes, so
+ * the rule is deterministic and auditable. A single-class run is never cut: one class cannot
+ * dominate itself.
+ *
+ * @returns The kept URLs in class order, and the per-class accounting the run report carries.
+ */
+export function capSeedComposition(classHosts, { maxShare = SEED_COMPOSITION.maxShare } = {}) {
+  if (!Array.isArray(classHosts) || classHosts.some(entry => !entry || !Array.isArray(entry.hosts))) {
+    throw new SeedError('seed_classes_malformed');
+  }
+  const total = classHosts.reduce((sum, entry) => sum + entry.hosts.reduce((n, urls) => n + urls.length, 0), 0);
+  const cap = Math.max(1, Math.floor(maxShare * total));
+  const multiClass = classHosts.filter(entry => entry.hosts.some(urls => urls.length)).length > 1;
+  const kept = [], perClass = [];
+  for (const entry of classHosts) {
+    const offered = entry.hosts.reduce((n, urls) => n + urls.length, 0);
+    let keptUrls = [];
+    if (multiClass && offered > cap) {
+      // Round-robin one URL per host per turn, hosts in file order, until the cap is hit.
+      const cursors = entry.hosts.map(() => 0);
+      while (keptUrls.length < cap) {
+        let advanced = false;
+        for (let h = 0; h < entry.hosts.length && keptUrls.length < cap; h++) {
+          if (cursors[h] < entry.hosts[h].length) {
+            keptUrls.push(entry.hosts[h][cursors[h]++]);
+            advanced = true;
+          }
+        }
+        if (!advanced) break;
+      }
+    } else {
+      keptUrls = entry.hosts.flat();
+    }
+    kept.push(...keptUrls);
+    perClass.push({ class: entry.class, offered, kept: keptUrls.length, cut: offered - keptUrls.length });
+  }
+  return { kept, cap, applied: multiClass && perClass.some(entry => entry.cut > 0), perClass };
+}
+
+export function decodeXml(value) {
   return value.replace(/&(?:#(\d{1,7})|#x([0-9a-f]{1,6})|([a-z]+));/giu, (whole, dec, hex, name) => {
     if (dec || hex) {
       const code = Number.parseInt(dec ?? hex, dec ? 10 : 16);
@@ -84,7 +158,7 @@ export function withinSitemapScope(candidate, sitemapUrl, scope = 'path') {
  *
  * @throws SeedError when the document is too large or is not a sitemap at all.
  */
-export function parseSitemap(input, { baseUrl, enforceScope = true, scope = 'path' } = {}) {
+export function parseSitemapEntries(input, { baseUrl, enforceScope = true, scope = 'path' } = {}) {
   if (typeof input !== 'string') throw new SeedError('sitemap_not_text');
   if (input.length > SEED_LIMITS.documentBytes) throw new SeedError('sitemap_too_large');
   // A byte-order mark before the root element defeats every subsequent match.
@@ -98,12 +172,24 @@ export function parseSitemap(input, { baseUrl, enforceScope = true, scope = 'pat
   if (indexAt < 0 && setAt < 0) return parseTextSitemap(xml, { baseUrl, enforceScope, scope });
   const kind = indexAt >= 0 && (setAt < 0 || indexAt < setAt) ? 'index' : 'urlset';
 
-  const urls = [];
+  const entries = [];
+  const seen = new Set();
   const skipped = {};
   let truncated = false;
+  // Collected rather than iterated lazily because each entry's lastmod is searched in the
+  // region up to the NEXT `<loc>`, which needs lookahead. Collection stops one past the cap:
+  // a document with more `<loc>` blocks than the cap is knowably truncated without reading
+  // all of them, which is the same signal the lazy scan's early break used to produce.
   const pattern = /<\s*loc\s*>([\s\S]*?)<\s*\/\s*loc\s*>/giu;
+  const matches = [];
   for (const match of xml.matchAll(pattern)) {
-    if (urls.length >= SEED_LIMITS.urlsPerDocument) { truncated = true; break; }
+    matches.push(match);
+    if (matches.length > SEED_LIMITS.urlsPerDocument) break;
+  }
+  const lastmodPattern = /<\s*lastmod\s*>([\s\S]*?)<\s*\/\s*lastmod\s*>/iu;
+  for (let index = 0; index < matches.length; index++) {
+    const match = matches[index];
+    if (entries.length >= SEED_LIMITS.urlsPerDocument) { truncated = true; break; }
     let raw = decodeXml(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gu, '$1')).trim();
     if (!raw) continue;
     // The protocol requires an absolute URL here. Resolving a relative value against the
@@ -114,9 +200,27 @@ export function parseSitemap(input, { baseUrl, enforceScope = true, scope = 'pat
       skipped.out_of_sitemap_scope = (skipped.out_of_sitemap_scope ?? 0) + 1;
       continue;
     }
-    if (!urls.includes(checked.url)) urls.push(checked.url);
+    if (seen.has(checked.url)) continue;
+    seen.add(checked.url);
+    // A lastmod belongs to the `<url>` (or `<sitemap>`) block its `<loc>` opens; the region
+    // ends where the next entry begins. Captured RAW: this is the publisher's declared change
+    // time, parsed where it is spent (`parseTimestamp` in freshness.js), and an unparsable
+    // claim is counted there rather than silently dropped here.
+    const region = xml.slice(match.index + match[0].length, matches[index + 1]?.index ?? xml.length);
+    const lastmodRaw = lastmodPattern.exec(region)?.[1]?.trim() ?? null;
+    entries.push({ loc: checked.url, lastmod: lastmodRaw });
   }
-  return { kind, urls, truncated, skipped };
+  // The loop can fill the cap on the LAST collected match, with nothing left to iterate and
+  // trip the in-loop break. Collection stopping at cap+1 is itself the proof that more
+  // `<loc>` blocks existed, which is exactly what truncated means.
+  if (!truncated && entries.length >= SEED_LIMITS.urlsPerDocument && matches.length > SEED_LIMITS.urlsPerDocument) truncated = true;
+  return { kind, entries, truncated, skipped };
+}
+
+/** The URL-only view of a sitemap, for callers that do not diff by lastmod. */
+export function parseSitemap(input, options = {}) {
+  const { kind, entries, truncated, skipped } = parseSitemapEntries(input, options);
+  return { kind, urls: entries.map(entry => entry.loc), truncated, skipped };
 }
 
 /** A sitemap entry must stand on its own as a public absolute URL. */
@@ -125,37 +229,42 @@ function absoluteEntry(value) {
   return validatePublicUrl(value);
 }
 
-/** The protocol's plain-text format: one absolute URL per line, no markup. */
+/** The protocol's plain-text format: one absolute URL per line, no markup. No lastmod. */
 function parseTextSitemap(text, { baseUrl, enforceScope, scope = 'path' }) {
-  const urls = [], skipped = {};
+  const entries = [], seen = new Set(), skipped = {};
   let truncated = false;
   for (const line of text.split(/\r?\n/u)) {
     const value = line.trim();
     if (!value || value.startsWith('#')) continue;
     // Anything with markup is not a text sitemap; do not half-read an unknown document.
     if (value.startsWith('<')) throw new SeedError('not_a_sitemap');
-    if (urls.length >= SEED_LIMITS.urlsPerDocument) { truncated = true; break; }
+    if (entries.length >= SEED_LIMITS.urlsPerDocument) { truncated = true; break; }
     const checked = absoluteEntry(value);
     if (!checked.valid) { skipped[checked.reason] = (skipped[checked.reason] ?? 0) + 1; continue; }
     if (enforceScope && baseUrl && !withinSitemapScope(checked.url, baseUrl, scope)) {
       skipped.out_of_sitemap_scope = (skipped.out_of_sitemap_scope ?? 0) + 1;
       continue;
     }
-    if (!urls.includes(checked.url)) urls.push(checked.url);
+    if (seen.has(checked.url)) continue;
+    seen.add(checked.url);
+    entries.push({ loc: checked.url, lastmod: null });
   }
-  if (!urls.length && !Object.keys(skipped).length) throw new SeedError('not_a_sitemap');
-  return { kind: 'urlset', urls, truncated, skipped };
+  if (!entries.length && !Object.keys(skipped).length) throw new SeedError('not_a_sitemap');
+  return { kind: 'urlset', entries, truncated, skipped };
 }
 
 /**
- * Walks a sitemap index to its leaf URLs, using a caller-supplied fetch so this module still
- * performs no I/O. `fetchDocument(url)` returns the body text or null when it could not be read.
+ * Walks a sitemap index to its leaf entries, using a caller-supplied fetch so this module
+ * still performs no I/O. `fetchDocument(url)` returns the body text or null when it could not
+ * be read. Leaf entries carry their declared lastmod; an index child carries the index's own
+ * lastmod, which describes the FILE rather than the URLs inside it, and so is not attached to
+ * anything downstream.
  *
  * A document we could not read is counted, never treated as a sitemap with no URLs — the same
  * rule extraction follows, for the same reason.
  */
 export async function expandSitemaps(roots, fetchDocument, { maxDepth = SEED_LIMITS.indexDepth, maxDocuments = SEED_LIMITS.sitemapDirectives, scope = 'path' } = {}) {
-  const urls = [], visited = new Set(), failures = {};
+  const entries = [], seenLocs = new Set(), visited = new Set(), failures = {};
   let documents = 0, truncated = false;
   const queue = roots.map(url => ({ url, depth: 0 }));
   while (queue.length) {
@@ -167,16 +276,20 @@ export async function expandSitemaps(roots, fetchDocument, { maxDepth = SEED_LIM
     const body = await fetchDocument(url);
     if (body === null || body === undefined) { failures.unreadable = (failures.unreadable ?? 0) + 1; continue; }
     let parsed;
-    try { parsed = parseSitemap(body, { baseUrl: url, scope }); }
+    try { parsed = parseSitemapEntries(body, { baseUrl: url, scope }); }
     catch (error) { failures[error.reason] = (failures[error.reason] ?? 0) + 1; continue; }
     if (parsed.truncated) truncated = true;
     if (parsed.kind === 'index') {
       // An index deeper than the limit is a loop or a mistake; stop rather than follow it.
       if (depth >= maxDepth) { failures.index_too_deep = (failures.index_too_deep ?? 0) + 1; continue; }
-      for (const child of parsed.urls) queue.push({ url: child, depth: depth + 1 });
+      for (const child of parsed.entries) queue.push({ url: child.loc, depth: depth + 1 });
       continue;
     }
-    for (const found of parsed.urls) if (!urls.includes(found)) urls.push(found);
+    for (const found of parsed.entries) {
+      if (seenLocs.has(found.loc)) continue;
+      seenLocs.add(found.loc);
+      entries.push(found);
+    }
   }
-  return { urls, documents, truncated, failures };
+  return { urls: entries.map(entry => entry.loc), entries, documents, truncated, failures };
 }

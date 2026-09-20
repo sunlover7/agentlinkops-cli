@@ -115,6 +115,13 @@ export function publicFetcher(options, signal) {
     try {
       response = await withAbort(Promise.resolve().then(() => {
         if (signal.aborted) throw new VerificationError('timeout');
+        // Conditional headers ride only on the request that earned them. A validator belongs
+        // to one resource; across a redirect hop it would be re-sent to a different one, so
+        // the caller drops validators after the first hop and the redirect loop revalidates
+        // the destination from scratch rather than trusting a moved resource's old validators.
+        const conditional = {};
+        if (context.kind === 'source' && context.validators?.etag) conditional['If-None-Match'] = context.validators.etag;
+        if (context.kind === 'source' && context.validators?.lastModified) conditional['If-Modified-Since'] = context.validators.lastModified;
         return fetchImpl(checked.url, {
           method: 'GET',
           redirect: 'manual',
@@ -122,7 +129,8 @@ export function publicFetcher(options, signal) {
           signal,
           headers: {
             'User-Agent': userAgent,
-            Accept: context.kind === 'robots' ? 'text/plain' : 'text/html',
+            Accept: context.kind === 'robots' ? 'text/plain' : context.accept ?? 'text/html',
+            ...conditional,
           },
         });
       }), signal);
@@ -239,8 +247,23 @@ export function publicFetcher(options, signal) {
       if (signal.aborted) throw new VerificationError('timeout');
       return robots;
     },
-    async source(initialUrl, trace) {
+    /**
+     * Fetches one source document. `{ validators }` turns this into a conditional GET: the
+     * caller passes the ETag/Last-Modified a previous fetch earned, and a 304 comes back as
+     * `{ notModified: true }` rather than an error. A 304 we did not ask for stays an error —
+     * the server revalidating nobody's cache is a defect, not evidence of anything.
+     *
+     * `{ document: true }` fetches a feed or sitemap instead of a page: the Accept header and
+     * the content-type gate admit the XML family rather than HTML. Everything else — robots per
+     * hop, public-destination screening, the redirect budget — is identical, because a feed is
+     * fetched from the same publishers under the same politeness rules as a page.
+     */
+    async source(initialUrl, trace, { validators = null, document = false } = {}) {
+      const accept = document
+        ? 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, text/plain;q=0.8'
+        : 'text/html';
       let url = initialUrl;
+      let revalidators = validators;
       const seen = new Set();
       for (let redirects = 0; redirects <= maxRedirects; redirects++) {
         trace.finalUrl = url;
@@ -248,7 +271,7 @@ export function publicFetcher(options, signal) {
         seen.add(url);
         const robots = await checkRobots(url, trace);
         trace.robots = robots;
-        const response = await request(url, { kind: 'source', crawlDelaySeconds: robots.crawlDelaySeconds });
+        const response = await request(url, { kind: 'source', crawlDelaySeconds: robots.crawlDelaySeconds, validators: revalidators, accept });
         trace.httpStatus = response.status;
         trace.sourceResponse = { url, httpStatus: response.status,
           contentType: /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+/iu.exec(response.headers.get('content-type') ?? '')?.[0].slice(0, 128) ?? null,
@@ -269,6 +292,9 @@ export function publicFetcher(options, signal) {
           if (!next.valid) throw new VerificationError(`unsafe_redirect:${next.reason}`);
           trace.redirects.push({ from: url, to: next.url, status: response.status });
           url = next.url;
+          // Validators were earned for the pre-redirect resource; the destination revalidates
+          // from scratch (see the conditional-header note in `request`).
+          revalidators = null;
           continue;
         }
         if ([404, 410].includes(response.status)) {
@@ -277,7 +303,10 @@ export function publicFetcher(options, signal) {
         }
         if (response.status === 304) {
           cancelBody(response);
-          throw new VerificationError('not_modified_without_baseline');
+          if (!revalidators) throw new VerificationError('not_modified_without_baseline');
+          return { response, body: null, notModified: true,
+            validators: { etag: response.headers.get('etag') ?? revalidators.etag ?? null,
+              lastModified: response.headers.get('last-modified') ?? revalidators.lastModified ?? null } };
         }
         if (response.status !== 200) {
           cancelBody(response);
@@ -290,12 +319,19 @@ export function publicFetcher(options, signal) {
             retryAfterSeconds(response.headers.get('retry-after')) === null ? {}
               : { retryAfterSeconds: retryAfterSeconds(response.headers.get('retry-after')) });
         }
-        if (!/^text\/html(?:;|$)/iu.test(response.headers.get('content-type') ?? '')) {
+        const contentType = response.headers.get('content-type') ?? '';
+        // The document gate admits the XML family (`application/xml`, `text/xml`,
+        // `application/rss+xml`, `application/atom+xml`) and plain text (the sitemap protocol's
+        // text format). It is still a gate: a feed URL serving HTML is a page wearing a feed's
+        // name, and parsing it as a feed would read markup as entries.
+        const expected = document ? /(?:[+/]xml|text\/plain)(?:\s*;|$)/iu : /^text\/html(?:;|$)/iu;
+        if (!expected.test(contentType)) {
           cancelBody(response);
           throw new VerificationError('unsupported_content_type');
         }
         const body = await readBounded(response, maxBytes, signal);
-        return { response, body };
+        return { response, body, notModified: false,
+          validators: { etag: response.headers.get('etag'), lastModified: response.headers.get('last-modified') } };
       }
       throw new VerificationError('redirect_limit');
     },

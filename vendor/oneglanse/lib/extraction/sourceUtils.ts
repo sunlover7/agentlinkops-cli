@@ -109,6 +109,6 @@ export async function clickButtonViaDispatch(
 	_page: Page,
 	button: Locator,
 ): Promise<boolean> {
-	await button.dispatchClick();
+	await button.click();
 	return true;
 }

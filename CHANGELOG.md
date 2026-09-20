@@ -3,6 +3,15 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.2 (unreleased)
+
+- Citation panels support competitor targets and explicit locale contexts. New panels default to the free mock engine; prompt suggestions remain editable.
+- Citation reports show bounded epoch history, retained evidence and unknown results. Local cadence commands preserve configured paths and require explicit webhook opt-in.
+- Citation statistics retain null rates for all-unknown samples and add supplemental confidence sequences and exploratory change candidates. These do not establish a real-world change date.
+- Google AI Overview ingestion validates supplier responses and provenance. Live use requires configured credentials and a budget; missing credentials never select fixture results.
+- Cloud-synced link receipts preserve content hashes and checker metadata when the hosted event supplies them.
+- Packaging follows dynamic imports and retains the maintained browser providers, with declared runtime dependencies.
+
 ## 0.5.1 (2026-09-17)
 
 - The plugin's `.mcp.json` ships in the tarball. 0.5.0 left it out, so a marketplace install

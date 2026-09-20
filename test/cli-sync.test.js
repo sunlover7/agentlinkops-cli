@@ -116,7 +116,7 @@ test('an error that is not an expiry is raised, not swallowed into an empty pull
 test('a cloud observation keeps the label of the machine that looked', () => {
   const events = [{
     watch_id: 'wat_1', type: 'watch.state_changed',
-    data: { evidence_key: 'private/ws_1/checks/job_1/1/abc.json',
+    data: { evidence_key: 'private/ws_1/checks/job_1/1/abc.json', observation_id: 'obs_01synced',
       after: { state: 'present', uncertain: false, checked_at: '2026-09-14T09:00:00.000Z',
         latestAttempt: { reason: 'link_found', occurrences: [{ anchor: 'guide' }], linkSignature: 'sig', evidence: { checkerVersion: '1' } } } },
   }];
@@ -127,6 +127,12 @@ test('a cloud observation keeps the label of the machine that looked', () => {
   assert.equal(rows[0].source, 'cloud');
   assert.equal(rows[0].evidence_key, 'private/ws_1/checks/job_1/1/abc.json');
   assert.equal(rows[0].occurrences, 1);
+  // The hosted observation id travels too, so a receipt export can name the workspace row
+  // (agentlinkops:evidence/1/link/hosted/<id>) beside the mirror reference that resolves
+  // offline. Snapshot-derived rows have none, and null says exactly that.
+  assert.equal(rows[0].cloud_observation_id, 'obs_01synced');
+  const snapshotsOnly = cloudObservationRows([{ watch_id: 'wat_1', type: 'watch.checked', data: { after: events[0].data.after } }], new Map([['wat_1', 'lk_11111111']]));
+  assert.equal(snapshotsOnly[0].cloud_observation_id, null);
   // An event for a watch this ledger does not know is skipped rather than filed under a guess.
   assert.equal(cloudObservationRows(events, new Map()).length, 0);
 });
@@ -166,4 +172,15 @@ test('the ledger maps to exactly the watch fields the cloud accepts', async () =
   assert.equal(JSON.stringify(sent).includes('private'), false);
   assert.equal(JSON.stringify(sent).includes('"x"'), false);
   assert.equal(sent.cadenceSeconds, 604_800);
+});
+
+
+test('legacy cloud events do not invent a content hash or measurement method', () => {
+  const [row] = cloudObservationRows([{watch_id: 'wat_legacy', data: {after: {
+    schema_version: 1, state: 'present', uncertain: false, checked_at: '2026-09-19T00:00:00.000Z',
+  }}}], new Map([['wat_legacy', 'lk_legacy01']]));
+  assert.equal(row.result.evidence.sha256, null);
+  assert.equal(row.result.evidence.method, null);
+  assert.equal(row.result.evidence.rendered, null);
+  assert.equal(row.cloud_observation_id, null);
 });
