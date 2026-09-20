@@ -3,6 +3,12 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.5 (2026-09-20)
+
+- Browser measurement requires a configured proxy. Authorized direct diagnostics need an explicit setting; missing proxy configuration never selects direct traffic.
+- Bound proxy acquisition, callback and cleanup waits. Failed cleanup quarantines the lease and blocks reuse; errors exclude provider details that could contain credentials.
+- Keep supplied usage measurements separate from estimated costs. The standard URL proxy has no meter, and engine callback receipts are not persisted by the CLI runner.
+
 ## 0.6.4 (2026-09-20)
 
 - Import and export immutable local IndexNow submission receipts, with hashes and replay checks. These commands send no submissions.

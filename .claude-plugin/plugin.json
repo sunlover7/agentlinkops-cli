@@ -1,6 +1,6 @@
 {
   "name": "agentlinkops",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Connect an agent to AgentLinkOps and run backlink work with it: the connect skill (views, the three discovery verbs, evidence rules), local ledger and campaign skills, a portable CRM, the source-cited content pipeline, user-managed disavow lists, HTML reports and monitoring-event sync.",
   "author": {
     "name": "AgentLinkOps"

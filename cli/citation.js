@@ -68,7 +68,9 @@ Panel (JSON): targets (domain or url, brand, aliases), prompts, engines
 Live engines need their configured credentials or a usable browser session; the mock
 engine runs everything at zero cost. Every run states its estimated spend, and the
 cap reserves estimated cost before each call. A supplier charge above that estimate
-is recorded as an overrun and stops subsequent calls.
+is recorded as an overrun and stops subsequent calls. Browser measurement requires
+AGENTLINKOPS_PROXY_URL. Authorized direct diagnostics need
+AGENTLINKOPS_BROWSER_EGRESS=direct-diagnostic with no proxy configured.
 
 Output language: citation RATE with a Wilson interval and n, classified against the
 previous epoch as declined, grown or not_distinguishable — never "removed", never

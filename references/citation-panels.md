@@ -14,6 +14,8 @@ Use `--competitors competitors.json` to add domains to check beside your own. Th
 
 Choose a live engine explicitly after checking access and budget. For an existing browser setup, use `--engine chatgpt:web-own-browser` or `--engine grok:web-own-browser`. `--engine google-aio` requires your configured supplier access. This workflow does not create accounts or buy services.
 
+Starting with CLI 0.6.5, browser measurement requires `AGENTLINKOPS_PROXY_URL`. Missing, failed or quarantined proxy admission never selects direct traffic. An explicitly authorized direct diagnostic requires `AGENTLINKOPS_BROWSER_EGRESS=direct-diagnostic` with no proxy configured. The standard URL proxy has no usage meter; estimated costs are not a provider invoice cap.
+
 Set `--locale en-GB --country GB` for a British locale draft. The mock engine supports locale fixtures. The Google AIO supplier path supports US and GB location requests; other engine paths refuse non-default locale requests in this version. Legacy default browser observations do not prove US proxy egress. Reports disclose the requested context and its basis; they do not treat it as verified user geography.
 
 After reviewing the draft, run the [local CLI workflow](cli.md) and inspect the retained evidence:
