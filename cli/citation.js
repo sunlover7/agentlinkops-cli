@@ -28,8 +28,8 @@ const USAGE = `agentlinkops citation — AI citation watches in this repository
                                             tallies land under .agentlinkops/citations/
   agentlinkops citation run PANEL.json --engine chatgpt:web-own-browser
                                             measure the consumer UI through Camoufox
-                                            (dedicated account, personal cadence; evidence
-                                            includes a screenshot of every answer)
+                                            (accountless by default; saved browser sessions
+                                            are not loaded)
   agentlinkops citation sweep PANEL.json --max-usd USD --out INVENTORY.json [--dir DIR]
                                             run a bounded epoch and freeze its retained evidence
   agentlinkops citation inventory PANEL.json --out INVENTORY.json [--epoch ID] [--dir DIR]
@@ -52,8 +52,8 @@ const USAGE = `agentlinkops citation — AI citation watches in this repository
   agentlinkops citation alert PANEL.json [--webhook URL --report REPORT.html]
                                             check the latest epoch for declines;
                                             logs an alert line if any cell declined
-  agentlinkops citation login ENGINE         open a browser, log in once, save the session
-                                            (the engine adapter uses it on every run)
+  agentlinkops citation login ENGINE         optional legacy saved-session setup
+                                            (not needed for accountless measurement)
   agentlinkops citation logout ENGINE        remove a saved session
   agentlinkops citation sessions            list saved engine sessions
   agentlinkops citation sync [--dir DIR] [--evidence]  push local epoch rows to the hosted
@@ -65,8 +65,11 @@ const USAGE = `agentlinkops citation — AI citation watches in this repository
 
 Panel (JSON): targets (domain or url, brand, aliases), prompts, engines
 ([{ "engine": "mock" | "perplexity", "model": "…" }]), optional samples and maxUsd.
-Live engines need their configured credentials or a usable browser session; the mock
-engine runs everything at zero cost. Every run states its estimated spend, and the
+API engines need their configured credentials. Browser measurement defaults to
+AGENTLINKOPS_BROWSER_AUTH=accountless and never loads saved sessions in that mode.
+Optional legacy saved-session mode requires explicit AGENTLINKOPS_BROWSER_AUTH=saved-session.
+Anonymous login walls or failed answers remain unknown; access is not guaranteed.
+The mock engine runs everything at zero cost. Every run states its estimated spend, and the
 cap reserves estimated cost before each call. A supplier charge above that estimate
 is recorded as an overrun and stops subsequent calls. Browser measurement requires
 AGENTLINKOPS_PROXY_URL. Authorized direct diagnostics need
