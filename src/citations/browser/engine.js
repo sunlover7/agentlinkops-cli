@@ -15,6 +15,7 @@ import { join } from 'node:path';
 
 import { EngineError } from '../adapter.js';
 import {createProxyAdmission,proxyFailureReason} from './proxy-admission.js';
+import { extractBoundChatgptResponse, extractChatgptSources, releaseChatgptResponseBinding } from './chatgpt-citations.js';
 
 const MODULE_LOADERS = {
   'playwright-core': () => import('playwright-core'),
@@ -101,6 +102,13 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     const { OWN_PROVIDER_CONFIGS } = await load('./providers.js');
     providerConfig = OWN_PROVIDER_CONFIGS[engineName] ?? PROVIDER_CONFIGS[engineName];
     if (!providerConfig) throw new EngineError(`no provider config for ${engineName}`);
+    if (engineName === 'chatgpt') {
+      const legacyExtract = providerConfig.extractSources;
+      const legacyResponse = providerConfig.extractResponse;
+      providerConfig = { ...providerConfig,
+        extractResponse: page => extractBoundChatgptResponse(page, legacyResponse),
+        extractSources: page => extractChatgptSources(page, legacyExtract) };
+    }
     return providerConfig;
   }
 
@@ -221,6 +229,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
         locale: 'en-US',
         timezoneId: 'America/New_York',
       });
+      let page;
       try {
       // Route-level asset stripping (opt out with AGENTLINKOPS_BROWSER_KEEP_ASSETS=1):
       // images and media are the bulk of the 3-8 MB measured per observation.
@@ -232,7 +241,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
           return route.continue();
         });
       }
-        const page = await context.newPage();
+        page = await context.newPage();
         const { runPageDomOp } = await load('./gen/lib/browser/domOps.js');
         page.runDomOp = (operation, params = {}) => runPageDomOp(page, operation, params);
         let answer = '';
@@ -317,7 +326,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
           await config.beforeSubmitHook?.(page);
 
           // Submit: the surface's own send button when it exposes one; Enter fallback.
-          // Submission is verified: the composer clears or a user turn appears.
+          // Allow the surface to settle; response extraction remains fail-closed.
           const send = await page.locator('button[aria-label="Send message"], button[data-testid="send-button"], button[aria-label*="Submit" i], button[aria-label*="Send" i]').first();
           if (await send.isVisible().catch(() => false)) { await send.click(); }
           else { await editor.locator.press('Enter'); }
@@ -355,6 +364,9 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
           screenshotPng,
         };
       } catch (cause) {
+        if (cause?.code === 'CITATION_EXTRACTION_UNAVAILABLE') {
+          throw Object.assign(new EngineError('Citation response could not be bound.'), {code:'CITATION_EXTRACTION_UNAVAILABLE',unknown:true});
+        }
         if (cause instanceof EngineError) throw cause;
         const msg = String(cause?.message ?? cause);
         const retriable = /timeout|timed out|ERR_|net::|closed|Target closed/i.test(msg);
@@ -362,6 +374,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
         error.unknown = true;
         throw error;
       } finally {
+        if (engineName === 'chatgpt' && page) await closeQuietly(() => releaseChatgptResponseBinding(page));
         if(!await closeQuietly(() => context.close()))contextCleanupFailed=true;
       }
     },
@@ -378,10 +391,10 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     },
   };
   const sample=engine.run.bind(engine),closeBrowser=engine.close.bind(engine);
-  const policyCodes=new Set(['BROWSER_AUTH_POLICY_INVALID','PROXY_REQUIRED','PROXY_POLICY_INVALID','PROXY_POLICY_CONFLICT','PROXY_CONFIGURATION_INVALID','PROXY_ACQUIRE_FAILED','PROXY_SUPPLIER_INVALID','PROXY_LEASE_INVALID','PROXY_LEASE_EXPIRED','PROXY_QUARANTINE_FAILED','PROXY_RELEASE_FAILED','PROXY_RECEIPT_FAILED','PROXY_CUSTODY_UNAVAILABLE','BROWSER_CLEANUP_UNCONFIRMED','BROWSER_RUN_IN_PROGRESS']);
+  const policyCodes=new Set(['CITATION_EXTRACTION_UNAVAILABLE','BROWSER_AUTH_POLICY_INVALID','PROXY_REQUIRED','PROXY_POLICY_INVALID','PROXY_POLICY_CONFLICT','PROXY_CONFIGURATION_INVALID','PROXY_ACQUIRE_FAILED','PROXY_SUPPLIER_INVALID','PROXY_LEASE_INVALID','PROXY_LEASE_EXPIRED','PROXY_QUARANTINE_FAILED','PROXY_RELEASE_FAILED','PROXY_RECEIPT_FAILED','PROXY_CUSTODY_UNAVAILABLE','BROWSER_CLEANUP_UNCONFIRMED','BROWSER_RUN_IN_PROGRESS']);
   const safeError=cause=>{
     const code=policyCodes.has(cause?.code)?cause.code:'BROWSER_RUN_FAILED';
-    const error=Object.assign(new EngineError(code==='BROWSER_RUN_FAILED'?'Browser sample failed.':'Browser admission or cleanup failed.',{retriable:code==='BROWSER_RUN_FAILED'&&cause?.retriable===true}),{code});
+    const error=Object.assign(new EngineError(code==='CITATION_EXTRACTION_UNAVAILABLE'?'Citation binding or extraction was unavailable.':code==='BROWSER_RUN_FAILED'?'Browser sample failed.':'Browser admission or cleanup failed.',{retriable:code==='BROWSER_RUN_FAILED'&&cause?.retriable===true}),{code});
     if(code==='BROWSER_RUN_FAILED'||cause?.unknown===true)error.unknown=true;
     return error;
   };

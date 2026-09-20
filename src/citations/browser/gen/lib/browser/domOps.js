@@ -96,9 +96,11 @@ async function runPageDomOp(page, operation, params) {
       function findLatestResponseElement(selectors) {
         const selector = (selectors || []).join(", ");
         if (!selector.trim()) return null;
-        const element = Array.from(document.querySelectorAll(selector)).filter(
-          (el) => el instanceof HTMLElement && isVisible(el) && !isResponsePlaceholder(el) && el.innerText.trim().length > 50
-        ).pop() ?? null;
+        const elements = Array.from(document.querySelectorAll(selector)).filter(
+          (el) => el instanceof HTMLElement && isVisible(el)
+        );
+        const element = elements.filter((el) => !elements.some((other) => other !== el && other.contains(el))).at(-1) ?? null;
+        if (!element || isResponsePlaceholder(element) || element.innerText.trim().length <= 50) return null;
         return element ? { selector, element } : null;
       }
       function getCachedRawSources(key) {

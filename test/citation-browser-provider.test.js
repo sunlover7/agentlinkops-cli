@@ -4,14 +4,16 @@ import { createBrowserEngine, BROWSER_PROVIDERS } from '../src/citations/browser
 import { OWN_PROVIDER_CONFIGS } from '../src/citations/browser/providers.js';
 
 let fixtureSequence=0;
-function harness({ authPolicy, stalledCleanup = false, sourcesFail = false, unavailable = false, answer = 'A retained fixture answer long enough to be interpreted independently.' } = {}) {
-  const contexts = []; const launches = []; const resolves = []; const events = []; let closed = 0; let displayClosed = 0; let stateReads = 0;
+function harness({ authPolicy, bindingValid = () => true, citationState = {found:true,groups:0,unresolved:false,sources:[]}, stalledCleanup = false, sourcesFail = false, unavailable = false, answer = 'A retained fixture answer long enough to be interpreted independently.' } = {}) {
+  const contexts = []; const launches = []; const resolves = []; const events = []; let closed = 0; let displayClosed = 0; let stateReads = 0; let bindingsDisposed = 0;
   const config = { navigateToPrompt: async () => {}, waitForResponse: async () => {}, extractResponse: async page => page.runDomOp('response-text', {}),
     ...(unavailable ? { citationExtraction: 'unsupported' } : {}),
     extractSources: async () => { if (sourcesFail) throw Error('secret-proxy-password'); return [{ url: 'https://example.com' }]; } };
   const browser = { async newContext(options) {
     const context = { options, closed: false, async route() {}, async close() { this.closed = true; if (stalledCleanup) return new Promise(() => {}); },
-      async newPage() { return { setDefaultTimeout() {}, screenshot: async () => Buffer.from('fixture-pixels') }; } };
+      async newPage() { return { setDefaultTimeout() {}, evaluate: async () => citationState,
+        evaluateHandle: async()=>({evaluate:async fn=>fn({isCurrent:bindingValid}),dispose:async()=>{bindingsDisposed++;}}),
+        screenshot: async () => Buffer.from('fixture-pixels') }; } };
     contexts.push(context); return context;
   }, async close() { closed++; if (stalledCleanup) return new Promise(() => {}); } };
   const runtime = { cleanupTimeoutMs: 5, platform: 'linux', sessionDir: '/fixture/sessions', firefox: { async launch(options) { launches.push(options); return browser; } },
@@ -25,7 +27,7 @@ function harness({ authPolicy, stalledCleanup = false, sourcesFail = false, unav
       throw Error('Unexpected import ' + path);
     } };
   const engine = createBrowserEngine({ engineName: 'chatgpt', runtime, env: { ...(authPolicy === undefined ? {} : {AGENTLINKOPS_BROWSER_AUTH: authPolicy}), AGENTLINKOPS_PROXY_URL: `http://fixture-user-${++fixtureSequence}:fixture-secret@proxy.example.com:1234` }, onEvent: text => events.push(text) });
-  return { engine, contexts, launches, resolves, events, closed: () => closed, displayClosed: () => displayClosed, stateReads: () => stateReads };
+  return { engine, contexts, launches, resolves, events, closed: () => closed, displayClosed: () => displayClosed, stateReads: () => stateReads, bindingsDisposed:()=>bindingsDisposed };
 }
 test('actual browser provider launches BrowserType, propagates display and isolates every sample', async () => {
   const h = harness();
@@ -47,7 +49,23 @@ test('failed or unsupported citation extraction retains evidence as unknown, nev
 test('empty scoped answer cannot fall back to page chrome; context still closes', async () => {
   const h = harness({ answer: '' });
   await assert.rejects(h.engine.run({ prompt: 'fixture' }), error=>error.code==='BROWSER_RUN_FAILED');
+  assert.equal(h.bindingsDisposed(),1,'early empty-answer rejection explicitly releases its response binding');
   assert.equal(h.contexts[0].closed, true); await h.engine.close();
+});
+test('real ChatGPT citation guard retains answer and screenshot as unknown for unresolved anonymous pills', async () => {
+  const h=harness({citationState:{found:true,anonymous:true,groups:3,unresolved:true,sources:[]}});
+  const result=await h.engine.run({prompt:'fixture'});
+  assert.equal(result.unknown,true);assert.equal(result.failure.code,'CITATION_EXTRACTION_UNAVAILABLE');
+  assert.match(result.answer,/retained fixture answer/);assert.ok(result.screenshotPng.length);
+  assert.deepEqual(result.citations,[]);assert.equal(h.contexts[0].closed,true);await h.engine.close();
+});
+test('response binding changes retain the specific unknown code and never pair stale answer with citations',async()=>{
+  for(const invalidAt of [2,3]){
+    let checks=0;const h=harness({bindingValid:()=>++checks!==invalidAt});
+    if(invalidAt===2)await assert.rejects(h.engine.run({prompt:'fixture'}),e=>e.code==='CITATION_EXTRACTION_UNAVAILABLE'&&e.unknown===true&&e.retriable===false&&e.message==='Citation binding or extraction was unavailable.');
+    else {const result=await h.engine.run({prompt:'fixture'});assert.equal(result.unknown,true);assert.equal(result.failure.code,'CITATION_EXTRACTION_UNAVAILABLE');assert.deepEqual(result.citations,[]);assert.ok(result.screenshotPng.length);}
+    assert.equal(h.contexts[0].closed,true);await h.engine.close();
+  }
 });
 
 test('vendored response waiter has the required debug logger', async () => {
