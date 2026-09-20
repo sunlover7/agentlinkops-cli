@@ -1,3 +1,4 @@
+import {boundedSubmissionText,readSubmissions,saveSubmissions,reconcileSubmissions,submissionCsv} from './index-submissions.js';
 import {readFile,writeFile,open,rename,unlink,mkdir,stat} from 'node:fs/promises';
 import {dirname,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -9,7 +10,7 @@ import {indexEvidenceReference,describeEvidenceReference} from '../src/evidence-
 import {indexReceiptResponse} from '../shared/index-observation-contract.js';
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const fail=message=>{throw new ConfigError(message);};
-export const INDEX_CLI_HELP='agentlinkops index pull --watch-id ID [--limit 50] [--before ID] | import RECEIPTS.json | export [--out FILE] | csv URLS.csv [--out FILE] | check-csv URLS.csv --connection-id ID --request-id ID --out FILE';
+export const INDEX_CLI_HELP='agentlinkops index pull --watch-id ID [--limit 50] [--before ID] | import RECEIPTS.json | export [--out FILE] | csv URLS.csv [--out FILE] | check-csv URLS.csv --connection-id ID --request-id ID --out FILE | submissions-import FILE | submissions-export --project-id ID [--out FILE] | reconcile-submissions --project-id ID [--format json|csv] [--out FILE]';
 function validate(row){
  if(row?.v!==1||! /^[\w-]{1,128}$/.test(row.project_id??'')||! /^[\w-]{1,128}$/.test(row.watch_id??''))fail('Invalid local index receipt scope');
  const receipt=indexReceiptResponse.parse(row.receipt);
@@ -61,6 +62,19 @@ function csvInput(text){
 }
 export async function indexMain(args,{cwd=process.cwd(),env=process.env,out=console.log,fetchImpl=globalThis.fetch}={}){
  const command=args._[1],config=await loadConfig({cwd}),path=config.paths.indexObservations;
+ if(['submissions-import','submissions-export','reconcile-submissions'].includes(command)){
+  const allowed=new Set(['_','tag','out','project-id','format']);
+  if(args.tag?.length||Object.keys(args).some(key=>!allowed.has(key))||args._.length!==(command==='submissions-import'?3:2))fail(INDEX_CLI_HELP);
+  if(command==='submissions-import'){
+   if(args.out||args['project-id']||args.format)fail(INDEX_CLI_HELP);
+   out(JSON.stringify(await saveSubmissions(config.paths.indexSubmissions,JSON.parse(await boundedSubmissionText(resolve(cwd,args._[2]))))));return 0;
+  }
+  if(args.format&&!['json','csv'].includes(args.format))fail('Submission format must be json or csv');
+  if(command==='submissions-export'&&args.format)fail(INDEX_CLI_HELP);
+  const report=reconcileSubmissions(await readSubmissions(config.paths.indexSubmissions),command==='reconcile-submissions'?await readIndexReceipts(path):[],args['project-id']);
+  const text=command==='submissions-export'?JSON.stringify(report.submissions.map(({outcome,observations,verification,...row})=>row),null,2):args.format==='csv'?submissionCsv(report):JSON.stringify(report,null,2);
+  if(args.out){if(typeof args.out!=='string')fail('--out requires a file');await atomicOutput(resolve(cwd,args.out),text);}else out(text);return 0;
+ }
  const allowed=new Set(['_','tag','out','watch-id','limit','before','connection-id','request-id']);if(args.tag?.length||Object.keys(args).some(key=>!allowed.has(key)))fail(INDEX_CLI_HELP);
  if(command==='import'){
   if(!args._[2])fail(INDEX_CLI_HELP);const parsed=JSON.parse(await boundedText(resolve(cwd,args._[2])));if(!Array.isArray(parsed)||parsed.length>100)fail('Import requires an array of at most 100 scoped index receipts');out(JSON.stringify(await saveIndexReceipts(path,parsed)));return 0;

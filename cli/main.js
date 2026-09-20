@@ -56,6 +56,8 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops admission list|add|update|remove|evaluate|reevaluate|receipt --project ID
   agentlinkops disavow list|history|propose|import|export|approve|reject|delete
   agentlinkops index import FILE | export [--out FILE] | csv URLS.csv [--out FILE]
+  agentlinkops index submissions-import FILE | submissions-export --project-id ID [--out FILE]
+  agentlinkops index reconcile-submissions --project-id ID [--format json|csv] [--out FILE]
   agentlinkops index check-csv URLS.csv --connection-id ID --request-id ID --out FILE
   agentlinkops import FILE --target DOMAIN [--from SUPPLIER] [--map source=COL,target=COL]
                 [--exact-url] [--no-subdomains] [--generated-at ISO] [--json]
