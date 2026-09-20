@@ -3,6 +3,12 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.4 (2026-09-20)
+
+- Import and export immutable local IndexNow submission receipts, with hashes and replay checks. These commands send no submissions.
+- Join each submission attempt to later retained index observations for the exact URL and project. JSON and CSV preserve source, date, reason and unknown results.
+- Submission responses remain received, validation pending, failed or unknown. Later Google observations do not verify indexing by an IndexNow participant or establish that submission caused indexing.
+
 ## 0.6.3 (2026-09-20)
 
 - Agent installation preserves customer edits and supports previewed removal and interrupted-install recovery.

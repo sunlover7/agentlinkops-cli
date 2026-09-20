@@ -20,6 +20,7 @@ export const DEFAULTS = Object.freeze({
   receipts: 'receipts.jsonl',
   observations: 'observations.jsonl',
   indexObservations: 'index-observations.jsonl',
+  indexSubmissions: 'index-submissions.jsonl',
   events: 'events.jsonl',
   candidates: 'candidates.jsonl',
   state: 'state.json',
@@ -99,7 +100,7 @@ export async function loadConfig({ cwd = process.cwd(), root = null } = {}) {
     defaults: { ...DEFAULTS, ...file.defaults },
     paths: {
       ledger: at('ledger'), observations: at('observations'), events: at('events'),
-      candidates: at('candidates'), state: at('state'), receipts: at('receipts'), indexObservations: at('indexObservations'),
+      candidates: at('candidates'), state: at('state'), receipts: at('receipts'), indexObservations: at('indexObservations'), indexSubmissions: at('indexSubmissions'),
     },
   };
 }
