@@ -271,7 +271,7 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
       execFile('camoufox', ['path'], { timeout: 8000 }, (error) => resolve(!error));
     });
     if (camoufoxOk) {
-      checks.push({ status: 'ok', name: 'browser', detail: 'playwright-core + camoufox present; browser engines available' });
+      checks.push({ status: 'ok', name: 'browser', detail: 'playwright-core + camoufox present; browser dependencies present; proxy and account access remain unverified' });
     } else {
       checks.push({ status: 'skip', name: 'browser', detail: 'playwright-core ok but camoufox missing', fix: 'python3 -m pip install cloverlabs-camoufox[geoip] && python3 -m camoufox fetch' });
     }

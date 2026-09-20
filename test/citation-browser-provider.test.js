@@ -44,7 +44,7 @@ test('failed or unsupported citation extraction retains evidence as unknown, nev
 });
 test('empty scoped answer cannot fall back to page chrome; context still closes', async () => {
   const h = harness({ answer: '' });
-  await assert.rejects(h.engine.run({ prompt: 'fixture' }), /answer extracted empty/);
+  await assert.rejects(h.engine.run({ prompt: 'fixture' }), error=>error.code==='BROWSER_RUN_FAILED');
   assert.equal(h.contexts[0].closed, true); await h.engine.close();
 });
 
@@ -55,7 +55,7 @@ test('vendored response waiter has the required debug logger', async () => {
 
 test('stalled browser cleanup remains bounded and tears down its display', { timeout: 1000 }, async () => {
   const h = harness({ stalledCleanup: true });
-  await h.engine.run({ prompt: 'fixture' });
+  await assert.rejects(h.engine.run({ prompt: 'fixture' }),error=>error.code==='BROWSER_CLEANUP_UNCONFIRMED');
   await h.engine.close();
   assert.equal(h.displayClosed(), 1);
 });

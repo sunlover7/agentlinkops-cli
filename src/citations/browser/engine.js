@@ -14,6 +14,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { EngineError } from '../adapter.js';
+import {createProxyAdmission,proxyFailureReason} from './proxy-admission.js';
 
 const MODULE_LOADERS = {
   'playwright-core': () => import('playwright-core'),
@@ -56,20 +57,6 @@ const ENGINE_NOMINAL_COST = Object.freeze({
 });
 const DEFAULT_NOMINAL_COST = 0.03;
 
-function parseProxyUrl(raw) {
-  if (!raw) return null;
-  try {
-    const url = new URL(raw);
-    return {
-      server: `${url.protocol}//${url.hostname}:${url.port}`,
-      username: decodeURIComponent(url.username),
-      password: decodeURIComponent(url.password),
-    };
-  } catch {
-    throw new EngineError(`AGENTLINKOPS_PROXY_URL is not a valid proxy URL (length ${raw.length}, value never printed)`);
-  }
-}
-
 export function createBrowserEngine({ engineName, env = process.env, onEvent = () => {}, runtime = {} } = {}) {
   if (!BROWSER_PROVIDERS.includes(engineName)) {
     throw new EngineError(`unknown browser engine: ${engineName} (known: ${BROWSER_PROVIDERS.join(', ')})`);
@@ -78,13 +65,21 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
   const sessionDir = runtime.sessionDir ?? join(homedir(), '.agentlinkops', 'citations', 'sessions');
   const load = runtime.loadModule ?? lazy;
   const platform = runtime.platform ?? process.platform;
+  const event=async text=>{
+    let timer;
+    try{await Promise.race([Promise.resolve().then(()=>onEvent(text)),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error()),runtime.supplierTimeoutMs??5000);})]);}
+    catch{throw new EngineError('Browser event reporting failed.');}
+    finally{clearTimeout(timer);}
+  };
 
+  const admission=createProxyAdmission({engine:engineName,env,supplier:runtime.proxySupplier,now:runtime.now,onReceipt:runtime.onEgressReceipt,timeoutMs:runtime.supplierTimeoutMs});
+  let running=false,contextCleanupFailed=false;
   let browserHandle = null;   // { browser, cleanup } for the whole epoch
   let displayHandle = null;
   let providerConfig = null;
   async function closeQuietly(action) {
     let timer;
-    try { await Promise.race([Promise.resolve().then(action).catch(() => null), new Promise(resolve => { timer = setTimeout(resolve, runtime.cleanupTimeoutMs ?? 5000); })]); }
+    try { return await Promise.race([Promise.resolve().then(action).then(() => true, () => false), new Promise(resolve => { timer = setTimeout(() => resolve(false), runtime.cleanupTimeoutMs ?? 5000); })]); }
     finally { clearTimeout(timer); }
   }
 
@@ -109,11 +104,11 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     // engines that block headless render headfully inside a virtual display.
     if (platform === 'linux' && !display.detectDisplay()) {
       displayHandle = await display.ensureDisplay({ allowExistingDisplay: false });
-      onEvent(`display: ${displayHandle.display}`);
+      await event(`display: ${displayHandle.display}`);
     }
 
-    const proxy = parseProxyUrl(env.AGENTLINKOPS_PROXY_URL);
-    if (proxy) onEvent(`proxy: ${proxy.server}`);
+    const proxy = admission.proxy;
+    await event(proxy?'egress: proxy-required':'egress: direct-diagnostic');
 
     const options = await resolveCamoufoxLaunchOptions({
       provider: engineName,
@@ -127,14 +122,17 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     });
     const launchOpts = { ...options, executablePath: options.executablePath };
     if (proxy) launchOpts.proxy = proxy;
+    admission.assertReady();
     const browser = await fw.launch(launchOpts);
 
     browserHandle = {
       browser,
       cleanup: async () => {
-        await closeQuietly(() => browser.close());
-        await displayHandle?.cleanup?.().catch(() => null);
+        const browserClosed=await closeQuietly(() => browser.close());
+        const displayClosed=await closeQuietly(() => displayHandle?.cleanup?.());
         displayHandle = null;
+        if(browserClosed)contextCleanupFailed=false;
+        return browserClosed&&displayClosed;
       },
     };
     return browserHandle;
@@ -193,13 +191,14 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     return null;
   }
 
-  return {
+  const engine = {
     identity,
     estimateCostUsd: () => ENGINE_NOMINAL_COST[engineName] ?? DEFAULT_NOMINAL_COST,
 
     async run({ prompt }) {
       const config = await ensureProviderConfig();
       const { browser } = await ensureBrowser();
+      admission.assertReady();
       const storageState = await loadStorageState();
       const context = await browser.newContext({
         storageState,
@@ -318,9 +317,9 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
             : `${engineName}: answer extracted empty`;
           throw new EngineError(reason, { retriable: true });        }
         let extractionFailed = config.citationExtraction === 'unsupported';
-        const sources = await config.extractSources(page).catch(() => {
+        const sources = await config.extractSources(page).catch(async () => {
           extractionFailed = true;
-          onEvent('sources extraction failed; observation retained as unknown');
+          await event('sources extraction failed; observation retained as unknown');
           return [];
         });
         const screenshotPng = await page.screenshot({ fullPage: false }).catch(() => null);
@@ -347,16 +346,64 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
         error.unknown = true;
         throw error;
       } finally {
-        await closeQuietly(() => context.close());
+        if(!await closeQuietly(() => context.close()))contextCleanupFailed=true;
       }
     },
 
     // Called by the runner at epoch end.
     async close() {
-      await browserHandle?.cleanup?.();
-      await displayHandle?.cleanup?.().catch(() => null);
-      displayHandle = null;
-      browserHandle = null;
+      let confirmed=true;
+      try{if(browserHandle)confirmed=await browserHandle.cleanup();}
+      finally{
+        const displayClosed=await closeQuietly(() => displayHandle?.cleanup?.());
+        confirmed=confirmed&&displayClosed;displayHandle=null;browserHandle=null;
+      }
+      return confirmed;
     },
   };
+  const sample=engine.run.bind(engine),closeBrowser=engine.close.bind(engine);
+  const policyCodes=new Set(['PROXY_REQUIRED','PROXY_POLICY_INVALID','PROXY_POLICY_CONFLICT','PROXY_CONFIGURATION_INVALID','PROXY_ACQUIRE_FAILED','PROXY_SUPPLIER_INVALID','PROXY_LEASE_INVALID','PROXY_LEASE_EXPIRED','PROXY_QUARANTINE_FAILED','PROXY_RELEASE_FAILED','PROXY_RECEIPT_FAILED','PROXY_CUSTODY_UNAVAILABLE','BROWSER_CLEANUP_UNCONFIRMED','BROWSER_RUN_IN_PROGRESS']);
+  const safeError=cause=>{
+    const code=policyCodes.has(cause?.code)?cause.code:'BROWSER_RUN_FAILED';
+    const error=Object.assign(new EngineError(code==='BROWSER_RUN_FAILED'?'Browser sample failed.':'Browser admission or cleanup failed.',{retriable:code==='BROWSER_RUN_FAILED'&&cause?.retriable===true}),{code});
+    if(code==='BROWSER_RUN_FAILED'||cause?.unknown===true)error.unknown=true;
+    return error;
+  };
+  async function retire(phase,reason=null){
+    const hadResources=Boolean(browserHandle||displayHandle||admission.proxy);let error,confirmed=false;
+    try{
+      try{confirmed=await closeBrowser();}catch{confirmed=false;}
+      if(!confirmed)reason='cleanup_unconfirmed';
+      try{if(hadResources)await admission.record({outcome:confirmed?'closed':'cleanup_unconfirmed',phase,reason});}catch(cause){error=cause;}
+      try{if(reason)await admission.quarantine(reason);}catch(cause){error??=cause;}
+      if(!confirmed)error??=Object.assign(new EngineError('Browser cleanup could not be confirmed.'),{code:'BROWSER_CLEANUP_UNCONFIRMED'});
+    }finally{try{await admission.release();}catch(cause){error??=cause;}}
+    if(error)throw safeError(error);
+  }
+  engine.run=async input=>{
+    if(running)throw Object.assign(new EngineError('A browser sample is already running.'),{code:'BROWSER_RUN_IN_PROGRESS'});
+    running=true;let result,error,reason=null,admitted=false;
+    try{
+      if(admission.expired)await retire('lease_expiry');
+      await admission.begin();admitted=true;
+      result=await sample(input);
+      if(contextCleanupFailed)throw Object.assign(new EngineError('Browser cleanup could not be confirmed.'),{code:'BROWSER_CLEANUP_UNCONFIRMED'});
+    }catch(cause){reason=proxyFailureReason(cause);error=safeError(cause);}
+    try{
+      if(admitted){
+        try{const receipt=await admission.record({outcome:error?'failed':result?.unknown?'unknown':'observed',reason});if(result)result.egressReceipt=receipt;}
+        catch(cause){error=safeError(cause);}
+        if(error){try{await retire('failure_cleanup',reason);}catch(cause){error=safeError(cause);}}
+      }
+    }finally{running=false;}
+    if(error)throw error;
+    return result;
+  };
+  engine.close=async()=>{
+    if(running)throw Object.assign(new EngineError('A browser sample is already running.'),{code:'BROWSER_RUN_IN_PROGRESS'});
+    running=true;
+    try{await retire('cleanup');}finally{running=false;}
+  };
+  engine.getEgressReceipts=admission.receipts;
+  return engine;
 }

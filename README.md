@@ -156,9 +156,15 @@ agentlinkops citation run panel.json --max-usd 1.00
 The panel is JSON: `targets` (domain or url, brand, aliases), `prompts`, `engines`
 (`mock` or `perplexity`), optional `samples` and `maxUsd`. Every run writes immutable
 content-addressed answer snapshots plus append-only observation and epoch rows under
-`.agentlinkops/citations/`. The USD cap is checked before each call, so it can be approached
-but never exceeded, and a budget abort leaves a partial-epoch receipt and exit code 2. A cell
+`.agentlinkops/citations/`. The runner reserves estimated cost before each call and retry. A reported supplier
+overrun stops later calls; estimates do not enforce a provider invoice cap. A budget
+abort leaves a partial-epoch receipt and exit code 2. A cell
 that declined with complete evidence exits 1, like an expected link observed absent.
+
+Browser measurement requires `AGENTLINKOPS_PROXY_URL` and refuses direct fallback.
+For an explicitly authorized direct diagnostic, set `AGENTLINKOPS_BROWSER_EGRESS=direct-diagnostic`
+and leave the proxy unset. The standard URL proxy provides no actual usage meter;
+its cost remains an estimate. Browser login and live account acceptance are separate.
 
 ## Environment variables
 
@@ -168,6 +174,8 @@ that declined with complete evidence exits 1, like an expected link observed abs
 | `AGENTLINKOPS_API_URL` | Hosted origin when it is not in `config.json`. |
 | `AGENTLINKOPS_WEBHOOK_SECRET` | Verifies signed deliveries in `agentlinkops receive`. |
 | `AGENTLINKOPS_GSC_TOKEN`, `AGENTLINKOPS_GA4_TOKEN` | First-party context commands under `agentlinkops context`. |
+| `AGENTLINKOPS_PROXY_URL` | Proxy URL for browser measurement; credentials are never printed. |
+| `AGENTLINKOPS_BROWSER_EGRESS` | Defaults to `proxy-required`; `direct-diagnostic` explicitly permits an authorized diagnostic without a proxy. |
 | `PERPLEXITY_API_KEY` | Live engine credential for `agentlinkops citation`. Presence is reported by `doctor`; the value is never printed. |
 
 No value is ever printed. The `LINKTRAIL_*` spellings, the `linktrail` command and a `.linktrail/`
