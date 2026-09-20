@@ -1,6 +1,6 @@
 {
   "name": "agentlinkops",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "A backlink and AI citation ledger that lives in your repository: local link and citation checks with dated evidence, supplier-export imports and optional sync to the hosted AgentLinkOps service.",
   "author": "AgentLinkOps (https://agentlinkops.com)",
   "license": "Apache-2.0",

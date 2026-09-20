@@ -2,7 +2,7 @@ import {restResponseContract} from '../shared/response-contract.js';
 // A small HTTP client for the cloud. Scoped keys only; no human session ever reaches here.
 // DP-0036-T13: the CLI names itself so the usage counters can tell it from other REST callers.
 // The version follows the plugin manifests; bump it with them.
-export const CLI_VERSION = '0.6.6';
+export const CLI_VERSION = '0.6.7';
 export const CLI_USER_AGENT = `agentlinkops-cli/${CLI_VERSION}`;
 export class CloudError extends Error {
   constructor(code, status, details = null) {

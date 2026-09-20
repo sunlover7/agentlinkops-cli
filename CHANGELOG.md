@@ -3,6 +3,12 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.7 (2026-09-20)
+
+- Default browser citation measurement to accountless mode. Saved session files are ignored unless `AGENTLINKOPS_BROWSER_AUTH=saved-session` is explicitly selected.
+- Reject custom launch, environment, extension and Firefox-preference overrides in accountless mode. Proxy admission remains required; direct diagnostics still need explicit authorization and configuration.
+- Keep anonymous login walls, blocked pages and failed answers unknown. Accountless mode does not guarantee that a provider will answer.
+
 ## 0.6.6 (2026-09-20)
 
 - Retain supplied browser usage receipts in a bounded local journal after each attempt and cleanup. Missing meter values remain unknown; failed writes stop the run.

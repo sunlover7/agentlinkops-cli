@@ -61,6 +61,18 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
   if (!BROWSER_PROVIDERS.includes(engineName)) {
     throw new EngineError(`unknown browser engine: ${engineName} (known: ${BROWSER_PROVIDERS.join(', ')})`);
   }
+  const authentication = env.AGENTLINKOPS_BROWSER_AUTH ?? 'accountless';
+  if (!['accountless', 'saved-session'].includes(authentication)) {
+    throw Object.assign(new EngineError('Unsupported browser authentication policy.'), { code: 'BROWSER_AUTH_POLICY_INVALID' });
+  }
+  // The vendored resolver reads process.env directly; arbitrary launch/profile
+  // and extension overrides must not reintroduce ambient identity.
+  const assertAccountlessLaunch = () => {
+    if (authentication === 'accountless' && ['CAMOUFOX_EXTRA_LAUNCH_JSON', 'CAMOUFOX_ENV_JSON', 'CAMOUFOX_ADDONS', 'CAMOUFOX_ARGS', 'CAMOUFOX_FIREFOX_USER_PREFS_JSON'].some(key => env[key] || process.env[key])) {
+      throw Object.assign(new EngineError('Accountless measurement does not accept custom browser launch or extension overrides.'), { code: 'BROWSER_AUTH_POLICY_INVALID' });
+    }
+  };
+  assertAccountlessLaunch();
   const identity = { engine: engineName, provider: 'web-own-browser', model: engineName };
   const sessionDir = runtime.sessionDir ?? join(homedir(), '.agentlinkops', 'citations', 'sessions');
   const load = runtime.loadModule ?? lazy;
@@ -110,6 +122,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     const proxy = admission.proxy;
     await event(proxy?'egress: proxy-required':'egress: direct-diagnostic');
 
+    assertAccountlessLaunch();
     const options = await resolveCamoufoxLaunchOptions({
       provider: engineName,
       proxy: proxy ?? undefined,
@@ -123,6 +136,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     const launchOpts = { ...options, executablePath: options.executablePath };
     if (proxy) launchOpts.proxy = proxy;
     admission.assertReady();
+    assertAccountlessLaunch();
     const browser = await fw.launch(launchOpts);
 
     browserHandle = {
@@ -139,6 +153,8 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
   }
 
   async function loadStorageState() {
+    // Accountless measurement never opens session files, even when they exist.
+    if (authentication === 'accountless') return undefined;
     try {
       const { readFile } = await load('node:fs/promises');
       return JSON.parse(await readFile(join(sessionDir, `${engineName}.json`), 'utf8'));
@@ -362,7 +378,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     },
   };
   const sample=engine.run.bind(engine),closeBrowser=engine.close.bind(engine);
-  const policyCodes=new Set(['PROXY_REQUIRED','PROXY_POLICY_INVALID','PROXY_POLICY_CONFLICT','PROXY_CONFIGURATION_INVALID','PROXY_ACQUIRE_FAILED','PROXY_SUPPLIER_INVALID','PROXY_LEASE_INVALID','PROXY_LEASE_EXPIRED','PROXY_QUARANTINE_FAILED','PROXY_RELEASE_FAILED','PROXY_RECEIPT_FAILED','PROXY_CUSTODY_UNAVAILABLE','BROWSER_CLEANUP_UNCONFIRMED','BROWSER_RUN_IN_PROGRESS']);
+  const policyCodes=new Set(['BROWSER_AUTH_POLICY_INVALID','PROXY_REQUIRED','PROXY_POLICY_INVALID','PROXY_POLICY_CONFLICT','PROXY_CONFIGURATION_INVALID','PROXY_ACQUIRE_FAILED','PROXY_SUPPLIER_INVALID','PROXY_LEASE_INVALID','PROXY_LEASE_EXPIRED','PROXY_QUARANTINE_FAILED','PROXY_RELEASE_FAILED','PROXY_RECEIPT_FAILED','PROXY_CUSTODY_UNAVAILABLE','BROWSER_CLEANUP_UNCONFIRMED','BROWSER_RUN_IN_PROGRESS']);
   const safeError=cause=>{
     const code=policyCodes.has(cause?.code)?cause.code:'BROWSER_RUN_FAILED';
     const error=Object.assign(new EngineError(code==='BROWSER_RUN_FAILED'?'Browser sample failed.':'Browser admission or cleanup failed.',{retriable:code==='BROWSER_RUN_FAILED'&&cause?.retriable===true}),{code});
@@ -384,6 +400,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     if(running)throw Object.assign(new EngineError('A browser sample is already running.'),{code:'BROWSER_RUN_IN_PROGRESS'});
     running=true;let result,error,reason=null,admitted=false;
     try{
+      assertAccountlessLaunch();
       if(admission.expired)await retire('lease_expiry');
       await admission.begin();admitted=true;
       result=await sample(input);

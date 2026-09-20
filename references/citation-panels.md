@@ -12,7 +12,9 @@ This command defaults to the mock engine. Its suggested questions are writing pr
 
 Use `--competitors competitors.json` to add domains to check beside your own. The file is an array of objects with `domain`, `brand` and optional `aliases` fields. Each target gets separate results for each question. A target missing from one answer is only missing from that sample; it does not establish absence from the engine.
 
-Choose a live engine explicitly after checking access and budget. For an existing browser setup, use `--engine chatgpt:web-own-browser` or `--engine grok:web-own-browser`. `--engine google-aio` requires your configured supplier access. This workflow does not create accounts or buy services.
+Choose a live engine explicitly after checking access and budget. For accountless browser measurement, use `--engine chatgpt:web-own-browser` or `--engine grok:web-own-browser`. `--engine google-aio` requires your configured supplier access. This workflow does not create accounts or buy services.
+
+Starting with CLI 0.6.7, browser authentication defaults to `AGENTLINKOPS_BROWSER_AUTH=accountless`. This mode does not load saved browser sessions, even if session files already exist. A login wall, blocked page or failed answer remains unknown; anonymous access is not guaranteed. Use accountless measurement for this workflow. The optional legacy `AGENTLINKOPS_BROWSER_AUTH=saved-session` mode is separate and requires an explicit opt-in; logging in is not a prerequisite for the default workflow.
 
 Starting with CLI 0.6.5, browser measurement requires `AGENTLINKOPS_PROXY_URL`. Missing, failed or quarantined proxy admission never selects direct traffic. An explicitly authorized direct diagnostic requires `AGENTLINKOPS_BROWSER_EGRESS=direct-diagnostic` with no proxy configured. The standard URL proxy has no usage meter; estimated costs are not a provider invoice cap.
 
