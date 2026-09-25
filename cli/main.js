@@ -152,7 +152,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     if (command === 'disavow') return await disavowMain(args,{cwd,env,fetchImpl,out});
     if (command === 'index') return await indexMain(args,{cwd,env,fetchImpl,out});
     if (command === 'setup') return await setupPlanMain(argv, { cwd, out });
-    if (command === 'tools' || command === 'describe' || command === 'call') return await commandsMain(argv, { cwd, out, err, env, fetchImpl });
+    if (command === 'tools' || command === 'describe' || command === 'schema' || command === 'call') return await commandsMain(argv, { cwd, out, err, env, fetchImpl });
     if (command === 'skill') return await skillMain(argv, { out });
     if (command === 'agent') return await agentMain(argv, { cwd, out, err });
     if (command === 'connect') {

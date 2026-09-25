@@ -6,10 +6,10 @@ for links a person supplies. Your agent keeps campaign judgment, browsing, email
 records. This page is the complete agent reference: the same text prints from
 `agentlinkops skill`, ships inside the installed `agentlinkops-connect` skill as
 `references/agentlinkops.md`, and is served at `https://agentlinkops.com/SKILL.md`. Read it in
-full once per session, then use `describe` for any command's exact schema.
+full once per session, then use `describe` (or `exec describe` on MCP) for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.8. 125 commands in 13 toolsets.
+Pack version 0.6.9. 125 commands in 13 toolsets.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)
@@ -40,7 +40,8 @@ environment (`AGENTLINKOPS_TOKEN` also works; the older `LINKTRAIL_*` names keep
 during the pilot compatibility window with one warning per process). MCP OAuth tokens are
 bound to `/mcp` and are not API keys.
 
-Verify: on MCP call `get_workspace` with `{}` (a workspace name in the answer means the
+Verify: on MCP call `get_workspace` with `{}` — directly, or as
+`exec: {"command": "call get_workspace {}"}` (a workspace name in the answer means the
 connection works); on the CLI run `agentlinkops doctor` (its `cloud` and `token` lines say
 `ok` when the origin answers and the key is accepted).
 
@@ -49,9 +50,12 @@ connection works); on the CLI run `agentlinkops doctor` (its `cloud` and `token`
 One catalog, several endpoints. Every command is callable on every view; only the listing
 changes. `agentlinkops agent setup` picks the right one per client.
 
-- `/mcp` (default): `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link` and
-  `list_events` listed directly, plus `search_tools`, `describe_tools`, `run_read_command` and
-  `run_write_command` for the rest; the server instructions list every command by toolset.
+- `/mcp` (default): one tool, `exec`, carries the whole catalog. Pass it CLI-style command
+  strings — `search`, `tools`, `describe`, `schema`, `call` — and the server instructions list
+  every command by toolset. Every command is also callable directly on this view (a client
+  that already knows the name may call it), and the older discovery tools
+  (`search_tools`, `describe_tools`, `run_read_command`, `run_write_command`) still answer
+  direct calls, unlisted.
 - `/mcp/all`: the flat catalog, for a client with its own tool search (Claude Code, Hermes).
 - `/mcp/{toolset}`: one group from the table at the end.
 - `/mcp/code`: `search`, `describe` and `execute`; `execute` runs your JavaScript in an isolated
@@ -61,18 +65,29 @@ changes. `agentlinkops agent setup` picks the right one per client.
 
 ## Find, describe, call
 
-The same three verbs on every surface. Never invent a command name or an argument.
+The same verbs on every surface. Never invent a command name or an argument. On MCP everything
+goes through the one `exec` tool; its `command` string is one command per call, and several
+`exec` calls can run in parallel.
 
-| Step | MCP | CLI | HTTP |
+| Step | MCP (`exec`) | CLI | HTTP |
 | --- | --- | --- | --- |
-| index | `search_tools` | `agentlinkops tools [TOOLSET]` | `GET /v1/commands` |
-| describe | `describe_tools` | `agentlinkops describe NAME` | `GET /v1/commands/{name}` |
-| call | the tool, or `run_read_command` / `run_write_command` | `agentlinkops call NAME --args JSON` | `POST /v1/commands/{name}` |
+| index | `exec: {"command": "tools"}` | `agentlinkops tools [TOOLSET]` | `GET /v1/commands` |
+| find | `exec: {"command": "search destination health"}` | `agentlinkops tools [TOOLSET]` | `GET /v1/commands` |
+| describe | `exec: {"command": "describe monitor_link"}` | `agentlinkops describe NAME` | `GET /v1/commands/{name}` |
+| drill one field | `exec: {"command": "schema monitor_link targetScope"}` | `agentlinkops schema NAME [PATH]` | `GET /v1/commands/{name}` |
+| call | `exec: {"command": "call monitor_link {\"projectId\":\"pr_..\",\"sourceUrl\":\"https://..\",\"targetUrl\":\"https://..\"}"}` | `agentlinkops call NAME --args JSON` | `POST /v1/commands/{name}` |
+
+`search` takes `--toolset` and `--limit`; `describe` takes `--output-schema`; `call` takes
+`--json` for full rows instead of the concise projection. A `describe` or `schema` answer that
+exceeds the context budget is summarized, and any field carrying a `hint` expands with
+`schema <name> <field.path>`. Find with `search`, `describe` a name once, then `call` and
+reuse the schema; an unknown name answers with the `search` that finds the current one.
 
 Read the description first; `describe` before any write. List commands answer concise rows on
-MCP and code mode, detailed rows on REST and the CLI; pass `format` (`concise` or `detailed`)
-to choose and read `defaults_applied` to know which you got. A retired command name still
-resolves to its canonical command for twelve months and the description says so.
+MCP and code mode, detailed rows on REST and the CLI; pass `format` (`concise` or `detailed`),
+or `call --json` through `exec`, to choose, and read `defaults_applied` to know which you got.
+A retired command name still resolves to its canonical command for twelve months and the
+description says so.
 
 ## Start a session
 

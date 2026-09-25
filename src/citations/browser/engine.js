@@ -11,11 +11,13 @@
 // browser tooling still runs every non-browser engine, and `citation doctor`
 // reports the gap instead of the whole CLI failing to load.
 import { homedir } from 'node:os';
+import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { EngineError } from '../adapter.js';
 import {createProxyAdmission,proxyFailureReason} from './proxy-admission.js';
-import { extractBoundChatgptResponse, extractChatgptSources, releaseChatgptResponseBinding } from './chatgpt-citations.js';
+import { extractBoundChatgptResponse, extractChatgptSources, releaseChatgptResponseBinding, isChatgptFailureMessage } from './chatgpt-citations.js';
 
 const MODULE_LOADERS = {
   'playwright-core': () => import('playwright-core'),
@@ -58,6 +60,46 @@ const ENGINE_NOMINAL_COST = Object.freeze({
 });
 const DEFAULT_NOMINAL_COST = 0.03;
 
+// The vendored display bootstrap stops Xvfb only through cleanup(). A Node process that is
+// killed or crashes leaves Xvfb running under init (the measurement VPS held 32 of them on
+// 2026-09-24), so a detached watchdog ends it within five seconds of this process
+// disappearing. The pid comes from Xvfb's own lock file and is killed only while it is still
+// Xvfb, so a recycled pid is never signalled. Returns the function that retires the watchdog.
+export function guardDisplay(display, { spawnProcess = spawn, readLock = readFileSync, parentPid = process.pid } = {}) {
+  const number = Number(String(display).replace(/^:/, ''));
+  let xvfbPid;
+  try { xvfbPid = Number(String(readLock(`/tmp/.X${number}-lock`, 'utf8')).trim()); } catch { return () => {}; }
+  if (![number, xvfbPid, parentPid].every(Number.isInteger) || xvfbPid <= 1) return () => {};
+  const script = `while kill -0 ${parentPid} 2>/dev/null; do sleep 5; done; [ "$(cat /proc/${xvfbPid}/comm 2>/dev/null)" = Xvfb ] && kill ${xvfbPid}`;
+  let watchdog;
+  try { watchdog = spawnProcess('/bin/sh', ['-c', script], { detached: true, stdio: 'ignore' }); watchdog.unref?.(); }
+  catch { return () => {}; }
+  return () => { try { watchdog.kill('SIGKILL'); } catch {} };
+}
+
+// A browser composer can lose keystrokes (a login modal taking focus mid-typing is the
+// observed case: on 2026-09-25, 4 of 30 ChatGPT slots submitted a truncated prompt and were
+// answered as a different question). The prompt must be exactly what the panel says, both
+// in the composer before submit and in the submitted turn afterwards.
+export const normalizePrompt = text => String(text ?? '').replace(/^\s*you said:\s*/i, '').replace(/\s+/g, ' ').trim();
+export async function ensurePromptEntered(prompt, { readComposer, fill, settle = async () => {} }) {
+  const expected = normalizePrompt(prompt);
+  if (normalizePrompt(await readComposer()) === expected) return 'typed';
+  await fill(prompt); await settle();
+  if (normalizePrompt(await readComposer()) === expected) return 'filled';
+  throw new EngineError('the prompt could not be entered completely', { retriable: true });
+}
+// Runs in the page: the text of the latest user turn, or null when none is found.
+// Observed 2026-09-25: li[data-message-role="user"] > ... > p[data-user-message-copy].
+// Older layouts used data-message-author-role / data-turn.
+export function readChatgptSubmittedPrompt() {
+  for (const selector of ['[data-message-role="user"] [data-user-message-copy]', '[data-message-role="user"]', '[data-message-author-role="user"]', '[data-turn="user"]']) {
+    const node = Array.from(document.querySelectorAll(selector)).at(-1);
+    if (node) return node.innerText;
+  }
+  return null;
+}
+
 export function createBrowserEngine({ engineName, env = process.env, onEvent = () => {}, runtime = {} } = {}) {
   if (!BROWSER_PROVIDERS.includes(engineName)) {
     throw new EngineError(`unknown browser engine: ${engineName} (known: ${BROWSER_PROVIDERS.join(', ')})`);
@@ -89,11 +131,23 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
   let running=false,contextCleanupFailed=false;
   let browserHandle = null;   // { browser, cleanup } for the whole epoch
   let displayHandle = null;
+  let releaseDisplayGuard = null;
   let providerConfig = null;
   async function closeQuietly(action) {
     let timer;
     try { return await Promise.race([Promise.resolve().then(action).then(() => true, () => false), new Promise(resolve => { timer = setTimeout(() => resolve(false), runtime.cleanupTimeoutMs ?? 5000); })]); }
     finally { clearTimeout(timer); }
+  }
+
+  // The watchdog is retired only after a confirmed close; otherwise it stays armed and
+  // ends Xvfb once this process exits.
+  async function closeDisplay() {
+    // A second call after a failed close finds no handle; that is not a confirmed close.
+    if (!displayHandle) return true;
+    const closed = await closeQuietly(() => displayHandle.cleanup?.());
+    if (closed) { releaseDisplayGuard?.(); releaseDisplayGuard = null; }
+    displayHandle = null;
+    return closed;
   }
 
   async function ensureProviderConfig() {
@@ -124,6 +178,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     // engines that block headless render headfully inside a virtual display.
     if (platform === 'linux' && !display.detectDisplay()) {
       displayHandle = await display.ensureDisplay({ allowExistingDisplay: false });
+      releaseDisplayGuard = (runtime.guardDisplay ?? guardDisplay)(displayHandle.display);
       await event(`display: ${displayHandle.display}`);
     }
 
@@ -151,8 +206,7 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
       browser,
       cleanup: async () => {
         const browserClosed=await closeQuietly(() => browser.close());
-        const displayClosed=await closeQuietly(() => displayHandle?.cleanup?.());
-        displayHandle = null;
+        const displayClosed=await closeDisplay();
         if(browserClosed)contextCleanupFailed=false;
         return browserClosed&&displayClosed;
       },
@@ -318,12 +372,16 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
             await editor.locator.fill(prompt);
           });
           await page.waitForTimeout(600);
-          const typedCheck = await editor.locator.inputValue().catch(() => '');
-          if (typedCheck.trim().length === 0) {
-            await editor.locator.fill(prompt).catch(() => {});
-          }
           await config.afterTypingHook?.(page);
           await config.beforeSubmitHook?.(page);
+          // Checked after the modal hooks, immediately before submit: the composer must hold
+          // the whole prompt. One fill is the recovery; otherwise the sample fails closed.
+          const entered = await ensurePromptEntered(prompt, {
+            readComposer: () => editor.locator.evaluate(node => (typeof node.value === 'string' ? node.value : node.innerText) || '').catch(() => ''),
+            fill: text => editor.locator.fill(text).catch(() => {}),
+            settle: () => page.waitForTimeout(400),
+          });
+          if (entered === 'filled') await event('prompt refilled after incomplete typing');
 
           // Submit: the surface's own send button when it exposes one; Enter fallback.
           // Allow the surface to settle; response extraction remains fail-closed.
@@ -336,15 +394,29 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
 
         await config.waitForResponse(page);
         if (!answer) answer = await config.extractResponse(page);
+        if (engineName === 'chatgpt') {
+          // The answer belongs to the prompt only if the submitted turn is the panel prompt.
+          const submitted = await page.evaluate(readChatgptSubmittedPrompt).catch(() => null);
+          if (typeof submitted !== 'string') await event('submitted prompt could not be read; not verified');
+          else if (normalizePrompt(submitted) !== normalizePrompt(prompt)) {
+            throw new EngineError('chatgpt: the submitted prompt differs from the panel prompt', { retriable: true });
+          }
+        }
+        if (engineName === 'chatgpt' && isChatgptFailureMessage(answer)) {
+          throw new EngineError('chatgpt: the surface returned an error message instead of an answer', { retriable: true });
+        }
         if (!answer || answer.trim().length < 40) {
           const reason = engineName === 'bing'
             ? 'bing: no AI answer block rendered for this prompt (organic results only — never a citation verdict)'
             : `${engineName}: answer extracted empty`;
           throw new EngineError(reason, { retriable: true });        }
         let extractionFailed = config.citationExtraction === 'unsupported';
-        const sources = await config.extractSources(page).catch(async () => {
+        const sources = await config.extractSources(page).catch(async cause => {
           extractionFailed = true;
-          await event('sources extraction failed; observation retained as unknown');
+          // Tag and role counts only (see readChatgptCitationState); they say which layout
+          // change blocked the read without carrying page content.
+          const kinds = Object.entries(cause?.strayKinds ?? {}).map(([kind, count]) => `${kind}x${count}`).join(', ');
+          await event(`sources extraction failed; observation retained as unknown${kinds ? ` (unrecognized: ${kinds})` : ''}`);
           return [];
         });
         const screenshotPng = await page.screenshot({ fullPage: false }).catch(() => null);
@@ -384,8 +456,8 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
       let confirmed=true;
       try{if(browserHandle)confirmed=await browserHandle.cleanup();}
       finally{
-        const displayClosed=await closeQuietly(() => displayHandle?.cleanup?.());
-        confirmed=confirmed&&displayClosed;displayHandle=null;browserHandle=null;
+        const displayClosed=await closeDisplay();
+        confirmed=confirmed&&displayClosed;browserHandle=null;
       }
       return confirmed;
     },

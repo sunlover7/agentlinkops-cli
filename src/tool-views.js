@@ -58,7 +58,7 @@ export function oneLiner(description, max = 60) {
 export function manifestText(entries, { max = 36 } = {}) {
   const groups = new Map(TOOLSETS.map(t => [t, []]));
   for (const entry of entries) (groups.get(entry.toolset) ?? groups.set(entry.toolset, []).get(entry.toolset)).push(entry);
-  const lines = ['Commands by toolset (name: what it does). Use search_tools or describe_tools for the full schema before calling.'];
+  const lines = ['Commands by toolset (name: what it does). On /mcp use exec: `exec search <words>`, `exec describe <name>`, `exec call <name> <json>`; the CLI mirrors the verbs as `agentlinkops tools | describe | call`.'];
   for (const [toolset, members] of groups) {
     if (!members.length) continue;
     lines.push(`\n${toolset}:`);
@@ -94,11 +94,34 @@ export const CODE_TOOLS = [
 ];
 export const CODE_LIMITS = { outputChars:24000, timeoutMs:30000, maxCalls:200 };
 
+// DP-0059: the default view's single exec tool. One definition carries the whole registry: the
+// agent searches, inspects and calls commands through CLI-style strings instead of loading
+// schemas upfront (the pattern PostHog's MCP shipped and we adopted). The definition lives here
+// beside META_TOOLS and CODE_TOOLS so the measurement script counts the real shape the router
+// registers; the four meta tools remain registered on /mcp for direct calls by clients that
+// learned them, unlisted.
+export const EXEC_TOOL = {
+  name: 'exec',
+  description: 'Run any AgentLinkOps command through one CLI-style command string: search finds commands by task, describe shows an exact schema, call runs it (reads and writes, under this connection\'s scopes). Find with search, describe once, then call and reuse the schema; never guess a schema. One command per call; several exec calls can run in parallel.',
+  readOnly: false,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      command: {
+        type: 'string', minLength: 1, maxLength: 8000,
+        description: 'CLI-style command. Verbs: search [--toolset T] [--limit N] <words>; tools [toolset]; describe [--output-schema] [--examples] <name>...; schema <name> [<field.path>]; call [--json] <name> <json_input>. --json returns full rows instead of the concise projection. A schema larger than the context budget is summarized; drill any field carrying a hint with schema <name> <field.path>. Unknown name: run search <words>.',
+      },
+    },
+    required: ['command'],
+    additionalProperties: false,
+  },
+};
+
 // Views. `entries` carry name, toolset, tier, readOnly and (from tool-exposure.js) unavailable.
 // An unavailable command stays a member of its views: it is listed with its marker, never
 // hidden, so a client that calls it gets the stable configuration error rather than not-found.
 export const VIEW_BUDGETS = {
-  default: { definitions:12, tokens:6000 },
+  default: { definitions:1, tokens:3500 },
   toolset: { definitions:22, tokens:8000 },
   code: { definitions:3, tokens:2000 },
   manifest: { tokens:2500 },
@@ -108,7 +131,9 @@ export function viewMembers(entries, view) {
   const core = visible.filter(e => e.tier === 'core');
   if (view === 'all') return visible;
   if (view === 'readonly') return visible.filter(e => e.readOnly);
-  if (view === 'default') return core;
+  // DP-0059: the default view lists exactly one tool, exec. Every command (core tier included)
+  // stays registered and callable there through exec call and by a direct tools/call.
+  if (view === 'default') return [];
   if (view === 'code') return [];
   const m = /^toolset:([a-z]+)(:readonly)?$/.exec(view);
   if (!m) throw new Error(`Unknown view ${view}`);

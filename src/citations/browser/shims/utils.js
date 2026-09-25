@@ -4,12 +4,19 @@
 export {
   PROVIDER_NO_OUTPUT_TIMEOUT_MS,
   PROVIDER_FORCE_EXIT_STABLE_MS,
-  PROVIDER_EDITOR_SELECTORS,
   PROVIDER_SUBMIT_BTN_SELECTORS,
   PROVIDER_RESPONSE_GENERATION_SELECTORS,
   RETRYABLE_ERRORS,
 } from '../gen/utils/agent-constants.js';
-import { PROVIDER_MODEL_RESPONSE_SELECTORS as vendoredResponseSelectors } from '../gen/utils/agent-constants.js';
+import { PROVIDER_MODEL_RESPONSE_SELECTORS as vendoredResponseSelectors, PROVIDER_EDITOR_SELECTORS as vendoredEditorSelectors } from '../gen/utils/agent-constants.js';
+
+// Anonymous composer observed 2026-09-25: a plain textarea (#mobile-composer-prompt,
+// name="prompt"). None of the vendored ChatGPT selectors match it; without these the engine
+// reached it only through the broad shadow-DOM fallback.
+export const PROVIDER_EDITOR_SELECTORS = Object.freeze({
+  ...vendoredEditorSelectors,
+  chatgpt: Object.freeze(['textarea#mobile-composer-prompt', 'textarea[name="prompt"]', ...vendoredEditorSelectors.chatgpt]),
+});
 
 // Anonymous surface observed 2026-09-20: conversation LI, distinct from its
 // user sibling, with response actions. Never select the conversation itself.
