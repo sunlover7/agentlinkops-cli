@@ -3,6 +3,15 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.9 (2026-09-25)
+
+- Read ChatGPT citations in the current anonymous layout, where inline citations and source pills are buttons carrying their sources as JSON. 0.6.8 read only anchor links and recorded these answers as unknown. Code-copy, table-copy and entity controls are recognized as non-citations; any other unrecognized control still keeps the answer unknown.
+- Verify the prompt before and after submitting: the composer must hold the whole panel prompt (one refill, otherwise a retriable unknown), and the submitted turn must match it. 0.6.8 could submit a truncated prompt and score the answer to a different question.
+- Find the current anonymous ChatGPT composer (`textarea#mobile-composer-prompt`) directly instead of through the broad fallback.
+- Treat a ChatGPT failure message shown as the assistant turn ("Something went wrong...") as a retriable unknown. 0.6.8 recorded it as an answer and a false not-cited observation.
+- Name the kinds of unrecognized element (tag and role counts, never URLs or text) when an anonymous ChatGPT answer's citations cannot be read and the observation stays unknown.
+- End the virtual display (Xvfb) when a browser measurement process is killed or crashes. A detached watchdog stops Xvfb within five seconds of the process disappearing and only signals the pid while it is still Xvfb. It stays armed if a normal close cannot be confirmed.
+
 ## 0.6.8 (2026-09-20)
 
 - Recognize the anonymous ChatGPT response layout and use the latest visible assistant response consistently when reading answers and citations. Exclude user messages and response controls from answer text.

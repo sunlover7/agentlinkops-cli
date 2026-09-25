@@ -7,17 +7,19 @@ import { parseArgs } from './args.js';
 import { NUDGE } from './skill.js';
 import { CATALOG_COMMANDS, CATALOG_TOOLSETS } from './catalog.js';
 import { oneLiner } from '../src/tool-views.js';
+import { resolveSchemaPath, listAvailablePaths } from '../shared/exec-grammar.js';
 
 // DP-0036-T05: the CLI's three-level discovery over the cloud catalog — index (`tools`),
 // describe (`describe NAME`) and call (`call NAME`). `tools` and `describe` answer from the
 // bundled snapshot in cli/catalog.js with no account and no network; `--refresh` reads the
 // live catalog instead. Output is JSON whenever stdout is not a terminal or --json is given,
 // and one error shape ({ error: { code, message, next } }) on every failure.
-const USAGE = 'tools [TOOLSET] [--json] [--refresh] | describe NAME [--examples] [--output-schema] [--json] [--refresh] | call NAME [--args JSON | --file FILE | --set PATH=VALUE ...] [--dry-run] [-y] [--json]';
+const USAGE = 'tools [TOOLSET] [--json] [--refresh] | describe NAME [--examples] [--output-schema] [--json] [--refresh] | schema NAME [FIELD.PATH] [--json] | call NAME [--args JSON | --file FILE | --set PATH=VALUE ...] [--dry-run] [-y] [--json]';
 const NAME = /^[a-z][a-z0-9_]*$/;
 const NEXT = {
   TOOL_NOT_FOUND: 'Run `agentlinkops tools` to list commands, or `agentlinkops tools TOOLSET` for one group.',
   INVALID_INPUT: 'Run `agentlinkops describe NAME` for the exact input schema.',
+  SCHEMA_PATH_NOT_FOUND: 'Run `agentlinkops schema NAME` for the top level, or drill a listed child path.',
   INSUFFICIENT_SCOPE: 'This credential lacks a scope the command needs; request it through your connection or a new project-scoped key.',
   NO_CLOUD_ORIGIN: 'Run `agentlinkops connect` or set AGENTLINKOPS_API_URL.',
   INVALID_CLOUD_ORIGIN: 'Cloud commands need an HTTPS origin without a path, for example https://app.agentlinkops.com.',
@@ -102,8 +104,9 @@ export async function commandsMain(argv, { cwd = process.cwd(), env = process.en
   const [command, name] = args._;
   const json = args.json === true || !isTTY;
   const fail = (code, message) => { if (json) err(errorJson(code, message, explain(code))); else err(`${message}\n${explain(code)}`); return 2; };
-  const allowed = { tools: ['_', 'json', 'refresh'], describe: ['_', 'json', 'refresh', 'examples', 'output-schema'], call: ['_', 'args', 'file', 'set', 'dry-run', 'json'] };
-  if (!allowed[command] || Object.keys(args).some(key => !allowed[command].includes(key)) || (command === 'tools' && args._.length > 2) || (command !== 'tools' && (args._.length !== 2 || !NAME.test(name)))) throw new ConfigError(USAGE);
+  const allowed = { tools: ['_', 'json', 'refresh'], describe: ['_', 'json', 'refresh', 'examples', 'output-schema'], schema: ['_', 'json'], call: ['_', 'args', 'file', 'set', 'dry-run', 'json'] };
+  const positionalCount = command === 'tools' ? args._.length > 2 : command === 'schema' ? args._.length !== 2 && args._.length !== 3 : args._.length !== 2;
+  if (!allowed[command] || Object.keys(args).some(key => !allowed[command].includes(key)) || positionalCount || (command !== 'tools' && !NAME.test(name))) throw new ConfigError(USAGE);
   if (args.set?.length && (args.set.some(v => typeof v !== 'string') || args.args !== undefined || args.file !== undefined)) throw new ConfigError('--set cannot be combined with --args or --file');
   if (args.args !== undefined && args.file !== undefined) throw new ConfigError(USAGE);
 
@@ -158,6 +161,22 @@ export async function commandsMain(argv, { cwd = process.cwd(), env = process.en
     const found = resolveName(commands, name);
     if (!found) return fail('TOOL_NOT_FOUND', `No command named ${name}.`);
     out(renderDescription(found, name, { examples: args.examples === true, outputSchema: args['output-schema'] === true, json }));
+    return 0;
+  }
+  if (command === 'schema') {
+    // DP-0059: the same drill the MCP exec tool serves, over the same bundled schema, so one
+    // grammar holds across surfaces: `schema monitor_link scope.target` prints that field.
+    const found = resolveName(commands, name);
+    if (!found) return fail('TOOL_NOT_FOUND', `No command named ${name}.`);
+    const path = args._[2] ?? null;
+    if (!path) { out(JSON.stringify({ name: found.name, schema: found.inputSchema }, null, 2)); return 0; }
+    const subschema = resolveSchemaPath(found.inputSchema, path);
+    if (!subschema) {
+      const parent = resolveSchemaPath(found.inputSchema, path.split('.').slice(0, -1).join('.')) ?? found.inputSchema;
+      const available = listAvailablePaths(parent);
+      return fail('SCHEMA_PATH_NOT_FOUND', `"${path}" is not a path in ${found.name}'s schema.${available.length ? ` Available here: ${available.join(', ')}.` : ''}`);
+    }
+    out(JSON.stringify({ name: found.name, path, schema: subschema }, null, 2));
     return 0;
   }
 

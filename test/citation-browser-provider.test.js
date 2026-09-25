@@ -1,28 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createBrowserEngine, BROWSER_PROVIDERS } from '../src/citations/browser/engine.js';
+import { spawn } from 'node:child_process';
+import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createBrowserEngine, BROWSER_PROVIDERS, guardDisplay, ensurePromptEntered, normalizePrompt, readChatgptSubmittedPrompt } from '../src/citations/browser/engine.js';
 import { OWN_PROVIDER_CONFIGS } from '../src/citations/browser/providers.js';
 
 let fixtureSequence=0;
-function harness({ authPolicy, bindingValid = () => true, citationState = {found:true,groups:0,unresolved:false,sources:[]}, stalledCleanup = false, sourcesFail = false, unavailable = false, answer = 'A retained fixture answer long enough to be interpreted independently.' } = {}) {
+function harness({ authPolicy, guard, displayCleanupFails = false, strayKinds, submittedPrompt, bindingValid = () => true, citationState = {found:true,groups:0,unresolved:false,sources:[]}, stalledCleanup = false, sourcesFail = false, unavailable = false, answer = 'A retained fixture answer long enough to be interpreted independently.' } = {}) {
   const contexts = []; const launches = []; const resolves = []; const events = []; let closed = 0; let displayClosed = 0; let stateReads = 0; let bindingsDisposed = 0;
   const config = { navigateToPrompt: async () => {}, waitForResponse: async () => {}, extractResponse: async page => page.runDomOp('response-text', {}),
     ...(unavailable ? { citationExtraction: 'unsupported' } : {}),
-    extractSources: async () => { if (sourcesFail) throw Error('secret-proxy-password'); return [{ url: 'https://example.com' }]; } };
+    extractSources: async () => { if (strayKinds) throw Object.assign(Error('secret-proxy-password'), { strayKinds }); if (sourcesFail) throw Error('secret-proxy-password'); return [{ url: 'https://example.com' }]; } };
   const browser = { async newContext(options) {
     const context = { options, closed: false, async route() {}, async close() { this.closed = true; if (stalledCleanup) return new Promise(() => {}); },
-      async newPage() { return { setDefaultTimeout() {}, evaluate: async () => citationState,
+      async newPage() { return { setDefaultTimeout() {}, evaluate: async fn => (fn === readChatgptSubmittedPrompt && submittedPrompt !== undefined ? submittedPrompt : citationState),
         evaluateHandle: async()=>({evaluate:async fn=>fn({isCurrent:bindingValid}),dispose:async()=>{bindingsDisposed++;}}),
         screenshot: async () => Buffer.from('fixture-pixels') }; } };
     contexts.push(context); return context;
   }, async close() { closed++; if (stalledCleanup) return new Promise(() => {}); } };
-  const runtime = { cleanupTimeoutMs: 5, platform: 'linux', sessionDir: '/fixture/sessions', firefox: { async launch(options) { launches.push(options); return browser; } },
+  const runtime = { cleanupTimeoutMs: 5, platform: 'linux', sessionDir: '/fixture/sessions', guardDisplay: guard ?? (() => () => {}), firefox: { async launch(options) { launches.push(options); return browser; } },
     async loadModule(path) {
       if (path.endsWith('/providers/index.js')) return { PROVIDER_CONFIGS: { chatgpt: config } };
       if (path === './providers.js') return { OWN_PROVIDER_CONFIGS: {} };
       if (path.endsWith('/domOps.js')) return { runPageDomOp: async () => answer };
       if (path.endsWith('/camoufox.js')) return { resolveCamoufoxLaunchOptions: async options => { resolves.push(options); return { executablePath: '/fixture/firefox' }; } };
-      if (path.endsWith('/display.js')) return { detectDisplay: () => false, ensureDisplay: async () => ({ display: ':991', cleanup: async () => { displayClosed++; } }) };
+      if (path.endsWith('/display.js')) return { detectDisplay: () => false, ensureDisplay: async () => ({ display: ':991', cleanup: async () => { if (displayCleanupFails) throw Error('xvfb stuck'); displayClosed++; } }) };
       if (path === 'node:fs/promises') return { readFile: async () => {stateReads++; return JSON.stringify({ cookies: [{ name: 'account-cookie', value: 'saved-state-secret', domain: '.chatgpt.com', path: '/' }], origins: [] });} };
       throw Error('Unexpected import ' + path);
     } };
@@ -110,4 +114,73 @@ test('late ambient profile override is refused before launch or session access',
   process.env[key]='["-profile","/fixture/secret-profile"]';
   try{await assert.rejects(h.engine.run({prompt:'fixture'}),e=>e.code==='BROWSER_AUTH_POLICY_INVALID'&&!String(e).includes('secret-profile'));assert.equal(h.launches.length,0);assert.equal(h.stateReads(),0);assert.equal(h.contexts.length,0);}
   finally{if(previous===undefined)delete process.env[key];else process.env[key]=previous;await h.engine.close();}
+});
+
+test('display watchdog arms on the Xvfb lock pid and is retired only after a confirmed close', async () => {
+  const spawned = [];
+  const release = guardDisplay(':604', { parentPid: 4242, readLock: path => { assert.equal(path, '/tmp/.X604-lock'); return '      9876\n'; },
+    spawnProcess: (cmd, args, options) => { const child = { killed: 0, unref() { this.unrefd = true; }, kill() { this.killed++; } }; spawned.push({ cmd, args, options, child }); return child; } });
+  assert.equal(spawned.length, 1);
+  const [{ cmd, args, options, child }] = spawned;
+  assert.equal(cmd, '/bin/sh'); assert.equal(options.detached, true); assert.equal(options.stdio, 'ignore'); assert.equal(child.unrefd, true);
+  assert.match(args[1], /kill -0 4242/); assert.match(args[1], /\/proc\/9876\/comm/); assert.match(args[1], /= Xvfb \] && kill 9876$/);
+  release(); assert.equal(child.killed, 1);
+  const none = []; const spawnProcess = () => { none.push(1); return {}; };
+  guardDisplay(':604', { spawnProcess, readLock: () => { throw Error('ENOENT'); } });
+  guardDisplay(':604', { spawnProcess, readLock: () => '1' });
+  guardDisplay(':x', { spawnProcess, readLock: () => '9876' });
+  assert.equal(none.length, 0, 'no lock, pid 1 or a malformed display arms nothing');
+
+  const calls = []; const guard = display => { calls.push(display); return () => calls.push('released'); };
+  const h = harness({ guard }); await h.engine.run({ prompt: 'fixture' });
+  assert.deepEqual(calls, [':991']); await h.engine.close(); assert.deepEqual(calls, [':991', 'released']);
+  const armed = []; const stuck = harness({ displayCleanupFails: true, guard: display => { armed.push(display); return () => armed.push('released'); } });
+  await stuck.engine.run({ prompt: 'fixture' });
+  await assert.rejects(stuck.engine.close(), error => error.code === 'BROWSER_CLEANUP_UNCONFIRMED');
+  assert.deepEqual(armed, [':991'], 'an unconfirmed display close keeps the watchdog armed');
+});
+test('display watchdog ends an orphaned Xvfb after its parent dies (Linux)', { skip: !existsSync('/proc/self/comm') }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'xvfb-guard-'));
+  const fake = join(dir, 'Xvfb'); copyFileSync('/bin/sleep', fake);
+  const xvfb = spawn(fake, ['60'], { stdio: 'ignore' }); const parent = spawn('/bin/sleep', ['1'], { stdio: 'ignore' });
+  const exited = new Promise(resolve => xvfb.once('exit', (code, signal) => resolve(signal)));
+  try {
+    guardDisplay(':1', { parentPid: parent.pid, readLock: () => String(xvfb.pid) });
+    const signal = await Promise.race([exited, new Promise(resolve => setTimeout(() => resolve('still-running'), 9000))]);
+    assert.equal(signal, 'SIGTERM');
+  } finally { xvfb.kill('SIGKILL'); parent.kill('SIGKILL'); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('an unknown extraction names the unrecognized element kinds in its event, never the error text', async () => {
+  const h = harness({ strayKinds: { a: 2, sup: 1 } }); const run = await h.engine.run({ prompt: 'fixture' });
+  assert.equal(run.unknown, true); assert.equal(run.failure.code, 'CITATION_EXTRACTION_UNAVAILABLE');
+  assert.ok(h.events.includes('sources extraction failed; observation retained as unknown (unrecognized: ax2, supx1)'));
+  assert.ok(!h.events.join('').includes('secret-proxy-password')); await h.engine.close();
+  const plain = harness({ sourcesFail: true }); await plain.engine.run({ prompt: 'fixture' });
+  assert.ok(plain.events.includes('sources extraction failed; observation retained as unknown')); await plain.engine.close();
+});
+
+test('a ChatGPT failure message becomes a retriable unknown, never a not-cited observation', async () => {
+  const h = harness({ answer: '#### ChatGPT said:\n\nSomething went wrong. If this issue persists please contact us through our help center at help.openai.com.' });
+  await assert.rejects(h.engine.run({ prompt: 'fixture' }), error => error.code === 'BROWSER_RUN_FAILED' && error.unknown === true && error.retriable === true);
+  assert.equal(h.contexts[0].closed, true); await h.engine.close();
+});
+
+test('a prompt must be entered whole before submit: one fill recovers, otherwise the sample fails', async () => {
+  const run = async (reads, fillWorks = true) => { const seen = [...reads]; let filled = 0;
+    const result = await ensurePromptEntered('tools for monitoring lost backlinks', { readComposer: async () => seen.shift(), fill: async () => { filled++; if (!fillWorks) return; } });
+    return { result, filled }; };
+  assert.deepEqual(await run(['tools for monitoring lost backlinks']), { result: 'typed', filled: 0 });
+  assert.deepEqual(await run(['tools for monitoring lost b', ' tools  for monitoring lost backlinks ']), { result: 'filled', filled: 1 });
+  await assert.rejects(run(['tools for monitoring lost b', 'tools for monitoring lost b'], false), error => error.retriable === true && /entered completely/.test(error.message));
+  assert.equal(normalizePrompt('You said:\n\nwhat is  backlink monitoring'), 'what is backlink monitoring');
+});
+test('an answer to a different submitted prompt is never an observation', async () => {
+  const ok = harness({ submittedPrompt: 'You said:\nfixture' }); const run = await ok.engine.run({ prompt: 'fixture' });
+  assert.equal(run.answer.length > 0, true); await ok.engine.close();
+  const truncated = harness({ submittedPrompt: 'fixt' });
+  await assert.rejects(truncated.engine.run({ prompt: 'fixture' }), error => error.code === 'BROWSER_RUN_FAILED' && error.unknown === true && error.retriable === true);
+  assert.equal(truncated.contexts[0].closed, true); await truncated.engine.close();
+  const unread = harness(); await unread.engine.run({ prompt: 'fixture' });
+  assert.ok(unread.events.includes('submitted prompt could not be read; not verified')); await unread.engine.close();
 });

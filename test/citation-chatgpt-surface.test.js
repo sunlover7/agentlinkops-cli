@@ -100,3 +100,82 @@ test('missing verified footer handle refuses interaction and still disposes hand
   await assert.rejects(extractChatgptSources(h.page,async()=>[]),{code:'CITATION_EXTRACTION_UNAVAILABLE'});
   assert.deepEqual(h.calls,{clicks:0,polls:0,waits:0,disposed:2});
 });
+
+test('unrecognized anonymous controls are counted by tag and sanitized role, never content', async () => {
+  const el = (tagName, role = null) => ({ tagName, getAttribute: key => key === 'role' ? role : null, href: 'https://secret.example/token', textContent: 'page text' });
+  const kept = el('BUTTON'); const strays = [el('A'), el('A'), el('SUP'), el('DIV', 'button'), el('SPAN', 'Evil Role<script>'), kept];
+  const extra = Array.from({ length: 12 }, (_, i) => el(`X${i}`));
+  const root = { isConnected: true, getBoundingClientRect: () => ({ width: 600, height: 300 }), matches: () => true, getAttribute: () => null,
+    innerText: 'A fixture assistant answer with enough text to qualify as a scoped response.',
+    querySelector: selector => { assert.equal(selector, '[role="group"][aria-label="Response actions"]'); return { contains: node => node === kept }; },
+    querySelectorAll: selector => selector === '[role="group"][aria-label="Sources"]' ? [] : [...strays, ...extra] };
+  const previous = { document: globalThis.document, window: globalThis.window, HTMLElement: globalThis.HTMLElement };
+  globalThis.HTMLElement = class { static [Symbol.hasInstance](value) { return typeof value?.getBoundingClientRect === 'function'; } };
+  globalThis.document = { querySelectorAll: () => [root] };
+  globalThis.window = { getComputedStyle: () => ({ visibility: 'visible', display: 'block' }) };
+  let result;
+  try { result = readChatgptCitationState(PROVIDER_MODEL_RESPONSE_SELECTORS.chatgpt); }
+  finally { for (const key of ['document', 'window', 'HTMLElement']) { if (previous[key] === undefined) delete globalThis[key]; else globalThis[key] = previous[key]; } }
+  assert.equal(result.unresolved, true); assert.equal(result.panelEligible, false);
+  assert.deepEqual(Object.entries(result.strayKinds).slice(0, 4), [['a', 2], ['sup', 1], ['div[button]', 1], ['span[other]', 1]]);
+  assert.equal(Object.keys(result.strayKinds).length, 10, 'at most ten kinds; the response-actions button is excluded');
+  assert.ok(!JSON.stringify(result.strayKinds).match(/secret|token|page text|script/));
+
+  const page = { evaluate: async () => ({ found: true, anonymous: true, groups: 0, unresolved: true, panelEligible: false, sources: [], strayKinds: { a: 2, sup: 1 } }) };
+  await assert.rejects(extractChatgptSources(page, async () => []), error => error.code === 'CITATION_EXTRACTION_UNAVAILABLE' && error.strayKinds.a === 2 && error.strayKinds.sup === 1);
+});
+
+test('a ChatGPT failure message in the assistant turn is not an answer', async () => {
+  const { isChatgptFailureMessage } = await import('../src/citations/browser/chatgpt-citations.js');
+  const observed = '#### ChatGPT said:\n\nSomething went wrong. If this issue persists please contact us through our help center at help.openai.com.';
+  assert.equal(isChatgptFailureMessage(observed), true, 'the exact turn recorded on 2026-09-25');
+  assert.equal(isChatgptFailureMessage('There was an error generating a response'), true);
+  assert.equal(isChatgptFailureMessage("You've reached our limit of messages per hour."), true);
+  const quoting = `Backlink monitoring tracks links to your site. If something went wrong with a link, you find out. ${'Detail. '.repeat(60)}`;
+  assert.equal(isChatgptFailureMessage(quoting), false, 'a real answer that mentions a failure is kept');
+  assert.equal(isChatgptFailureMessage(`Something went wrong. ${'More text. '.repeat(50)}`), false, 'long turns are never treated as failures');
+  assert.equal(isChatgptFailureMessage(''), false); assert.equal(isChatgptFailureMessage(null), false);
+});
+
+function payloadAnswer({ inlinePayload, groupPayload, extra = false }) {
+  const node = extra => ({ isConnected: true, getBoundingClientRect: () => ({ width: 30, height: 20 }), parentElement: null, hidden: false, ...extra });
+  const button = (payload, extra = {}) => node({ tagName: 'BUTTON', closest: () => null, getAttribute: key => (key === 'data-assistant-sources-payload' ? payload : key === 'aria-label' ? extra.label ?? null : null), ...extra });
+  const inline = [button(inlinePayload), button(JSON.stringify([{ attribution: 'semrush.com', title: 'Semrush', url: 'https://www.semrush.com/?utm_source=chatgpt.com' }]))];
+  const pill = button(groupPayload, { label: 'Ahrefs, 2 sources' });
+  const copy = node({ tagName: 'BUTTON', closest: selector => (selector === 'pre' ? {} : null), getAttribute: () => null });
+  const table = node({ tagName: 'BUTTON', closest: () => null, getAttribute: key => (key === 'data-table-copy-state' ? 'idle' : key === 'aria-label' ? 'Copy table' : null) });
+  const entity = node({ tagName: 'BUTTON', closest: () => null, getAttribute: key => ({ 'data-content-reference-type': 'entity', 'data-assistant-entity-reference': '', 'data-assistant-entity-payload': '{"category":"company"}' })[key] ?? null });
+  const unknownControl = node({ tagName: 'BUTTON', closest: () => null, getAttribute: key => (key === 'data-content-reference-type' ? 'carousel' : null) });
+  const group = node({ getAttribute: () => null, contains: el => el === pill,
+    querySelectorAll: selector => (selector === 'a[href]' ? [] : [pill]), querySelector: selector => (selector === 'button, [role="button"]' ? pill : null) });
+  const root = node({ matches: () => true, innerText: 'A fixture assistant answer with enough text to qualify as a scoped response.', getAttribute: () => null,
+    querySelector: () => ({ contains: () => false }),
+    querySelectorAll: selector => selector === '[role="group"][aria-label="Sources"]' ? [group] : selector === '[data-assistant-sources-payload]' ? [...inline, pill] : [...inline, pill, copy, table, entity, ...(extra ? [unknownControl] : [])] });
+  const previous = { document: globalThis.document, window: globalThis.window, HTMLElement: globalThis.HTMLElement };
+  globalThis.HTMLElement = class { static [Symbol.hasInstance](value) { return typeof value?.getBoundingClientRect === 'function'; } };
+  globalThis.document = { querySelectorAll: () => [root] };
+  globalThis.window = { getComputedStyle: () => ({ visibility: 'visible', display: 'block' }) };
+  try { return readChatgptCitationState(PROVIDER_MODEL_RESPONSE_SELECTORS.chatgpt); }
+  finally { for (const key of ['document', 'window', 'HTMLElement']) { if (previous[key] === undefined) delete globalThis[key]; else globalThis[key] = previous[key]; } }
+}
+test('current anonymous citations are read from their sources payload; copy and entity controls are not citations', () => {
+  const grouped = JSON.stringify([{ attribution: 'Ahrefs', sourceIndex: 0, title: 'Backlinks alerts', url: 'https://ahrefs.com/academy/how-to-use-ahrefs/alerts/backlinks?utm_source=chatgpt.com' },
+    { attribution: 'Ahrefs Help Center', isSupporting: true, sourceIndex: 1, title: 'How to monitor', url: 'https://help.ahrefs.com/en/articles/2110721?utm_source=chatgpt.com' }]);
+  const state = payloadAnswer({ inlinePayload: JSON.stringify([{ attribution: 'ahrefs.com', title: 'Ahrefs', url: 'https://ahrefs.com/?utm_source=chatgpt.com' }]), groupPayload: grouped });
+  assert.equal(state.unresolved, false); assert.deepEqual(state.strayKinds, {});
+  assert.deepEqual(state.sources.map(source => new URL(source.url).hostname).sort(), ['ahrefs.com', 'ahrefs.com', 'help.ahrefs.com', 'www.semrush.com']);
+  assert.equal(state.sources.find(source => source.url.includes('academy')).title, 'Backlinks alerts');
+});
+test('a malformed or credential-bearing sources payload leaves the answer unknown', () => {
+  const ok = JSON.stringify([{ url: 'https://ahrefs.com/' }]);
+  assert.equal(payloadAnswer({ inlinePayload: '[{"url":', groupPayload: ok }).unresolved, true);
+  assert.equal(payloadAnswer({ inlinePayload: JSON.stringify([{ url: 'https://user:pass@evil.example/' }]), groupPayload: ok }).unresolved, true);
+  assert.equal(payloadAnswer({ inlinePayload: JSON.stringify([{ title: 'no url' }]), groupPayload: ok }).unresolved, true);
+  assert.equal(payloadAnswer({ inlinePayload: JSON.stringify([]), groupPayload: ok }).unresolved, true);
+});
+
+test('an unrecognized control beside readable payload citations still leaves the answer unknown', () => {
+  const ok = JSON.stringify([{ url: 'https://ahrefs.com/' }]);
+  const state = payloadAnswer({ inlinePayload: ok, groupPayload: ok, extra: true });
+  assert.equal(state.unresolved, true); assert.deepEqual(state.strayKinds, { button: 1 });
+});
