@@ -14,7 +14,9 @@ AgentLinkOps stores verified backlink observations, monitoring history and evide
 
 ## Set up once
 
-Inspect `npx -y agentlinkops agent setup --help` for the installed version before selecting payloads. The maintained development source defaults to the connection skill, its reference and MCP setup for detected clients; optional selectors below still need package, client and release acceptance. Older published versions may install the full pack. Setup stores no credential. For a chosen hosted task, sign in through the client's OAuth flow. If the CLI is not installed, connect the client to `https://app.agentlinkops.com/mcp` by hand and let the person approve the workspace and scopes. `agentlinkops agent status` shows what is configured.
+Inspect `npx -y agentlinkops agent setup --help` for the installed version before selecting payloads. CLI 0.6.10 installs the connection skill and its reference by default, with MCP setup for detected clients. Select optional guidance explicitly. CLI 0.6.9 and earlier can install the complete pack. Native-client acceptance remains separate from package checks. Setup stores no credential.
+
+For a chosen hosted task, sign in through the client's OAuth flow. If the CLI is not installed, connect the client to `https://app.agentlinkops.com/mcp` by hand and let the person approve the workspace and scopes. `agentlinkops agent status` shows what is configured.
 
 ## Check a supplied pair (after reading the reference)
 
@@ -23,6 +25,11 @@ With an available CLI, use the person's chosen URLs as literal arguments:
 ```sh
 agentlinkops check --source SOURCE_URL --target TARGET_URL --scope exact --json
 ```
+
+When the person asks to save the portable result, add `--out FILE` with their
+chosen path, such as `--out native-result.json`. The command saves the portable
+JSON result and still prints it. Read the saved JSON before reporting its state,
+check date, coverage and evidence limits.
 
 This fetches the source page and returns an accountless observation. It needs no hosted connection, repository, ledger, CRM or publisher recipe. Read the structured state and evidence limits: exit zero means a result was returned, and unknown does not prove removal. A usage or configuration failure supplies no observation.
 
@@ -48,8 +55,10 @@ Run `agentlinkops skill --list` for the versioned set installed with this CLI. T
 
 ## Optional recipes and customer policy
 
-In the maintained development source, default connection setup does not install a campaign, CRM or publisher workflow. Use the selectors only when the installed CLI’s help supports them. Inspect `agentlinkops setup --plan --goal GOAL --mode MODE` when a task needs a plan. Select an optional recipe with `agentlinkops agent setup --recipe ID`: `site-context-brief`, `sourced-linkable-asset`, `qualified-campaign-handoff` or `placement-reconciliation`. Repeat the flag for multiple recipes. The installer reports their versions and associated skills. Installed recipes live in `../../references/recipes/`; read a selected recipe that fits the person's task. For the optional site brief, select it separately with `agentlinkops agent setup --recipe site-context-brief` before reading [the site brief recipe](../../references/recipes/site-context-brief.md).
+CLI 0.6.10's default connection setup excludes campaign, CRM and publisher workflows. Use the selectors only when the installed CLI’s help supports them. Inspect `agentlinkops setup --plan --goal GOAL --mode MODE` when a task needs a plan. Select an optional recipe with `agentlinkops agent setup --recipe ID`: `site-context-brief`, `sourced-linkable-asset`, `qualified-campaign-handoff` or `placement-reconciliation`. Repeat the flag for multiple recipes. The installer reports their versions and associated skills. Installed recipes live in `../../references/recipes/`; read a selected recipe that fits the person's task. For the optional site brief, select it separately with `agentlinkops agent setup --recipe site-context-brief` before reading [the site brief recipe](../../references/recipes/site-context-brief.md).
 
-Preview `agentlinkops agent remove --recipe ID` or `--skill ID`, then add `--apply` to remove unchanged installer-owned files. Skill removal is refused while a recipe owned by the installer still needs it; keep the skill or preview selecting that recipe and its skill together after reconciling customer edits. Edited dependent bodies are preserved and can still block joint removal; untrusted dependency metadata also refuses removal. Targeted connection-skill removal refuses surviving optional payloads or retained MCP ownership. For an intended complete uninstall, preview `agentlinkops agent remove --scope project` (or `user`), then add `--apply`. Recipe-only removal preserves the connection, other skills, shared support and customer edits. A connection-skill upgrade retains earlier optional payloads until explicitly removed. Full-pack setup is available with `--all-skills`.
+Preview `agentlinkops agent remove --recipe ID` or `--skill ID`, then add `--apply` to remove unchanged installer-owned files. The installer refuses skill removal while a recipe it owns still needs the skill. Keep the skill or preview selecting that recipe and its skill together after reconciling customer edits. The installer preserves edited dependent bodies, which can still block joint removal. It also refuses removal when it cannot trust the dependency metadata. Targeted connection-skill removal refuses surviving optional payloads or retained MCP ownership.
+
+For an intended complete uninstall, preview `agentlinkops agent remove --scope project` (or `user`), then add `--apply`. Recipe-only removal preserves the connection, other skills, shared support and customer edits. A connection-skill upgrade retains earlier optional payloads until explicitly removed. Full-pack setup is available with `--all-skills`.
 
 Follow the customer's existing instructions, editorial rules and tools. These optional methods never authorize outreach, publication, spending or provider activation. The installer reports conflicts instead of replacing customer files. A connection or installation is separate from a successful link check and a published package release.

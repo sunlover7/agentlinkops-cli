@@ -15,10 +15,11 @@ separate service; this package is the local half and needs no account.
 Use Node.js 22.13 or later. Choose a supplied-link check or a hosted task, then inspect
 the installed version's help before selecting guidance.
 
-1. **Inspect setup and choose guidance.** The maintained development source defaults
-   to the connection skill, its reference and MCP setup for detected clients. It
-   stores no credential and reports changes. Package, client and release acceptance
-   remain pending; older published versions may install the full pack.
+1. **Inspect setup and choose guidance.** CLI 0.6.10 installs the connection skill
+   and its reference by default, with MCP setup for detected clients. Select optional
+   guidance explicitly. Setup stores no credential and reports changes. CLI 0.6.9
+   and earlier can install the complete pack. Native-client acceptance remains
+   separate from package checks.
 
    ```sh
    npx -y agentlinkops --help
@@ -33,9 +34,10 @@ the installed version's help before selecting guidance.
    remain the customer's choice.
 
    Preview `agentlinkops agent remove --recipe ID` or `--skill ID` before adding
-   `--apply`. Skill removal is refused while a recipe owned by the installer still
-   needs it; keep the skill or select both that recipe and its skill after reconciling customer
-   edits. Edited recipe bodies are preserved and can still block joint removal.
+   `--apply`. The installer refuses skill removal while a recipe it owns still
+   needs the skill. Keep the skill or select both that recipe and its skill after
+   reconciling customer edits. The installer preserves edited recipe bodies, which
+   can still block joint removal.
    For an intended complete uninstall, preview
    `agentlinkops agent remove --scope project` (or `user`), then add `--apply`.
 2. **Sign in for a chosen hosted task.** The client opens the AgentLinkOps sign-in;

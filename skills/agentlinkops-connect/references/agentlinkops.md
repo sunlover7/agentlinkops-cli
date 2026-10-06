@@ -20,10 +20,10 @@ npx -y agentlinkops agent setup     # writes the detected client's MCP entry; st
 agentlinkops agent status           # what is installed where
 ```
 
-The minimal installer in development source installs the connection skill and its
-reference by default. Package, client and release acceptance for that change are pending;
-an older published package can still install the complete pack. Check the installed
-version's help before using selection flags.
+CLI 0.6.10 installs the connection skill and its reference by default. Select
+optional guidance explicitly. CLI 0.6.9 and earlier can install the complete pack.
+Check the installed version's help before using selection flags. Native-client
+acceptance remains separate from package checks.
 
 On a version supporting selections, add only the guidance the person chooses:
 `agentlinkops agent setup --skill ID` or `--recipe ID`, repeating the flag for several
@@ -45,6 +45,10 @@ works:
 ```bash
 npx -y agentlinkops check --source https://publisher.example/resources --target https://your-site.example/guide
 ```
+
+When the person asks to save the portable JSON result, add `--json --out FILE`
+with their chosen file path. Read the saved result before reporting its state,
+check date, coverage and evidence limits. Preserve the person's other records.
 
 REST and the CLI use a scoped API key created in **Agent access > Create API key** in the
 [workspace](https://app.agentlinkops.com/app), supplied as `AGENTLINKOPS_API_KEY` in the
