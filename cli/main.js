@@ -115,8 +115,9 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
 Suppliers: ${SUPPLIER_NAMES.join(', ')}
 A preset is a convenience over --map, never a requirement.
 
-Exit codes: 0 every expected link present · 1 an expected link observed absent with complete
-evidence · 2 usage, configuration or ledger error. An unknown never fails.
+Exit codes: 0 no expected link conclusively absent · 1 an expected link observed absent with complete
+evidence · 2 usage, configuration or ledger error. Unknown is nonfailing by default;
+--fail-on-unknown returns 1 when any observation is unknown.
 
 Names: \`linktrail\` still runs this CLI, LINKTRAIL_* variables are still read, and an existing
 .linktrail/ directory is still used, each with a one-line notice, until the DP-0029 cutover.`;
@@ -586,10 +587,11 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     }
 
     if (command === 'check') {
+      if (ledger.problems.length) { reportProblems(ledger.problems, 'ledger line(s)', err); return 2; }
       const state = await readState(config.paths.state);
       const selected = selectEntries(ledger.entries, { filter: args.filter === true ? null : args.filter });
       const entries = args.all ? selected : dueEntries(selected, lastCheckedMap(state));
-      if (!entries.length) { out(`nothing due (${plural(selected.length, 'entry', 'entries')} in scope; pass --all to recheck)`); return 0; }
+      if (!entries.length) { (args.json ? err : out)(`nothing due (${plural(selected.length, 'entry', 'entries')} in scope; pass --all to recheck)`); return 0; }
       if (!args.json) err(`checking ${plural(entries.length, 'entry', 'entries')}…`);
       const rows = await runCheck(entries, {
         concurrency: Number(args.concurrency ?? config.defaults.concurrency ?? DEFAULTS.concurrency),
@@ -603,8 +605,8 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       await appendObservations(config.paths.observations, changed);
       await writeState(config.paths.state, applyRun(state, rows));
       const summary = summarize(entries, rows);
-      if (args.json) { out(rows.map(row => JSON.stringify(row)).join('\n')); return summary.exitCode; }
-      reportProblems(ledger.problems, 'ledger line(s)', out);
+      const exitCode = args['fail-on-unknown'] && summary.counts.unknown ? 1 : summary.exitCode;
+      if (args.json) { out(rows.map(row => JSON.stringify(row)).join('\n')); return exitCode; }
       for (const { entry, row } of summary.appeared) out(`APPEARED  ${entry.id}  ${entry.source}  (${row.occurrences} occurrence(s))`);
       for (const { entry, row } of summary.failures) out(`ABSENT    ${entry.id}  ${entry.source}  [${row.reason}]`);
       out(`\n${JSON.stringify(summary.counts)}`);
@@ -612,8 +614,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       if (summary.counts.unknown) {
         out(`${plural(summary.counts.unknown, 'page')} could not be concluded. An unknown is not a lost link; run \`agentlinkops status\` for the reasons.`);
       }
-      if (args['fail-on-unknown'] && summary.counts.unknown) return 1;
-      return summary.exitCode;
+      return exitCode;
     }
 
     err(`unknown command: ${command}\n\n${USAGE}`);
