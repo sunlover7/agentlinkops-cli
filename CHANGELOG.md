@@ -3,6 +3,13 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.11 (2026-10-06)
+
+- Keep `check --json` stdout limited to observation rows. Send empty-ledger, not-due and filter notices to stderr.
+- Reject malformed ledger rows with line numbers and exit with status 2 before fetching or updating customer records.
+- Apply `--fail-on-unknown` to JSON and human output. Unknown observations remain nonfailing by default.
+- Detect duplicate placements across import batches and retain their original file line numbers.
+
 ## 0.6.10 (2026-10-06)
 
 Inspect the installed version's help before using selectors; older published versions

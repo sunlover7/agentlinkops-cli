@@ -8,6 +8,21 @@ const unavailable=(status,headers={})=>Response.json({error:{code:status===429?'
   {status,headers:{'X-Request-ID':`req-${status}`,...headers}});
 const client=(fetchImpl,options={})=>createClient({origin:ORIGIN,token:TOKEN,fetchImpl,...options});
 
+test('the REST client sends the 0.6.11 release User-Agent', async () => {
+  const requests = [];
+  const result = await client(async (url, init) => {
+    const request = new Request(url, init);
+    requests.push(request);
+    assert.equal(request.url, ORIGIN + '/v1/watches');
+    assert.equal(request.method, 'GET');
+    assert.equal(request.headers.get('user-agent'), 'agentlinkops-cli/0.6.11');
+    assert.equal(request.headers.get('authorization'), 'Bearer ' + TOKEN);
+    return page();
+  }).listWatches();
+  assert.equal(requests.length, 1);
+  assert.deepEqual(result.items, []);
+});
+
 test('a dropped GET response retries within three attempts and returns the read',async()=>{
   let calls=0;const waits=[];
   const result=await client(async()=>{if(++calls===1)throw new TypeError('fetch failed');return page();},

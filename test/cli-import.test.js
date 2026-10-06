@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseCsv, readTable, normalizeHeader, CsvError } from '../cli/adapters/csv.js';
 import { resolveMapping, toImportRow, readFlag, SUPPLIER_NAMES } from '../cli/adapters/suppliers.js';
 import { readImport, parseMap } from '../cli/import.js';
@@ -174,4 +174,42 @@ test('import previews and never writes', async t => {
   // A preview that wrote files would make a dry run indistinguishable from a real one.
   assert.ok(result.accepted.length);
   assert.equal(result.written, undefined);
+});
+
+test('a large export reports duplicates across normalization slices with original file lines', async t => {
+  const header = 'Source url,Target url\n';
+  const placement = 'https://p.example.com/0,https://example.com/g';
+  const rows = Array.from({ length: 2002 }, (_, index) =>
+    `https://p.example.com/${index},https://example.com/g`);
+  rows[1] = placement; // Same slice as the first occurrence.
+  rows[1000] = 'https://P.EXAMPLE.COM/0,https://example.com/g'; // Normalized cross-slice duplicate.
+  rows[1001] = 'https://p.example.com/0,https://example.com/other'; // A different target is distinct.
+  rows[2000] = rows[1001]; // Repeat that distinct placement in the third slice.
+  rows[2001] = 'not-a-url,https://example.com/g';
+  // A malformed record is not sent to normalization, but still shifts every reported file line.
+  const contents = `${header}https://short.example.com/\n${rows.join('\n')}\n`;
+  const path = await file(t, 'large.csv', contents);
+  const singlePath = await file(t, 'single.csv', `${header}${placement}\n`);
+  const options = { supplier: 'semrush', target: 'example.com' };
+  const single = await readImport(singlePath, options);
+  const result = await readImport(path, options);
+
+  assert.equal(result.error, undefined);
+  assert.equal(result.chunks, 3);
+  assert.deepEqual(result.counts, { read: 2003, accepted: 1998, rejected: 2, duplicates: 3 });
+  assert.deepEqual(result.duplicates, [
+    { row: 4, first_seen_on_row: 3 },
+    { row: 1003, first_seen_on_row: 3 },
+    { row: 2003, first_seen_on_row: 1004 },
+  ]);
+  assert.deepEqual(result.rejected.map(entry => entry.row), [2, 2004]);
+  assert.equal(new Set(result.accepted.map(candidate => candidate.id)).size, result.counts.accepted);
+  assert.equal(result.accepted[0].id, single.accepted[0].id, 'the existing single-slice identity is preserved');
+  assert.ok(result.accepted.every(candidate => candidate.discovery_run_id === single.accepted[0].discovery_run_id));
+  assert.ok(result.accepted.some(candidate => candidate.source_url === 'https://p.example.com/0'
+    && candidate.target_url === 'https://example.com/other'));
+  assert.ok(result.accepted.every(candidate => candidate.verification_status === 'not_checked'
+    && candidate.verified_at === null && candidate.observation_id === null && candidate.evidence_id === null));
+  assert.equal(await readFile(path, 'utf8'), contents);
+  assert.deepEqual(await readdir(dirname(path)), ['large.csv'], 'preview creates no ledger or state');
 });

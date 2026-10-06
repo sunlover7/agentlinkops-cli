@@ -5,7 +5,7 @@ export {CloudError} from './cloud-error.js';
 // A small HTTP client for the cloud. Scoped keys only; no human session ever reaches here.
 // DP-0036-T13: the CLI names itself so the usage counters can tell it from other REST callers.
 // The version follows the plugin manifests; bump it with them.
-export const CLI_VERSION = '0.6.10';
+export const CLI_VERSION = '0.6.11';
 export const CLI_USER_AGENT = `agentlinkops-cli/${CLI_VERSION}`;
 const MAX_ATTEMPTS = 3;
 const MAX_RETRY_WAIT_MS = 5_000;

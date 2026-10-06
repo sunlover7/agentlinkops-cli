@@ -98,10 +98,10 @@ agentlinkops status
 the source page and appends an observation to the mirror. `status` names every entry whose
 observations disagree with its intent and proposes the edit; applying it is a commit you make.
 
-For ledger checks, exit codes are `0` when every expected link is present, `1` only
-when an expected link is observed absent with complete evidence, and `2` for a usage,
-configuration or ledger error. An unknown never fails the run.
-Pass `--fail-on-unknown` when your CI wants it to.
+Ledger checks return `0` when no expected placement is conclusively absent and `1` when
+an expected placement is observed absent with complete evidence. Unknown observations do
+not fail a run by default. Pass `--fail-on-unknown` to return `1` for an unknown result
+in text or JSON output. Usage, configuration and malformed-ledger errors return `2`.
 
 `agentlinkops doctor` verifies the ledger, the verifier self-test, cloud reachability and the
 token, and prints a fix line for anything that fails.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { main } from '../cli/main.js';
@@ -27,6 +27,27 @@ const run = (dir, argv) => {
   return main(argv, { cwd: dir, out: line => out.push(String(line)), err: line => err.push(String(line)) })
     .then(code => ({ code, out: out.join('\n'), err: err.join('\n') }));
 };
+
+async function savedFiles(dir) {
+  const files = {};
+  async function visit(path = '') {
+    for (const entry of (await readdir(join(dir, path), { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const name = join(path, entry.name);
+      if (entry.isDirectory()) await visit(name);
+      else files[name] = (await readFile(join(dir, name))).toString('base64');
+    }
+  }
+  await visit();
+  return files;
+}
+
+function assertSavedFilesUnchanged(before, after, message) {
+  // The established advisory gate may be created; every other saved file stays identical.
+  const gate = join('.agentlinkops', '.sync-gate');
+  if (Object.hasOwn(before, gate)) assert.equal(before[gate], '', `${message}: existing advisory gate is empty`);
+  assert.equal(after[gate], '', `${message}: advisory gate remains empty`);
+  assert.deepEqual(after, { ...before, [gate]: '' }, message);
+}
 
 test('the CLI runs the EXACT cloud verifier, asserted on the shared cases', async () => {
   // Every case here is also asserted against `verifyLink` directly in test/verifier.test.js.
@@ -283,4 +304,85 @@ test('a command outside a ledger says so instead of inventing one', async t => {
   const result = await run(join(dir, 'nested'), ['check']);
   assert.equal(result.code, 2);
   assert.match(result.err, /agentlinkops init/u);
+});
+
+test('check --json keeps stdout empty when there are no observations due and preserves customer records', async t => {
+  const space = await workspace(t);
+  const fetchMock = t.mock.method(globalThis, 'fetch', () => assert.fail('an empty check must not fetch'));
+  const entry = normalizeEntry({ id: 'lk_jsonempty', intent: 'expected', source: SOURCE, target: TARGET });
+  const row = observationRow(entry.id, { state: 'present', reason: 'link_found', checkedAt: new Date().toISOString(), occurrences: [{}], evidence: { complete: true } });
+  const scenarios = [
+    { name: 'empty ledger', entries: [], args: [], count: 0 },
+    { name: 'not due', entries: [entry], args: [], count: 1 },
+    { name: 'filter selects nothing', entries: [entry], args: ['--all', '--filter', 'not-in-this-ledger'], count: 0 },
+  ];
+  for (const scenario of scenarios) {
+    await writeFile(space.ledger, serializeLedger(scenario.entries));
+    await writeFile(space.observations, `${JSON.stringify(row)}\n`);
+    await writeFile(join(space.dir, '.agentlinkops/state.json'), `${JSON.stringify(applyRun({ v: 1, entries: {} }, [row]))}\n`);
+    const before = await savedFiles(space.dir);
+    const result = await run(space.dir, ['check', '--json', ...scenario.args]);
+    assert.equal(result.code, 0, scenario.name);
+    assert.equal(result.out, '', scenario.name);
+    assert.match(result.err, new RegExp(`nothing due \\(${scenario.count} entr(?:y|ies) in scope; pass --all to recheck\\)`), scenario.name);
+    assertSavedFilesUnchanged(before, await savedFiles(space.dir), scenario.name);
+  }
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('malformed ledgers stop human and JSON checks before fetching or changing customer records', async t => {
+  const space = await workspace(t);
+  const fetchMock = t.mock.method(globalThis, 'fetch', () => assert.fail('a malformed ledger must not fetch'));
+  const entry = normalizeEntry({ id: 'lk_parsevalid', intent: 'expected', source: SOURCE, target: TARGET });
+  await writeFile(space.observations, '');
+  await writeFile(join(space.dir, '.agentlinkops/state.json'), '{"v":1,"entries":{}}\n');
+  const scenarios = [
+    { name: 'partial JSON failure', ledger: serializeLedger([entry]) + '{not JSON\n', message: /line 2:/u },
+    { name: 'invalid intent', ledger: serializeLedger([entry]) + JSON.stringify({ ...entry, id: 'lk_parsebad', intent: 'unsupported' }) + '\n', message: /line 2 \(lk_parsebad\): intent must be one of wanted, expected, retired/u },
+    { name: 'duplicate identity', ledger: serializeLedger([entry, { ...entry, source: 'https://other.example.com/' }]), message: /line 2 \(lk_parsevalid\): duplicate id, first seen on line 1/u },
+    { name: 'no usable entries', ledger: '{not JSON\n', message: /line 1:/u },
+  ];
+  for (const scenario of scenarios) for (const json of [false, true]) {
+    await writeFile(space.ledger, scenario.ledger);
+    const before = await savedFiles(space.dir);
+    const result = await run(space.dir, ['check', '--all', ...(json ? ['--json'] : [])]);
+    assert.equal(result.code, 2, `${scenario.name}; json=${json}`);
+    assert.equal(result.out, '', scenario.name);
+    assert.match(result.err, /1 ledger line\(s\) could not be read/u, scenario.name);
+    assert.match(result.err, scenario.message, scenario.name);
+    assert.doesNotMatch(result.err, /nothing due/u, scenario.name);
+    assertSavedFilesUnchanged(before, await savedFiles(space.dir), scenario.name);
+  }
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('human and JSON checks honor only the explicit unknown failure flag without claiming absence', async t => {
+  const space = await workspace(t);
+  const entry = normalizeEntry({ id: 'lk_unknownflag', intent: 'expected', source: SOURCE, target: TARGET });
+  await writeFile(space.ledger, serializeLedger([entry]));
+  const fetchMock = t.mock.method(globalThis, 'fetch', async url => new URL(url).pathname === '/robots.txt'
+    ? new Response('', { status: 404 })
+    : new Response('', { status: 403, headers: { 'content-type': 'text/html' } }));
+  for (const json of [false, true]) for (const failOnUnknown of [false, true]) {
+    const beforeRequests = fetchMock.mock.callCount();
+    const result = await run(space.dir, ['check', '--all', '--host-delay', '0', '--concurrency', '1',
+      ...(json ? ['--json'] : []), ...(failOnUnknown ? ['--fail-on-unknown'] : [])]);
+    assert.equal(result.code, failOnUnknown ? 1 : 0, `json=${json}; failOnUnknown=${failOnUnknown}`);
+    assert.ok(fetchMock.mock.callCount() > beforeRequests, 'a selected due check ran the verifier');
+    if (json) {
+      const rows = result.out.split('\n').filter(Boolean).map(line => JSON.parse(line));
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].id, entry.id);
+      assert.equal(rows[0].state, 'unknown');
+      assert.equal(rows[0].complete, false);
+      assert.equal(rows[0].occurrences, 0);
+      assert.equal(rows[0].result.state, 'unknown');
+      assert.equal(rows[0].result.httpStatus, 403);
+      assert.equal(rows[0].result.sourceUrl, SOURCE);
+      assert.equal(rows[0].result.targetUrl, TARGET);
+    } else assert.match(result.out, /could not be concluded\. An unknown is not a lost link/u);
+    assert.doesNotMatch(result.out, /\b(?:ABSENT|LOST)\b/u);
+    const state = JSON.parse(await readFile(join(space.dir, '.agentlinkops/state.json'), 'utf8'));
+    assert.equal(state.entries[entry.id].last_state, 'unknown');
+  }
 });

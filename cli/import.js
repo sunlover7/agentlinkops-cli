@@ -74,11 +74,14 @@ export async function readImport(path, {
   // chunks, so a placement repeated in two different parts of one file is still one candidate.
   const prepared = { accepted: [], rejected: [], duplicates: [] };
   const seen = new Map();
+  // Candidate identity includes the run. These bounded slices describe one preview, so keep
+  // its first-slice identity throughout the file or a repeated placement gets a new ID.
+  const previewRunId = `${runId}_0`;
   const chunks = [];
   for (let index = 0; index < rows.length; index += DISCOVERY_LIMITS.rows) chunks.push(index);
   for (const offset of chunks) {
     const part = await prepareImport({
-      runId: `${runId}_${offset / DISCOVERY_LIMITS.rows}`, workspaceId, projectId, supplier,
+      runId: previewRunId, workspaceId, projectId, supplier,
       rows: rows.slice(offset, offset + DISCOVERY_LIMITS.rows), target: targetUrl, scope,
       taskId: 'import_preview', retrievedAt: now, generatedAt: supplierGeneratedAt,
       seen, rowOffset: offset,
