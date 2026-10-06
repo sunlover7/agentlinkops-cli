@@ -187,7 +187,7 @@ test('migrate renames .linktrail/ to .agentlinkops/ with a receipt, and afterwar
   assert.equal(await exists(join(dir, LEGACY_DIR)), false, 'the old directory is gone because it was renamed, not copied');
   assert.equal(await readFile(join(dir, '.agentlinkops', 'links.jsonl'), 'utf8'), ledger);
   assert.equal(await readFile(join(dir, '.agentlinkops', 'context', 'manual.md'), 'utf8'), '# manual\n');
-  assert.deepEqual((await readdir(join(dir, '.agentlinkops'))).sort(), ['config.json', 'context', 'links.jsonl', 'state.json']);
+  assert.deepEqual((await readdir(join(dir, '.agentlinkops'))).filter(name => !name.startsWith('._')).sort(), ['config.json', 'context', 'links.jsonl', 'state.json']);
 
   const notices = [];
   setNoticeSink(message => notices.push(message));

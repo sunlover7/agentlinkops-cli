@@ -1,3 +1,4 @@
+import { acquireSyncLock } from './sync-lock.js';
 // The ledger: intent, human-owned, one JSON object per line.
 //
 // Reading is deliberately forgiving of everything except silence. A line that does not parse,
@@ -5,7 +6,7 @@
 // set — never dropped quietly. A tool that discards a customer's row and carries on produces a
 // number that is wrong in a way they discover months later.
 import { readFile, writeFile, mkdir, rename, open, unlink } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import {lifecycleDeal,emptyDeal} from '../shared/lifecycle-contract.js';
 
 export const INTENTS = Object.freeze(['wanted', 'expected', 'retired']);
@@ -189,11 +190,7 @@ export async function writeLedger(path, entries) {
 
 /** Read, validate and replace under one lock. A malformed row prevents every mutation. */
 export async function mutateLedger(path, update) {
-  const lockPath = `${path}.lock`;
-  const lock = await open(lockPath, 'wx').catch(error => {
-    if (error.code === 'EEXIST') throw new Error('Ledger is being updated by another process.');
-    throw error;
-  });
+  const lock = await acquireSyncLock(dirname(path), 'ledger-update', {markerName: `${basename(path)}.lock`});
   try {
     const ledger = await readLedger(path);
     if (ledger.missing) throw new Error('Ledger does not exist.');
@@ -201,7 +198,7 @@ export async function mutateLedger(path, update) {
     const result = await update(ledger.entries);
     await writeLedger(path, result);
     return result;
-  } finally { await lock.close(); await unlink(lockPath); }
+  } finally { await lock.release(); }
 }
 
 /**

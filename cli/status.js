@@ -13,11 +13,23 @@ export function disagreements(entries, observations) {
   for (const entry of entries) {
     const row = latest.get(entry.id);
     if (!row) { out.push({ entry, kind: 'never_checked' }); continue; }
-    if (entry.intent === 'expected' && ['absent','confirmed_missing'].includes(row.state) && row.complete) out.push({ entry, row, kind: 'lost' });
+    if (entry.intent === 'expected') {
+      const hostedState = row.source === 'cloud' ? row.result?.watchState : null;
+      const confirmed = row.state === 'confirmed_missing'
+        || (row.state === 'absent' && hostedState === 'confirmed_missing');
+      const suspected = row.state === 'suspected_missing' || row.state === 'absent'
+        || (row.state === 'unknown' && hostedState === 'suspected_missing');
+      const missing = ['absent', 'suspected_missing', 'confirmed_missing'].includes(row.state);
+      // The change mirror omits repeated checks, so raw absence cannot prove confirmation.
+      if ((confirmed || suspected) && row.complete === true) {
+        out.push({ entry, row, kind: confirmed ? 'lost' : 'suspected_missing' });
+      } else if (missing || ['unknown', 'source_unavailable'].includes(row.state)) {
+        out.push({ entry, row, kind: 'cannot_say' });
+      }
+    }
     // Nothing is promoted automatically: whether a link that appeared is one we now EXPECT is
     // a judgement about a relationship, not about HTML. So this proposes the edit and stops.
     if (entry.intent === 'wanted' && row.state === 'present') out.push({ entry, row, kind: 'appeared', suggest: { intent: 'expected' } });
-    if (entry.intent === 'expected' && row.state === 'unknown') out.push({ entry, row, kind: 'cannot_say' });
   }
   return out;
 }

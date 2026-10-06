@@ -9,6 +9,10 @@ export const historyResponse=z.looseObject({items:z.array(z.looseObject({id:z.st
 export const jobResponse=z.looseObject({id:z.string(),state:z.enum(['queued','running','succeeded','failed','cancelled'])});
 export const observationEvent=z.looseObject({id:z.string(),data:objectResponse});
 export const eventFeedResponse=z.looseObject({events:z.array(observationEvent),next_cursor:z.string(),has_more:z.boolean()});
+export const linkChangeReportResponse=z.looseObject({schema_version:z.literal(1),workspace_id:z.string(),project_id:z.string(),coverage_scope:z.literal('retained_event_feed'),
+  from:z.string(),as_of:z.string(),through_sequence:z.number().int().nonnegative(),count:z.number().int().nonnegative(),
+  limit:z.literal(500),truncated:z.boolean(),complete:z.boolean(),retention_limited:z.boolean(),scan_limit:z.literal(10000),scan_limited:z.boolean(),
+  events:z.array(z.looseObject({id:z.string(),workspace_id:z.string(),project_id:z.string(),type:z.enum(['placement_acquired','placement_recovered','placement_lost']),created_at:z.string()})).max(500)});
 export const usageResponse=z.looseObject({
   workspace_id:z.string(),period:z.string().regex(/^\d{4}-\d{2}$/),plan:z.string(),
   check_reservations:z.looseObject({reserved:z.number().nonnegative(),consumed:z.number().nonnegative(),released:z.number().nonnegative()}),
@@ -32,7 +36,8 @@ export const candidateVerificationBatchResponse=z.looseObject({
 export const candidateMonitoringResponse=z.looseObject({
   lifecycle:lifecycleOutput.optional(),
   watch:z.looseObject({id:z.string(),source_url:z.string(),target_url:z.string(),status:z.enum(['active','paused']),observation_state:objectResponse}),verification_job_id:z.string(),candidate_id:z.string(),run_id:z.string(),
-  local_reference:z.string().nullable(),replayed:z.boolean(),recurring_monitoring_created:z.literal(true),
+  local_reference:z.string().nullable(),replayed:z.boolean(),recurring_monitoring_created:z.boolean(),
+  enrollment_outcome:z.enum(['created','already_monitored']).optional(),
 });
 /** Network boundary shared by the console and command adapters. Unknown fields survive evolution. */
 export function restResponseContract(path,method='GET') {
@@ -55,6 +60,7 @@ export function restResponseContract(path,method='GET') {
   if(/^\/v1\/targets\/[^/]+$/.test(pathname))return targetResponse;
   if(['/v1/watches','/v1/targets','/v1/projects','/v1/exports/watches'].includes(pathname))return pageResponse;
   if(pathname==='/v1/usage')return usageResponse;
+  if(pathname==='/v1/reports/link-changes')return linkChangeReportResponse;
   if(['/v1/events','/v1/target-events'].includes(pathname))return eventFeedResponse;
   if(/^\/v1\/(?:jobs|target-jobs)\/[^/]+$/.test(pathname))return jobResponse;
   return objectResponse;

@@ -196,3 +196,25 @@ hide a history gap and is not a supported recovery procedure.
 All success output is JSON except requested CSV export. Errors are JSON on
 stderr with nonzero exit status. HTTP response bodies and credential values
 are never included in errors. Local operation has no telemetry.
+
+## Writer-lock recovery candidate
+
+The maintained development source adds verified-owner recovery for `sync.lock`
+and the ledger's secondary writer lock. This source acceptance is separate from
+an installed release and hosted/client acceptance. A persistent OS advisory gate
+serializes cooperating writers; valid same-user/same-boot metadata for a departed
+writer can be recovered. Marker age alone never authorizes removal. Live, reused,
+legacy empty, malformed or unverifiable markers are preserved with a refusal.
+
+Keep the local ledger, mirror and state files. Read-only `status`/`report` remain
+useful while writer ownership is unresolved. Inspect a copy; do not delete a live
+lock or signal a process you did not create. An uncertain cloud request still
+needs its original operation/readback before any write is retried; releasing a
+local lock does not prove the remote request failed.
+
+The candidate uses pinned prebuilt native assets for Darwin/Linux, with no compiler
+fallback in the package build. Actual crash and relocated-package acceptance is
+recorded for Darwin arm64; other architectures, Windows, musl and network-file
+systems require separate proof. Unsupported/native-unavailable writers fail
+closed with actionable setup diagnostics. Native lock acceptance does not enable
+Darwin OAuth custody or establish customer credentials/grants.

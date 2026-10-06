@@ -93,7 +93,7 @@ export async function pullTargetEvents(client, state, options = {}) {
 }
 
 /** The shared walk. One cursor key per feed, and the key is the only thing that differs. */
-async function pullFeed(feed, cursorKey, state, { maxPages = 100, onSnapshot = null } = {}) {
+async function pullFeed(feed, cursorKey, state, { maxPages = 100, onSnapshot = null, recoverInvalidCursor = false } = {}) {
   const events = [], gaps = [];
   let cursor = state.cursors?.[cursorKey] ?? null;
   let pages = 0, resynced = false;
@@ -101,16 +101,20 @@ async function pullFeed(feed, cursorKey, state, { maxPages = 100, onSnapshot = n
     let page;
     try { page = await feed.list({ cursor, limit: 100 }); }
     catch (error) {
-      if (!(error instanceof CloudError) || error.code !== 'CURSOR_EXPIRED') throw error;
+      const invalidBinding = recoverInvalidCursor === true && typeof cursor === 'string' && cursor.length > 0
+        && error instanceof CloudError && error.code === 'INVALID_CURSOR' && error.status === 400;
+      if (!(error instanceof CloudError) || (error.code !== 'CURSOR_EXPIRED' && !invalidBinding)) throw error;
       const details = error.details ?? {};
       // The snapshot is taken FIRST. Only then does the cursor move, and the gap is recorded so
       // a reader can see that something happened here rather than inferring quiet.
       if (!feed.exportSnapshot) throw new CloudError('RESYNC_SNAPSHOT_UNAVAILABLE', 410, details);
       if (resynced) throw new CloudError('RESYNC_REPEATED_EXPIRY', 410, details);
-      let snapshot = null, snapshotCursor = null;
+      let snapshot = null, snapshotCursor = null, snapshotPages = 0;
       const seen = new Set();
       do {
+        if (snapshotPages >= maxPages) throw new CloudError('RESYNC_SNAPSHOT_LIMIT', 502);
         const part = await feed.exportSnapshot({cursor: snapshotCursor, limit: 100});
+        snapshotPages++;
         snapshot = snapshot ? {...snapshot, items: [...snapshot.items, ...(part.items ?? [])]} : {...part, items: part.items ?? []};
         snapshotCursor = part.next_cursor ?? null;
         if (snapshotCursor && seen.has(snapshotCursor)) throw new CloudError('INVALID_SNAPSHOT_CURSOR', 502);
@@ -128,10 +132,13 @@ async function pullFeed(feed, cursorKey, state, { maxPages = 100, onSnapshot = n
           data: {after}});
       }
       await onSnapshot?.(snapshot, cursorKey);
-      gaps.push({ at: new Date().toISOString(), reason: 'cursor_expired', resumed_from: details.resume_cursor ?? null });
-      cursor = details.resume_cursor ?? null;
+      // An invalid binding supplies no trusted watermark. Snapshot current state first,
+      // then replay the retained feed under the client's unchanged configured scope.
+      const resume = invalidBinding ? null : details.resume_cursor ?? null;
+      gaps.push({ at: new Date().toISOString(), feed: cursorKey, reason: invalidBinding ? 'cursor_invalid' : 'cursor_expired', resumed_from: resume });
+      cursor = resume;
       resynced = true;
-      if (!details.resume_cursor) break;
+      if (!invalidBinding && !resume) break;
       continue;
     }
     events.push(...(page.events ?? []));
@@ -139,6 +146,7 @@ async function pullFeed(feed, cursorKey, state, { maxPages = 100, onSnapshot = n
     // Applied, then advanced.
     cursor = page.next_cursor ?? cursor;
     if (!page.has_more) break;
+    if (resynced && pages >= maxPages) throw new CloudError('RESYNC_EVENT_LIMIT', 502);
   }
   // Named by feed, so a caller writing this back cannot put it under the wrong key.
   return { feed: cursorKey, events, cursor, pages, gaps, resynced };

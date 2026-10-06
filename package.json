@@ -1,7 +1,7 @@
 {
   "name": "agentlinkops",
-  "version": "0.6.9",
-  "description": "A backlink and AI citation ledger that lives in your repository: local link and citation checks with dated evidence, supplier-export imports and optional sync to the hosted AgentLinkOps service.",
+  "version": "0.6.10",
+  "description": "Backlink checks with dated evidence and portable results, optional repository ledgers, supplier-export imports and sync to AgentLinkOps.",
   "author": "AgentLinkOps (https://agentlinkops.com)",
   "license": "Apache-2.0",
   "type": "module",
@@ -56,10 +56,13 @@
     "jsonl"
   ],
   "dependencies": {
+    "@modelcontextprotocol/client": "2.2.0",
     "@modelcontextprotocol/server": "2.0.0",
+    "ipaddr.js": "2.2.0",
+    "koffi": "3.3.2",
     "parse5": "8.0.1",
     "turndown": "^7.2.4",
-    "undici": "7.29.0",
+    "undici": "7.29.1",
     "zod": "4.6.0"
   },
   "devDependencies": {

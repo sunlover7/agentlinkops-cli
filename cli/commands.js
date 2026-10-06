@@ -13,7 +13,8 @@ import { resolveSchemaPath, listAvailablePaths } from '../shared/exec-grammar.js
 // describe (`describe NAME`) and call (`call NAME`). `tools` and `describe` answer from the
 // bundled snapshot in cli/catalog.js with no account and no network; `--refresh` reads the
 // live catalog instead. Output is JSON whenever stdout is not a terminal or --json is given,
-// and one error shape ({ error: { code, message, next } }) on every failure.
+// and structured public errors. JSON preserves the public envelope; terminal rendering can
+// supply local guidance when the server has none.
 const USAGE = 'tools [TOOLSET] [--json] [--refresh] | describe NAME [--examples] [--output-schema] [--json] [--refresh] | schema NAME [FIELD.PATH] [--json] | call NAME [--args JSON | --file FILE | --set PATH=VALUE ...] [--dry-run] [-y] [--json]';
 const NAME = /^[a-z][a-z0-9_]*$/;
 const NEXT = {
@@ -104,6 +105,17 @@ export async function commandsMain(argv, { cwd = process.cwd(), env = process.en
   const [command, name] = args._;
   const json = args.json === true || !isTTY;
   const fail = (code, message) => { if (json) err(errorJson(code, message, explain(code))); else err(`${message}\n${explain(code)}`); return 2; };
+  const cloudFail = (error, context) => {
+    if (!error.publicError) return fail(error.code, `${context}: ${error.code}${error.status ? ` (${error.status})` : ''}`);
+    if (json) {
+      err(JSON.stringify({ error: error.publicError }));
+    }
+    else {
+      const next = [error.publicError.next, error.details?.next].find(value => typeof value === 'string' && value.trim()) ?? explain(error.code);
+      err(`${context}: ${error.code}${error.status ? ` (${error.status})` : ''}\n${error.serverMessage ?? error.code}\n${next}`);
+    }
+    return 2;
+  };
   const allowed = { tools: ['_', 'json', 'refresh'], describe: ['_', 'json', 'refresh', 'examples', 'output-schema'], schema: ['_', 'json'], call: ['_', 'args', 'file', 'set', 'dry-run', 'json'] };
   const positionalCount = command === 'tools' ? args._.length > 2 : command === 'schema' ? args._.length !== 2 && args._.length !== 3 : args._.length !== 2;
   if (!allowed[command] || Object.keys(args).some(key => !allowed[command].includes(key)) || positionalCount || (command !== 'tools' && !NAME.test(name))) throw new ConfigError(USAGE);
@@ -142,7 +154,7 @@ export async function commandsMain(argv, { cwd = process.cwd(), env = process.en
       const live = await client.listCommands();
       commands = live.items.map(item => ({ ...item, readOnly: item.annotations?.readOnlyHint === true, admissionGated: false }));
     } catch (error) {
-      if (error instanceof CloudError) return fail(error.code, `catalog refresh: ${error.code}${error.status ? ` (${error.status})` : ''}`);
+      if (error instanceof CloudError) return cloudFail(error, 'catalog refresh');
       throw error;
     }
   }
@@ -196,7 +208,7 @@ export async function commandsMain(argv, { cwd = process.cwd(), env = process.en
     out(JSON.stringify(result, null, 2));
     return 0;
   } catch (error) {
-    if (error instanceof CloudError) return fail(error.code, `${canonical}: ${error.code}${error.status ? ` (${error.status})` : ''}${error.details ? ` ${JSON.stringify(error.details)}` : ''}`);
+    if (error instanceof CloudError) return cloudFail(error, canonical);
     throw error;
   }
 }

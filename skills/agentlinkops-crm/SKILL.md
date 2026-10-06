@@ -1,10 +1,10 @@
 ---
 name: agentlinkops-crm
 description: Manage the AgentLinkOps local backlink and outreach CRM, user-selected disavow lists, branded HTML reports and cloud event sync. Use for durable campaign records, link reporting or explicit disavow-list management; does not connect a mailbox, send outreach or upload disavow files.
-allowed-tools: Read Bash(python3 ../../scripts/agentlinkops.py *) Bash(node cli/agentlinkops.mjs *) Bash(agentlinkops *)
+allowed-tools: Read Bash(python3 ../../scripts/agentlinkops.py *) Bash(python3 ../../scripts/outreach-crm-draft.py *) Bash(node cli/agentlinkops.mjs *) Bash(agentlinkops *)
 ---
 
-**The local surface is the ledger file, not this CRM.** `.agentlinkops/links.jsonl` in the user's repository (or a `.linktrail/` directory from an earlier install, read until `agentlinkops migrate` renames it) declares the links they expect, want and have earned, and `agentlinkops check` runs the exact cloud verifier against it without an account. Run the CLI as `node cli/agentlinkops.mjs` from the repository or plugin-package root (`cli/linktrail.mjs` still works and prints a one-line notice); the packaged plugin ships the CLI, its pinned verifier modules and their one dependency (parse5, MIT) inside the package, so `check` runs with no npm install and no network. It needs Node 22 or newer (`adopt` reads SQLite databases through `node:sqlite`); the Python helper below needs Python 3.10+. This CRM is one optional adapter beside CSV and JSONL: it is available, tested and unchanged, and nothing requires it. When a user already keeps links here, `agentlinkops adopt <db>` reads it into ledger entries — read-only, adding no schema — and previews unless `--write` is given. Do not propose the CRM as the place a user should start keeping links; propose it when they want contacts and outreach activity beside them, or when they already have one.
+**For the optional bundled CLI, the local surface is the ledger file.** `.agentlinkops/links.jsonl` in the user's repository (or a `.linktrail/` directory from an earlier install, read until `agentlinkops migrate` renames it) declares the links they expect, want and have earned, and `agentlinkops check` runs the exact cloud verifier against it without an account. Run the CLI as `node cli/agentlinkops.mjs` from the repository or plugin-package root (`cli/linktrail.mjs` still works and prints a one-line notice); the packaged plugin ships the CLI, its pinned verifier modules and their pinned runtime dependencies inside the package, so the installed package needs no npm install; checking a publisher still requires a read-only network fetch. It needs Node 22 or newer (`adopt` reads SQLite databases through `node:sqlite`); the Python helper below needs Python 3.10+. This CRM is one optional adapter beside CSV and JSONL: it is available, tested and unchanged, and nothing requires it. When a user already keeps links here, `agentlinkops adopt <db>` reads it into ledger entries — read-only, adding no schema — and previews unless `--write` is given. Do not propose the CRM as the place a user should start keeping links; propose it when they want contacts and outreach activity beside them, or when they already have one.
 
 To record a link in the ledger: `agentlinkops add --source URL --target URL --intent expected [--anchor TEXT] [--ref ID] [--note TEXT]` (`--intent wanted` for a link not yet earned; `agentlinkops init` first in a repository without `.agentlinkops/`). `agentlinkops check` then verifies every expected link and exits 0 when all are present, 1 when one is observed absent with complete evidence, 2 on a usage or ledger error; an unknown never fails.
 
@@ -26,4 +26,18 @@ For recurring cloud changes, use the host's already connected AgentLinkOps tools
 
 Sync updates `cloud_state` on placements and preserves local status, notes and opportunity relationships. A fetch failure is not proof that a backlink disappeared. Keep `unknown`, `suspected_missing` and confirmed outcomes distinct. Read the new events and decide what action, if any, the user's agent should take; receipt of an event does not authorize sending an email.
 
-Use the [placement reconciliation recipe](../../references/recipes/placement-reconciliation.md) to reconcile an exact source and destination with retained evidence, checkpoints and an optional monitoring plan.
+Recipes are optional. Choose `agentlinkops agent setup --recipe placement-reconciliation` before reading `../../references/recipes/placement-reconciliation.md` for an exact source and destination, retained evidence, checkpoints and optional monitoring. Removing the recipe preserves your local records and existing reconciliation process.
+
+For a draft-only file from an existing frozen report, read [portable ledger
+handoff](../../references/portable-ledger-handoff.md). It needs explicit customer
+workspace/project/site and external-ID mappings, verifies the report hash and
+refuses mismatched sites or conflicting output. It does not verify hosted grants,
+import into a vendor or send messages. Keep replied, suppressed and unknown facts
+separate from monitoring state; a saved file does not establish destination
+readback or permission to send.
+
+When the user selects an existing local Outreach CRM with `projects/<project>/drafts`,
+use [local CRM draft handoff](../../references/local-crm-draft-handoff.md) for exact
+body/manifest saving, interrupted-save recovery and readback. This adapter preserves
+the complete original request and explicit site binding. It does not import contacts,
+check current sender authority, activate sequences or provide a native vendor API.

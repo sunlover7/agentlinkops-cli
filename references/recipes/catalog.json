@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "kind": "agentlinkops_recipe_catalog",
-  "version": "1.0.5",
-  "reviewedAt": "2026-09-20",
+  "version": "1.0.8",
+  "reviewedAt": "2026-10-06",
   "convention": "AgentLinkOps package convention; not an industry schema",
   "recipes": [
     {
       "id": "site-context-brief",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "path": "site-context-brief.md",
       "goals": [
         "build-content",
@@ -35,7 +35,7 @@
     },
     {
       "id": "sourced-linkable-asset",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "path": "sourced-linkable-asset.md",
       "goals": [
         "build-content"
@@ -62,7 +62,7 @@
     },
     {
       "id": "qualified-campaign-handoff",
-      "version": "1.0.5",
+      "version": "1.0.7",
       "path": "qualified-campaign-handoff.md",
       "goals": [
         "prepare-campaign"
@@ -89,7 +89,7 @@
     },
     {
       "id": "placement-reconciliation",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "path": "placement-reconciliation.md",
       "goals": [
         "verify-links"
@@ -127,21 +127,21 @@
       "title": "Campaign guidance",
       "publisher": "AgentLinkOps",
       "publicationDate": null,
-      "reviewedAt": "2026-09-13",
+      "reviewedAt": "2026-10-06",
       "url": "../../skills/agentlinkops-campaigns/SKILL.md"
     },
     {
       "title": "Asset guidance",
       "publisher": "AgentLinkOps",
       "publicationDate": null,
-      "reviewedAt": "2026-09-13",
+      "reviewedAt": "2026-10-06",
       "url": "../../skills/agentlinkops-assets/SKILL.md"
     },
     {
       "title": "Recipe command notes",
       "publisher": "AgentLinkOps",
       "publicationDate": "2026-09-20",
-      "reviewedAt": "2026-09-20",
+      "reviewedAt": "2026-10-06",
       "url": "command-notes.md"
     }
   ]

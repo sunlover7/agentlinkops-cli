@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -204,6 +204,7 @@ test('HTTP redirects do not forward credentials and endpoint changes fail before
 test('guarded migrations refuse unrelated DBs, workspace changes, downgrades and tampered checksums', t => {
   const unrelated = fixture(t, false);
   unrelated.python("import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('create table important_data (id integer)'); c.commit()");
+  chmodSync(unrelated.db, 0o600);
   const before = readFileSync(unrelated.db);
   assert.throws(() => unrelated.cli('init', '--workspace', 'workspace-a'));
   assert.deepEqual(readFileSync(unrelated.db), before);
@@ -213,6 +214,94 @@ test('guarded migrations refuse unrelated DBs, workspace changes, downgrades and
   assert.throws(() => f.cli('migrate'));
   f.python("import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('pragma user_version=4'); c.execute(\"update schema_migrations set checksum='tampered' where version=1\"); c.commit()");
   assert.throws(() => f.cli('migrate'));
+});
+
+test('permissive existing CRM is refused without changing bytes or permissions', t => {
+  const f = fixture(t);
+  f.put('contact', { id: 'private', publisher_url: 'https://example.com/', email: 'private@example.com' });
+  const before = readFileSync(f.db);
+  chmodSync(f.db, 0o644);
+  for (const args of [['export'], ['init', '--workspace', 'workspace-a'], ['migrate']]) {
+    assert.throws(() => f.cli(...args), error => error.stderr.includes('PRIVATE_STORAGE_REQUIRED'));
+    assert.deepEqual(readFileSync(f.db), before);
+    assert.equal(statSync(f.db).mode & 0o777, 0o644);
+  }
+  chmodSync(f.db, 0o600);
+  assert.equal(f.cli('contact', 'list')[0].email, 'private@example.com');
+});
+
+test('unsupported private-file mode is rejected before SQLite writes and cleans owned empty file', t => {
+  const f = fixture(t, false);
+  f.python(`import sys,os
+sys.path.insert(0,sys.argv[2])
+import agentlinkops as crm
+original=crm.os.fstat
+def unsupported(fd):
+    values=list(original(fd)); values[0]=(values[0] & ~0o777) | 0o700
+    return os.stat_result(values)
+crm.os.fstat=unsupported
+crm.sqlite3.connect=lambda *args,**kwargs: (_ for _ in ()).throw(AssertionError('SQLite must not open'))
+try:
+    crm.connect(sys.argv[1],True)
+    raise AssertionError('unsupported storage was accepted')
+except crm.CRMError as error:
+    assert error.code=='PRIVATE_STORAGE_REQUIRED'
+assert not os.path.exists(sys.argv[1])`, dirname(script));
+});
+
+test('private export refuses unsupported modes without leaving sensitive bytes or replacing files', t => {
+  const f = fixture(t, false);
+  f.python(`import sys,os
+from pathlib import Path
+sys.path.insert(0,sys.argv[2])
+import agentlinkops as crm
+original=crm.os.fstat
+def unsupported(fd):
+    values=list(original(fd)); values[0]=(values[0] & ~0o777) | 0o700
+    return os.stat_result(values)
+crm.os.fstat=unsupported
+path=Path(sys.argv[1])
+try:
+    crm.write_new(path,'private contact and campaign notes')
+    raise AssertionError('unsupported storage was accepted')
+except crm.CRMError as error:
+    assert error.code=='PRIVATE_STORAGE_REQUIRED'
+assert not path.exists()
+path.write_text('owner bytes')
+try:
+    crm.write_new(path,'replacement')
+    raise AssertionError('existing file was replaced')
+except FileExistsError:
+    pass
+assert path.read_text()=='owner bytes'`, dirname(script));
+});
+
+test('migration refuses unsupported backup storage before copying private records or upgrading schema', t => {
+  const f = fixture(t, false);
+  f.python(`import sys,os
+from pathlib import Path
+sys.path.insert(0,sys.argv[2])
+import agentlinkops as crm
+all_migrations=crm.migrations()
+crm.migrations=lambda:all_migrations[:1]
+c=crm.connect(sys.argv[1],True)
+crm.migrate(c,sys.argv[1],'workspace-a',True)
+before=Path(sys.argv[1]).read_bytes()
+crm.migrations=lambda:all_migrations
+original=crm.os.fstat
+def unsupported(fd):
+    values=list(original(fd)); values[0]=(values[0] & ~0o777) | 0o700
+    return os.stat_result(values)
+crm.os.fstat=unsupported
+try:
+    crm.migrate(c,sys.argv[1])
+    raise AssertionError('unsupported backup was accepted')
+except crm.CRMError as error:
+    assert error.code=='PRIVATE_STORAGE_REQUIRED'
+assert c.execute('pragma user_version').fetchone()[0]==1
+c.close()
+assert Path(sys.argv[1]).read_bytes()==before
+assert not list(Path(sys.argv[1]).parent.glob('*.bak'))`, dirname(script));
 });
 
 test('schema upgrade preserves records and creates a restorable backup first', t => {

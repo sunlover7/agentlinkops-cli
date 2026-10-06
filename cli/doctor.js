@@ -19,6 +19,7 @@ import { loadConfig, setNoticeSink } from './config.js';
 import { readLedger } from './ledger.js';
 import { readReceipts } from './receipts.js';
 import { readState, writeState } from './state.js';
+import { acquireSyncLock } from './sync-lock.js';
 import { createClient, CloudError } from './client.js';
 import { cloudConnection } from './connection.js';
 import { validatePublicUrl, parseLinks, transitionState, checkObservationKind } from '../src/verifier/index.js';
@@ -112,9 +113,9 @@ export async function probeCloud({ origin, fetchImpl, timeoutMs = 5000 }) {
  * uses. Scope is a server-side fact, so this read (a plain watch listing, metered as none) is
  * the only honest answer to "is this token good for anything here".
  */
-export async function probeToken({ origin, token, workspaceId, fetchImpl }) {
+export async function probeToken({ origin, token, auth, workspaceId, projectId, fetchImpl }) {
   try {
-    await createClient({ origin, token, workspaceId, fetchImpl }).listWatches({ limit: 1 });
+    await createClient({ origin, token, auth, workspaceId, projectId, fetchImpl }).listWatches({ limit: 1 });
     return { verified: true };
   } catch (error) {
     if (error instanceof CloudError) return { verified: false, code: error.code, status: error.status, scope: error.details?.scope ?? null };
@@ -214,15 +215,15 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
   // Token: presence, shape, and — only when the cloud just proved reachable — whether the
   // cloud accepts it. The value itself is never printed, hashed or measured here.
   const token = connection.token || null;
-  const source = connection.tokenSource ? `the environment (${connection.tokenSource})` : `${config.dirName}/config.json (cloud.token)`;
-  if (!token) {
+  const source = connection.auth ? 'the private OAuth credential store' : connection.tokenSource ? `the environment (${connection.tokenSource})` : `${config.dirName}/config.json (cloud.token)`;
+  if (!token && !connection.auth) {
     if (origin) {
       checks.push({ status: 'fail', name: 'token', detail: 'no token is set; sync and receive need one',
         fix: 'run agentlinkops connect for the app API-key setup path; supply AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY in the environment' });
     } else {
       checks.push({ status: 'skip', name: 'token', detail: 'no token (and no cloud configured)' });
     }
-  } else if (!TOKEN_SHAPE.test(token)) {
+  } else if (!connection.auth && !TOKEN_SHAPE.test(token)) {
     checks.push({ status: 'fail', name: 'token', detail: `set in ${source} but it does not look like an AgentLinkOps API key (lt_ plus 64 hex characters)`,
       fix: 'copy the full key without truncation or line breaks; the key itself is never printed here' });
   } else if (!origin) {
@@ -230,15 +231,20 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
   } else {
     const cloudLine = checks.find(check => check.name === 'cloud');
     if (cloudLine?.status === 'ok') {
-      const probed = await probeToken({ origin, token, workspaceId: config.cloud?.workspaceId, fetchImpl });
+      const probed = await probeToken({ ...connection, fetchImpl });
       if (probed.verified) {
         record.token = { ok: true };
         checks.push({ status: 'ok', name: 'token', detail: `set in ${source}; the cloud accepted it (watches:read works)` });
       } else if (probed.verified === false) {
         record.token = { ok: false, code: probed.code };
-        const fix = probed.code === 'INSUFFICIENT_SCOPE' ? `issue a key carrying ${probed.scope ?? 'watches:read'}`
+        const fix = probed.code === 'INSUFFICIENT_SCOPE' ? connection.auth
+          ? `authorize ${probed.scope ?? 'watches:read'} through the configured OAuth client and workspace grant`
+          : `issue a key carrying ${probed.scope ?? 'watches:read'}`
           : probed.code === 'WORKSPACE_DENIED' ? `check cloud.workspaceId in ${config.dirName}/config.json against the workspace the key belongs to`
-          : probed.code === 'UNAUTHORIZED' ? 'issue a fresh key (this one is invalid or expired) and update where it is set'
+          : probed.code === 'UNAUTHORIZED' ? connection.auth
+            ? 'reconnect with the configured OAuth issuer and public client; do not repeat an unresolved write'
+            : 'issue a fresh key (this one is invalid or expired) and update where it is set'
+          : probed.code === 'OAUTH_CREDENTIAL_STORAGE_UNSUPPORTED' ? 'use an API-key connection or OAuth in your MCP client until native credential custody is verified'
           : 'sync will fail the same way; act on the code above';
         const detail = probed.code === 'INSUFFICIENT_SCOPE' ? `the cloud accepted it but scope ${probed.scope ?? 'watches:read'} is missing`
           : probed.code === 'WORKSPACE_DENIED' ? 'the credential belongs to a different workspace'
@@ -287,12 +293,21 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
   // of failing doctor twice.
   if (probed) {
     const cloudLine = checks.find(check => check.name === 'cloud');
+    let writer = null;
     try {
-      const current = state ?? await readState(config.paths.state);
+      writer = await acquireSyncLock(config.dir, 'doctor');
+      // Diagnostics may await the network while sync commits. Merge only our record
+      // into fresh state under the same writer gate; the early snapshot is stale.
+      const current = await readState(config.paths.state);
       await writeState(config.paths.state, { ...current, doctor: record });
       if (cloudLine) cloudLine.detail += ' (recorded in state.json)';
     } catch (error) {
       if (cloudLine) cloudLine.detail += ` (result NOT recorded: ${error.message})`;
+    } finally {
+      if (writer) {
+        try { await writer.release(); }
+        catch (error) { if (cloudLine) cloudLine.detail += ` (writer release failed: ${error.message})`; }
+      }
     }
   }
 

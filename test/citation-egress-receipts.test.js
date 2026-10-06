@@ -22,7 +22,7 @@ function fixture({ fatal = false, cleanup = false } = {}) {
     async close() { closed++; receipts.push(receipt(receipts.length + 1, { phase: 'cleanup', outcome: cleanup ? 'cleanup_unconfirmed' : 'closed', meterState: cleanup ? 'incomplete' : 'unavailable' })); if (cleanup) throw Error(secret); },
   };
 }
-async function rows(dir) { const [name] = await readdir(join(dir, 'citations/egress')); return (await readFile(join(dir, 'citations/egress', name), 'utf8')).trim().split('\n').map(JSON.parse); }
+async function rows(dir) { const names = (await readdir(join(dir, 'citations/egress'))).filter(name => !name.startsWith('._')); assert.equal(names.length, 1); return (await readFile(join(dir, 'citations/egress', names[0]), 'utf8')).trim().split('\n').map(JSON.parse); }
 const run = (dir, engine, extra = {}) => runEpoch(panel, { dir, engines: new Map([['chatgpt:web-own-browser', engine]]), ...extra });
 
 test('runner retains bounded supplemental receipts and cleanup without changing envelope hashes or unknown meter costs', async () => {
@@ -33,7 +33,7 @@ test('runner retains bounded supplemental receipts and cleanup without changing 
   assert.equal(journal.at(-1).outcome, 'returned'); assert.equal(journal.at(-1).evidenceComplete, true);
   assert.equal(journal[0].engines[0].identityHash, createHash('sha256').update('chatgpt:web-own-browser').digest('hex'));
   assert.deepEqual(journal.filter(row => row.phase === 'attempt').map(row => row.runIndex), [0,1]); assert.equal(journal.at(-1).totals, null);
-  const root = join(dir, 'citations/evidence', result.epochId), names = await readdir(root);
+  const root = join(dir, 'citations/evidence', result.epochId), names = (await readdir(root)).filter(name => !name.startsWith('._'));
   assert.equal(names.length, 2);
   for (const name of names) { const value = JSON.parse(await readFile(join(root, name), 'utf8')); assert.equal(value.egressReceipt, undefined); assert.equal(createHash('sha256').update(JSON.stringify(value)).digest('hex') + '.json', name); }
 });

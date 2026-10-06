@@ -1,3 +1,4 @@
+import { acquireSyncLock } from './sync-lock.js';
 import {lifecycleMain} from './lifecycle.js';
 import {admissionMain} from './admission.js';
 import { commandsMain } from './commands.js';
@@ -77,20 +78,20 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
                                             .agentlinkops/citations/; live engines need
                                             engine-specific setup; the mock engine makes no paid calls
   agentlinkops receive --body FILE --headers FILE   signed notification; authenticated pull
-  agentlinkops connect --workspace ID --project-id ID [--origin URL] [--selection FILE]
+  agentlinkops connect --workspace ID --project-id ID [--origin URL] [--selection FILE] [--oauth --issuer URL --client-id ID [--credential-ref REF]]
   agentlinkops tools [TOOLSET] [--json] [--refresh]   cloud commands by toolset (offline snapshot;
                                             --refresh reads the live catalog)
   agentlinkops describe NAME [--examples] [--output-schema] [--json]  one command's exact schema
   agentlinkops call NAME [--args JSON | --file FILE | --set PATH=VALUE ...] [--dry-run] [-y]
                                             run a cloud command (retired names still resolve)
   agentlinkops agent setup [--client ID ...] [--scope project|user] [--origin URL] [--dry-run]
-                                            install the skill pack and the right MCP view for each
-                                            detected agent client (Claude Code, Codex, Cursor,
-                                            Gemini CLI, Hermes); stores no credential
+                                            core connection/reference and the right MCP view;
+                                            optional --skill ID ... / --recipe ID ... / --all-skills;
+                                            stores no credential; preserves customer instructions
   agentlinkops agent status                 what is installed where
-  agentlinkops agent remove [--scope project|user] [--apply] [--json]
+  agentlinkops agent remove [--skill ID ...] [--recipe ID ...] [--scope project|user] [--apply] [--json]
   agentlinkops agent recover [--scope project|user] [--apply] [--json]
-  agentlinkops sync [--push-only] [--pull-only] [--dry-run] [--include-wanted] [--lifecycle]
+  agentlinkops sync [--push-only] [--pull-only] [--dry-run] [--include-wanted] [--lifecycle] [--recover-cursors]
                                             AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY
   agentlinkops check [--filter TEXT] [--all] [--json] [--fail-on-unknown]
   agentlinkops doctor                       verify ledger, verifier, cloud reachability, token
@@ -133,7 +134,7 @@ function reportProblems(problems, what, out) {
   if (problems.length > 20) out(`  … and ${problems.length - 20} more`);
 }
 
-export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), out = console.log, err = console.error, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), out = console.log, err = console.error, env = process.env, fetchImpl = globalThis.fetch, afterHistoryPersisted, afterStatePersisted } = {}) {
   if (argv[0] === 'gsc-links') return await gscLinksMain(argv, { cwd, out });
   // Citation watches keep their own files under .agentlinkops/citations/ and never
   // touch the link ledger, so they dispatch before its requirement like context does.
@@ -147,7 +148,9 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
 
   let syncLock = null;
   try {
-    if (command === 'lifecycle') return await lifecycleMain(args,{cwd,env,fetchImpl,out});
+    if (args['recover-cursors'] !== undefined && (command !== 'sync' || args['recover-cursors'] !== true || args['pull-only'] !== true || args['push-only']))
+      throw new ConfigError('Cursor recovery requires agentlinkops sync --pull-only --recover-cursors; it performs no remote writes.');
+    if (command === 'lifecycle') return await lifecycleMain(args,{cwd,env,fetchImpl,out,err});
     if (command === 'admission') { const config=await loadConfig({cwd}); return await admissionMain(argv.slice(1),{client:createClient({...cloudConnection(config,env),fetchImpl}),out,err}); }
     if (command === 'disavow') return await disavowMain(args,{cwd,env,fetchImpl,out});
     if (command === 'index') return await indexMain(args,{cwd,env,fetchImpl,out});
@@ -156,8 +159,8 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     if (command === 'skill') return await skillMain(argv, { out });
     if (command === 'agent') return await agentMain(argv, { cwd, out, err });
     if (command === 'connect') {
-      if (args._.length !== 1 || args.tag.length || Object.keys(args).some(key => !['_', 'tag', 'origin', 'workspace', 'project-id', 'selection'].includes(key))) throw new ConfigError('connect --workspace ID --project-id ID [--origin URL] [--selection FILE]');
-      return await connectMain(args, { cwd, out });
+      if (args._.length !== 1 || args.tag.length || Object.keys(args).some(key => !['_', 'tag', 'origin', 'workspace', 'project-id', 'selection', 'oauth', 'issuer', 'client-id', 'credential-ref'].includes(key))) throw new ConfigError('connect --workspace ID --project-id ID [--origin URL] [--selection FILE] [--oauth --issuer URL --client-id ID [--credential-ref REF]]');
+      return await connectMain(args, { cwd, out, env, fetchImpl });
     }
     if (command === 'check' && (args.source !== undefined || args.target !== undefined)) {
       if (typeof args.source !== 'string' || typeof args.target !== 'string') throw new ConfigError('check requires both --source URL and --target URL');
@@ -329,9 +332,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
 
     const config = await loadConfig({ cwd });
     if (['sync','receive','check','compact','adopt-result'].includes(command) && !(command === 'sync' && args['dry-run'])) {
-      const lockPath = join(config.dir, 'sync.lock');
-      try { syncLock = { handle: await open(lockPath, 'wx'), path: lockPath }; }
-      catch (error) { if (error.code === 'ENOENT') throw new ConfigError('no ledger here — run `agentlinkops init` first'); if (error.code === 'EEXIST') throw new ConfigError('sync writer already locked; retry delivery after it finishes'); throw error; }
+      syncLock = await acquireSyncLock(config.dir, command);
     }
     if (command === 'adopt-result') {
       if (args._.length !== 2 || Object.keys(args).some(key => !['_', 'intent', 'tag'].includes(key)) || args.tag.length) throw new ConfigError('adopt-result FILE [--intent wanted|expected]');
@@ -506,7 +507,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
         for (const change of found.slice(0, 100)) out(`  ${change.at.slice(0, 10)}  ${change.from} -> ${change.to}  ${change.id}`);
         return 0;
       }
-      const groups = { appeared: 'appeared', lost: 'LOST', cannot_say: 'cannot say', never_checked: 'never checked' };
+      const groups = { appeared: 'appeared', lost: 'LOST', suspected_missing: 'suspected missing', cannot_say: 'cannot say', never_checked: 'never checked' };
       for (const [kind, label] of Object.entries(groups)) {
         const rows = found.filter(item => item.kind === kind);
         if (!rows.length) continue;
@@ -524,7 +525,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       if (command === 'receive') {
         if (!args.body || !args.headers) throw new ConfigError('receive --body RAW_BODY_FILE --headers HEADERS_JSON_FILE');
         verifyDelivery({ body: await readFile(String(args.body), 'utf8'), headers: JSON.parse(await readFile(String(args.headers), 'utf8')),
-          secret: readEnv(process.env, 'WEBHOOK_SECRET').value, workspaceId: config.cloud?.workspaceId });
+          secret: readEnv(env, 'WEBHOOK_SECRET').value, workspaceId: config.cloud?.workspaceId });
         args['pull-only'] = true;
         args['push-only'] = false;
       }
@@ -533,11 +534,11 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       if(args.lifecycle&&args['push-only'])throw new ConfigError('--lifecycle requires a pull; omit --push-only.');
       const selection = { includeWanted: args['include-wanted'] === true, ledgerIds: config.cloud?.ledgerIds ?? null };
       if (args['dry-run']) { out(JSON.stringify({ network: false, rows: args['pull-only'] ? [] : syncPlan(ledger.entries, state, selection) }, null, 2)); return 0; }
-      const connection = cloudConnection(config);
+      const connection = cloudConnection(config, env);
       if (!connection.origin) { err('no cloud origin — run agentlinkops connect'); return 2; }
-      if (!connection.token) { err(keySetup(connection.origin)); return 2; }
+      if (!connection.token && !connection.auth) { err(keySetup(connection.origin)); return 2; }
       if (!connection.projectId) { err('no project id — run agentlinkops connect'); return 2; }
-      const client = createClient(connection);
+      const client = createClient({ ...connection, fetchImpl });
       let next = { ...state };
       let pushFailed = false;
       if (!args['pull-only']) {
@@ -549,28 +550,38 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
         pushFailed = pushed.failed.length > 0;
       }
       if (!args['push-only']) {
-        const pulled = await pullEvents(client, next, {
-          onSnapshot: async snapshot => {
-            // A resync writes the snapshot beside the mirror rather than into the ledger: the
-            // cloud is a mirror of the customer's file and never the other way round.
-            await writeFile(join(config.dir, `snapshot-${Date.now()}.json`), `${JSON.stringify(snapshot, null, 1)}\n`, 'utf8');
+        const snapshots = [];
+        const recovery = {
+          recoverInvalidCursor: args['recover-cursors'] === true,
+          onSnapshot: async (snapshot, feed) => {
+            const path = join(config.dir, `snapshot-${feed}-${Date.now()}-${crypto.randomUUID()}.json`);
+            await writeFile(path, `${JSON.stringify(snapshot, null, 1)}\n`, {encoding: 'utf8', flag: 'wx', mode: 0o600});
+            snapshots.push({feed, path});
           },
+        };
+        const pulled = await pullEvents(client, next, {
+          ...recovery,
         });
         // Two feeds, two cursors. They are pulled separately and written separately, so an
         // expiry on one cannot move the other.
-        const targets = await pullTargetEvents(client, next);
+        const targets = await pullTargetEvents(client, next, recovery);
         const index = await watchIndex(client, next);
         if(args.lifecycle)next.lifecycle=await pullLifecycleMirrors(client,next,{projectId:connection.projectId,index,ledgerIds:selection.ledgerIds??ledger.entries.map(entry=>entry.id)});
         const { fresh, duplicates } = await persistPulledHistory(config, pulled.events, targets.events, index);
+        await afterHistoryPersisted?.();
         next.cursors = { ...(next.cursors ?? {}), events: pulled.cursor, target_events: targets.cursor };
         next.gaps = [...(next.gaps ?? []), ...pulled.gaps, ...targets.gaps];
         out(`pulled ${pulled.events.length} event(s) over ${pulled.pages} page(s), ${fresh.length} observation(s)${duplicates.length ? `, ${duplicates.length} already held` : ''}`);
         if (targets.events.length) out(`pulled ${targets.events.length} target event(s) over ${targets.pages} page(s)`);
         // A gap is stated, never inferred. An empty feed means nothing happened; an expired
         // cursor means something happened and is gone.
-        for (const gap of [...pulled.gaps, ...targets.gaps]) out(`  RESYNC ${gap.at}: ${gap.reason}; a snapshot was written to ${config.dir}`);
+        for (const gap of [...pulled.gaps, ...targets.gaps]) {
+          const snapshot = snapshots.find(item => item.feed === gap.feed);
+          out(`  RESYNC ${gap.at}: ${gap.reason}; ${snapshot ? `snapshot saved to ${snapshot.path}` : 'current-state snapshot applied'}`);
+        }
       }
       await writeState(config.paths.state, next);
+      await afterStatePersisted?.();
       return pushFailed ? 2 : 0;
     }
 
@@ -595,7 +606,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       if (args.json) { out(rows.map(row => JSON.stringify(row)).join('\n')); return summary.exitCode; }
       reportProblems(ledger.problems, 'ledger line(s)', out);
       for (const { entry, row } of summary.appeared) out(`APPEARED  ${entry.id}  ${entry.source}  (${row.occurrences} occurrence(s))`);
-      for (const { entry, row } of summary.failures) out(`LOST      ${entry.id}  ${entry.source}  [${row.reason}]`);
+      for (const { entry, row } of summary.failures) out(`ABSENT    ${entry.id}  ${entry.source}  [${row.reason}]`);
       out(`\n${JSON.stringify(summary.counts)}`);
       out(`${plural(changed.length, 'observation')} recorded, ${repeated.length} repeated an answer already on file`);
       if (summary.counts.unknown) {
@@ -609,9 +620,13 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     return 2;
   } catch (error) {
     if (error instanceof ConfigError) { err(error.message); return 2; }
+    if (command === 'sync' && args['recover-cursors'] === true && error instanceof CloudError) {
+      err(JSON.stringify({error: {code: error.code, status: error.status, next: 'Keep this project ledger and its history. Resolve authorized read access for the configured project, then retry agentlinkops sync --pull-only --recover-cursors. Do not broaden grants or replay remote writes.'}}));
+      return 2;
+    }
     err(`agentlinkops: ${error?.message ?? error}`);
     return 2;
   } finally {
-    if (syncLock) { await syncLock.handle.close(); await unlink(syncLock.path); }
+    if (syncLock) await syncLock.release();
   }
 }

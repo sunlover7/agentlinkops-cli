@@ -3,7 +3,7 @@
 // script, the MCP router, the CLI index and the generators all read the same definitions.
 // Rules: docs/technical/AGENT-SURFACE-CONTRACT.md (DP-0036).
 
-export const TOOLSETS = ['monitoring','evidence','discovery','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
+export const TOOLSETS = ['monitoring','evidence','rank','discovery','baseline','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
 
 // One line per toolset: what the group is for. Printed by the site brief, the REST index and the
 // catalog snapshot so the same wording reaches every client; a toolset without a summary is a
@@ -15,7 +15,9 @@ export const TOOLSET_SUMMARIES = {
   digests: 'Own-address digest preferences, delivery history and exact events.',
   monitoring: 'Watch earned links and destination URLs: create, list, update, import, export, recheck.',
   evidence: 'What a check observed: histories, snapshots, change feeds, check jobs, published contacts.',
+  rank: 'Synthetic DataForSEO rank schedules and dated history; hosted collection disabled.',
   discovery: 'Import candidate rows, read stored runs, verify selected candidates, enroll them.',
+  baseline: 'Scoped backlink baselines; supplier admission disabled.',
   library: 'Read and export the coverage-stated opportunity library.',
   competitors: 'Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports.',
   reports: 'Profile, anchor and report summaries over the tracked dataset.',

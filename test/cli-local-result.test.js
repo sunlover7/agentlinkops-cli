@@ -48,7 +48,7 @@ test('exclusive output refuses an existing file before fetch; failed validation 
   await assert.rejects(checkToFile(input, path, { verify: async () => { fetched = true; } }), /EEXIST/);
   assert.equal(fetched, false); assert.equal(await readFile(path, 'utf8'), 'owner bytes');
   await assert.rejects(checkToFile({ ...input, source: 'http://127.0.0.1/' }, join(cwd, 'invalid.json')), /invalid source/);
-  assert.deepEqual(await readdir(cwd), ['result.json']);
+  assert.deepEqual((await readdir(cwd)).filter(name => !name.startsWith('._')), ['result.json']);
 });
 
 test('main runs before config/ledger lookup and rejects half inputs and unsafe URLs', async t => {
@@ -62,7 +62,7 @@ test('main runs before config/ledger lookup and rejects half inputs and unsafe U
   const saved = JSON.parse(await readFile(join(cwd, 'result.json'), 'utf8'));
   assert.deepEqual(JSON.parse(result.out[0]), saved);
   assert.equal(saved.observation.state, 'present');
-  assert.deepEqual(await readdir(cwd), ['result.json'], 'no account, config, ledger or telemetry files');
+  assert.deepEqual((await readdir(cwd)).filter(name => !name.startsWith('._')), ['result.json'], 'no account, config, ledger or telemetry files');
 });
 
 test('adoption creates local intent and original observation once and preserves newer activity', async t => {

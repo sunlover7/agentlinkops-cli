@@ -8,7 +8,9 @@
 // it's never synced to the hosted service, and `citation logout ENGINE`
 // removes it. This is the CLI-own-browser posture — the user's account,
 // their risk, their data.
-import { mkdir, writeFile, rm, chmod } from 'node:fs/promises';
+import * as fs from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { readFile } from 'node:fs/promises';
@@ -24,6 +26,44 @@ const ENGINE_URLS = Object.freeze({
   claude: 'https://claude.ai/',
   bing: 'https://www.bing.com/',
 });
+
+async function saveSession(sessionDir, engineName, state, { sessionFs = fs, platform = process.platform } = {}) {
+  const fail = () => Object.assign(new Error('Session storage requires a real private directory (0700) and regular private files (0600). Choose private storage and remove symbolic links.'), { code: 'PRIVATE_STORAGE_REQUIRED' });
+  const privateMode = (info, mode) => platform === 'win32' || (info.mode & 0o7777) === mode;
+  await sessionFs.mkdir(sessionDir, { recursive: true, mode: 0o700 });
+  const directory = await sessionFs.lstat(sessionDir);
+  if (!directory.isDirectory() || !privateMode(directory, 0o700)) throw fail();
+  const sessionPath = join(sessionDir, `${engineName}.json`);
+  const inspect = async () => {
+    try {
+      const info = await sessionFs.lstat(sessionPath);
+      if (!info.isFile() || !privateMode(info, 0o600)) throw fail();
+      return info;
+    } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+  };
+  const previous = await inspect();
+  const temporary = join(sessionDir, `.${engineName}.${randomUUID()}.tmp`);
+  let handle, owned = false;
+  try {
+    handle = await sessionFs.open(temporary, 'wx', 0o600); owned = true;
+    const info = await handle.stat();
+    if (!info.isFile() || !privateMode(info, 0o600)) throw fail();
+    await handle.writeFile(JSON.stringify(state, null, 2));
+    await handle.sync();
+    await handle.close(); handle = undefined;
+    const currentDirectory = await sessionFs.lstat(sessionDir);
+    if (!currentDirectory.isDirectory() || !privateMode(currentDirectory, 0o700) || currentDirectory.dev !== directory.dev || currentDirectory.ino !== directory.ino) throw fail();
+    const current = await inspect();
+    if (Boolean(current) !== Boolean(previous) || (current && ['dev', 'ino', 'size', 'mtimeMs'].some(key => current[key] !== previous[key]))) {
+      throw Object.assign(new Error('The saved session changed during login. Retry without another session writer.'), { code: 'SESSION_CHANGED' });
+    }
+    await sessionFs.rename(temporary, sessionPath); owned = false;
+    return sessionPath;
+  } finally {
+    await handle?.close().catch(() => {});
+    if (owned) await sessionFs.unlink(temporary).catch(() => {});
+  }
+}
 
 export async function loginEngine({ engineName, timeoutMs = 180_000, runtime = {} }) {
   const url = ENGINE_URLS[engineName];
@@ -80,10 +120,7 @@ export async function loginEngine({ engineName, timeoutMs = 180_000, runtime = {
   // (anonymous surfaces don't need login, and the adapter handles both).
   const state = await context.storageState();
   const sessionDir = runtime.sessionDir ?? SESSIONS_DIR;
-  await mkdir(sessionDir, { recursive: true, mode: 0o700 });
-  const sessionPath = join(sessionDir, `${engineName}.json`);
-  await writeFile(sessionPath, JSON.stringify(state, null, 2), { mode: 0o600 });
-  await chmod(sessionPath, 0o600);
+  const sessionPath = await saveSession(sessionDir, engineName, state, runtime);
 
   return {
     engine: engineName,

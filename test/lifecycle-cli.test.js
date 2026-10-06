@@ -5,7 +5,19 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {lifecycleMain} from '../cli/lifecycle.js';
 import {emptyDeal} from '../shared/lifecycle-contract.js';
+import {main} from '../cli/main.js';
 async function setup(t){const cwd=await mkdtemp(join(tmpdir(),'lifecycle-cli-'));t.after(()=>rm(cwd,{recursive:true,force:true}));await mkdir(join(cwd,'.agentlinkops'));await writeFile(join(cwd,'.agentlinkops/config.json'),JSON.stringify({cloud:{origin:'https://fixture.example',workspaceId:'ws'},project:{id:'p'}}));return cwd;}
+test('lifecycle main dispatch preserves structured server errors and metadata without replay',async t=>{
+ const cwd=await setup(t),errors=[];let calls=0;
+ const envelope={code:'LIFECYCLE_REVISION_CONFLICT',message:'Deal metadata changed; reload before retrying.',details:{next:'Use get_link_lifecycle and reconcile the current revision.'}};
+ await writeFile(join(cwd,'patch.json'),JSON.stringify({dealNote:'Reviewed patch'}));
+ const status=await main(['lifecycle','update','w','--revision','1','--deal','patch.json'],{
+  cwd,env:{AGENTLINKOPS_TOKEN:'fixture-only'},out:()=>assert.fail('refused mutation must not succeed'),err:value=>errors.push(JSON.parse(value)),
+  fetchImpl:async()=>{calls++;return Response.json({error:envelope},{status:409,headers:{'X-Request-ID':'req_lifecycle','Retry-After':'12'}});},
+ });
+ assert.equal(status,2);assert.equal(calls,1);
+ assert.deepEqual(errors,[{error:{...envelope,requestId:'req_lifecycle',retryAfter:'12'}}]);
+});
 test('lifecycle CLI sends exact scoped JSON, preserves zero and explicitly clears metadata',async t=>{
  const cwd=await setup(t),calls=[],out=[];let revision=0,deal=emptyDeal();const fetchImpl=async(url,options)=>{const a=JSON.parse(options.body);calls.push({url,a});assert.equal(options.headers['X-Workspace-ID'],'ws');assert.equal(options.redirect,'error');assert.equal(a.projectId,'p');if(url.endsWith('update_link_lifecycle')){revision++;deal={...deal,...a.deal};}return Response.json({projectId:'p',watchId:'w',revision,deal,createdAt:null,updatedAt:null});};
  const deps={cwd,env:{AGENTLINKOPS_TOKEN:'fixture-only'},out:value=>out.push(JSON.parse(value)),fetchImpl};

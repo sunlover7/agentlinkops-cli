@@ -1,6 +1,6 @@
 # Site and context brief
 
-ID: `site-context-brief` | Version: `1.0.0` | Goal: `build-content` or `prepare-campaign`
+ID: `site-context-brief` | Version: `1.0.1` | Goal: `build-content` or `prepare-campaign`
 
 Use this recipe to establish the site, audience, existing assets and evidence before choosing work. Modes: local, hosted, external. Required inputs: the chosen site or product, intended audience, requested outcome and supplied pages or context. Missing inputs become explicit questions in the brief; do not invent them.
 
@@ -20,6 +20,6 @@ The agent can prepare the brief from supplied material without an AgentLinkOps a
 
 If access fails, distinguish missing authentication, missing scope, unavailable feature, quota and temporary failure. Continue from supplied context; record the unresolved operation without retrying indefinitely. If a file exists or changed since the last checkpoint, compare it before proposing a revision and preserve customer edits.
 
-Complete when the brief can support a concrete task with its evidence limits intact. Continue to [sourced asset](sourced-linkable-asset.md) or [campaign handoff](qualified-campaign-handoff.md). No publishing or sending happens in this recipe.
+Complete when the brief can support a concrete task with its evidence limits intact. Use the customer's chosen asset or campaign process for the next task. Packaged continuations are optional and separately selected: choose `agentlinkops agent setup --recipe sourced-linkable-asset` before reading [sourced asset](sourced-linkable-asset.md), or `--recipe qualified-campaign-handoff` before reading [campaign handoff](qualified-campaign-handoff.md). Check selection support as described in [command notes](command-notes.md). No publishing or sending happens in this recipe.
 
 Tested client/tool versions: none recorded. Status: authored; end-to-end execution and vendor connections untested. [Catalog](catalog.json) owns machine-readable status and source references.

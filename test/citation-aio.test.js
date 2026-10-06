@@ -10,11 +10,35 @@ const credentials = { login: 'fixture-user', password: 'fixture-only-password' }
 const fixture = JSON.parse(await readFile(new URL('./fixtures/citations/dataforseo-aio.json', import.meta.url)));
 const prompt = fixture.tasks[0].result[0].keyword;
 const copy = () => structuredClone(fixture);
-const engine = (body = copy(), options = {}) => createGoogleAioEngine({ credentials, fetchImpl: async () => Response.json(body), ...options });
+const engine = (body = copy(), options = {}) => createGoogleAioEngine({ credentials, costEstimateUsd: fixture.cost, fetchImpl: async () => Response.json(body), ...options });
 const code = expected => cause => { assert.equal(cause.code,expected,cause.message); assert.ok(cause instanceof EngineError); return true; };
 
 test('AIO refuses missing credentials and invalid cost/locale settings without fixture fallback', () => {
   for (const options of [{},{credentials:{login:'x'}},{credentials:{login:' ',password:'x'}},{credentials,costEstimateUsd:NaN},{credentials,costEstimateUsd:-1},{credentials,device:'tablet'},{credentials,locationCode:0}]) assert.throws(()=>createGoogleAioEngine(options),code('AIO_CONFIGURATION'));
+});
+test('AIO defaults to the live tariff and refuses a priority-queue-sized budget before fetching', async () => {
+  let calls = 0;
+  const body = copy();
+  body.cost = 0.002;
+  body.tasks[0].cost = 0.002;
+  const adapter = createGoogleAioEngine({ credentials, fetchImpl: async () => { calls++; return Response.json(body); } });
+  assert.equal(adapter.estimateCostUsd(), 0.002);
+  await assert.rejects(adapter.run({ prompt, maxCostUsd: 0.0015 }), code('AIO_BUDGET'));
+  assert.equal(calls, 0);
+  const result = await adapter.run({ prompt, maxCostUsd: 0.002 });
+  assert.equal(calls, 1);
+  assert.equal(result.costEstimateUsd, 0.002);
+});
+test('AIO default tariff is reserved for transport failures without supplier cost evidence', async () => {
+  let calls = 0;
+  const adapter = createGoogleAioEngine({ credentials, fetchImpl: async () => { calls++; throw new Error('fixture transport failure'); } });
+  await assert.rejects(adapter.run({ prompt }), cause => {
+    code('AIO_TRANSPORT_ERROR')(cause);
+    assert.equal(cause.costEstimateUsd, 0.002);
+    assert.equal(cause.retriable, false);
+    return true;
+  });
+  assert.equal(calls, 1);
 });
 test('AIO injected fixture preserves provider sources and exact request provenance', async () => {
   let request;
@@ -80,7 +104,7 @@ test('AIO panel budget retains unknown paid attempts and provenance in standard 
   const result=await runEpoch({schema_version:1,targets:[{domain:'example.com',scope:'domain',brand:'Example'}],prompts:[{id:'p',text:prompt}],engines:[spec],samples:4,maxUsd:0.0025},{dir,engines:new Map([[engineIdentity(spec),adapter]])});
   assert.equal(calls,2);assert.equal(result.aborted.reason,'budget');assert.equal(result.spentEstimateUsd,0.0024);assert.equal(result.cells[0].n,0);assert.equal(result.cells[0].unknowns,2);assert.equal(result.cells[0].rate,null);
   const evidenceDir=join(dir,CITATION_FILES.evidenceDir,result.epochId);
-  const filenames=await readdir(evidenceDir);assert.equal(filenames.length,2);
+  const filenames=(await readdir(evidenceDir)).filter(name=>!name.startsWith('._'));assert.equal(filenames.length,2);
   const retained=evidenceEnvelopeSchema.parse(JSON.parse(await readFile(join(evidenceDir,filenames[0]),'utf8')));
   assert.equal(retained.provenance.query,prompt);assert.equal(retained.provenance.device,'desktop');assert.equal(retained.failure.code,'AIO_NOT_RENDERED');assert.equal(retained.cost_estimate_usd,0.0012);
 });

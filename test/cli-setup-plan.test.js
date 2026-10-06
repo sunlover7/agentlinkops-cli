@@ -88,13 +88,88 @@ for (const mode of ['local', 'hosted', 'external']) {
       }
       if (goal === 'build-content') {
         assert.ok(stepIds(result).includes('prepare-cited-content'));
-        assert.match(JSON.stringify(result), /pre-publish-review/);
+        assert.match(JSON.stringify(result), /customer’s existing content, source and review process/);
         assert.match(JSON.stringify(result), /no AgentLinkOps account prerequisite/);
       }
       assert.deepEqual(await plan(cwd, goal, mode), result);
     });
   }
 }
+
+const publisherGates = /source-cited-content-builder|source-cited-humanizer|content-defingerprinting|internal-linking-optimizer|pre-publish-review/;
+
+test('custom content policy remains customer-owned and is never replaced by a default publisher pipeline', async t => {
+  const cwd = await fixture(t);
+  const privatePolicy = 'CUSTOM_POLICY_CANARY: write in our CMS, cite our approved source library, and use our editor’s review. No new image or publisher skill is required.';
+  await writeFile(join(cwd, 'SITE.md'), privatePolicy);
+  await writeFile(join(cwd, 'AGENTS.md'), 'CUSTOM_AGENT_CANARY: preserve the customer’s chosen process and authorized actions.');
+  const before = await snapshot(cwd);
+
+  for (const mode of ['local', 'hosted', 'external']) {
+    const result = await plan(cwd, 'build-content', mode);
+    const content = result.steps.find(step => step.id === 'prepare-cited-content');
+    assert.equal(content.execution, 'customer_agent');
+    assert.match(content.action, /customer’s existing content, source and review process/);
+    assert.match(content.action, /their chosen tools/);
+    assert.match(content.action, /only when explicitly selected/);
+    assert.match(content.action, /incomplete reviews unresolved/);
+    assert.match(content.requires.join(' '), /Customer-selected content process, source requirements and review policy/);
+    assert.match(content.expectedEvidence.join(' '), /draft, reviewed and published states remain distinct/);
+    assert.match(content.expectedEvidence.join(' '), /publication requires public readback/);
+    assert.doesNotMatch(JSON.stringify(result), publisherGates);
+    assert.ok(!JSON.stringify(result).includes('CUSTOM_POLICY_CANARY'));
+    assert.ok(!JSON.stringify(result).includes('CUSTOM_AGENT_CANARY'));
+    assert.deepEqual(result.effects, { filesWritten: 0, networkRequests: 0, accountsConnected: 0, messagesSent: 0 });
+  }
+  assert.deepEqual(await snapshot(cwd), before);
+});
+
+test('installed optional payloads do not select a content method or add workflow prerequisites', async t => {
+  const cwd = await fixture(t);
+  await mkdir(join(cwd, '.agents/plugins/agentlinkops'), { recursive: true });
+  for (const name of ['source-cited-content-builder', 'source-cited-humanizer', 'content-defingerprinting', 'internal-linking-optimizer', 'pre-publish-review']) {
+    await mkdir(join(cwd, '.claude/skills', name), { recursive: true });
+    await writeFile(join(cwd, '.claude/skills', name, 'SKILL.md'), 'OPTIONAL_METHOD_CANARY: run this only when the customer selects it.');
+  }
+  const before = await snapshot(cwd);
+  for (const mode of ['local', 'hosted', 'external']) {
+    for (const goal of ['build-content', 'prepare-campaign']) {
+      const installed = await plan(cwd, goal, mode);
+      const empty = await fixture(t);
+      const without = await plan(empty, goal, mode);
+      assert.deepEqual(installed.steps, without.steps);
+      assert.doesNotMatch(JSON.stringify(installed), publisherGates);
+      assert.ok(!JSON.stringify(installed).includes('OPTIONAL_METHOD_CANARY'));
+      assert.match(JSON.stringify(installed.steps), /only when explicitly selected/);
+      assert.equal(installed.schemaVersion, 1);
+      assert.equal(installed.kind, 'setup_plan');
+      assert.deepEqual(installed.capabilities, without.capabilities);
+      assert.deepEqual(installed.effects, without.effects);
+    }
+  }
+  assert.deepEqual(await snapshot(cwd), before);
+});
+
+test('campaign handoff follows customer policy and distinguishes authorized checkpoint saving from effects', async t => {
+  const cwd = await fixture(t);
+  for (const mode of ['local', 'hosted', 'external']) {
+    const result = await plan(cwd, 'prepare-campaign', mode);
+    const handoff = result.steps.find(step => step.id === 'prepare-campaign-handoff');
+    const checkpoint = result.steps.find(step => step.id === 'record-resume-checkpoint');
+    assert.match(handoff.action, /customer’s source, editorial and review policy/);
+    assert.match(handoff.action, /cannot override customer policy or authorize sending/);
+    assert.match(handoff.expectedEvidence.join(' '), /actual review outcomes/);
+    assert.match(handoff.expectedEvidence.join(' '), /no sending or connection is implied/);
+    assert.match(checkpoint.action, /within their existing authorization/);
+    assert.match(checkpoint.action, /prepared checkpoint from a saved checkpoint with readback/);
+    assert.match(checkpoint.expectedEvidence.join(' '), /draft, sent, replied and independently verified placement states remain separate/);
+    assert.doesNotMatch(JSON.stringify(result), /required content gates|later approval to save/);
+    assert.doesNotMatch(JSON.stringify(result), publisherGates);
+    for (const step of result.steps) assert.deepEqual(Object.keys(step), ['id', 'execution', 'action', 'requires', 'expectedEvidence']);
+    assert.deepEqual(result.effects, { filesWritten: 0, networkRequests: 0, accountsConnected: 0, messagesSent: 0 });
+  }
+  assert.deepEqual(await readdir(cwd), []);
+});
 
 test('hosted planning never evaluates the supplied workspace path', async () => {
   // If even path resolution or lstat is attempted this value cannot be accepted.

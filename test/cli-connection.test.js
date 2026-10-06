@@ -1,3 +1,4 @@
+import { main } from '../cli/main.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, stat } from 'node:fs/promises';
@@ -45,7 +46,7 @@ test('missing key gives customer setup instructions without network or local cha
   const f = await setup(t), output = [];
   const code = await connectMain(args, { cwd: f.cwd, env: {}, out: line => output.push(line), fetchImpl: () => assert.fail('no key must not fetch') });
   assert.equal(code, 2); assert.match(output.join('\n'), /Agent access.*Create API key/);
-  assert.match(output.join('\n'), /MCP OAuth credentials remain in the MCP client/);
+  assert.match(output.join('\n'), /MCP clients manage their own credentials/);
   assert.deepEqual(await f.snapshot(), f.before);
 });
 
@@ -55,12 +56,14 @@ test('connect verifies only reads and preserves unrelated config, ledger and cur
   assert.equal(await connectMain(args, options(f, remote, line => output.push(line))), 0);
   assert.deepEqual(remote.calls.map(c => new URL(c.url).pathname), ['/v1/workspace', '/v1/projects/prj_one']);
   const after = await f.snapshot(), saved = JSON.parse(after['config.json']);
+  assert.equal(after['.sync-gate'], '');
+  delete after['.sync-gate'];
   assert.deepEqual(saved, { ...original, project: { ...original.project, id: 'prj_one' }, cloud: { custom: 'preserve', origin: args.origin, workspaceId: 'ws_one' } });
   assert.deepEqual({ ...after, 'config.json': f.before['config.json'] }, f.before);
   assert.ok(!JSON.stringify(after).includes(TOKEN)); assert.ok(!output.join('\n').includes(TOKEN));
   assert.equal((await stat(join(f.dir, 'config.json'))).mode & 0o777, 0o600);
   assert.equal(await connectMain(args, options(f, remote)), 0);
-  assert.deepEqual(await f.snapshot(), after);
+  const repeated = await f.snapshot(); delete repeated['.sync-gate']; assert.deepEqual(repeated, after);
 });
 
 test('wrong workspace, insufficient scopes and wrong project cannot modify the ledger', async t => {
@@ -94,8 +97,9 @@ test('an existing sync lock is preserved and connection config remains untouched
   const f = await setup(t), remote = cloud();
   await writeFile(join(f.dir, 'sync.lock'), 'other process');
   const before = await f.snapshot();
-  await assert.rejects(connectMain(args, options(f, remote)), { code: 'EEXIST' });
-  assert.deepEqual(await f.snapshot(), before);
+  await assert.rejects(connectMain(args, options(f, remote)), /ownership is unknown/);
+  const after = await f.snapshot(); assert.equal(after['.sync-gate'], ''); delete after['.sync-gate'];
+  assert.deepEqual(after, before);
 });
 
 test('invalid credentials or unsafe origin fail before any request or config mutation', async t => {
@@ -136,4 +140,11 @@ test('explicit mapping selection saves only known local IDs without cloud writes
  assert.deepEqual(JSON.parse(await readFile(join(f.dir,'config.json'),'utf8')).cloud.ledgerIds,['lk_aaaaaaaa']);
  const before=await f.snapshot();await writeFile(join(f.cwd,'bad.json'),JSON.stringify(['lk_missing']));remote.calls.length=0;
  await assert.rejects(connectMain({...args,selection:'bad.json'},options(f,remote)),{name:'ConfigError'});assert.equal(remote.calls.length,0);assert.deepEqual(await f.snapshot(),before);
+});
+
+test('actual CLI dispatcher honors isolated environment and read-only connection transport', async t => {
+  const f=await setup(t), remote=cloud();
+  assert.equal(await main(['connect','--workspace','ws_one','--project-id','prj_one','--origin',args.origin],options(f,remote)),0);
+  assert.deepEqual(remote.calls.map(c=>new URL(c.url).pathname),['/v1/workspace','/v1/projects/prj_one']);
+  assert.equal(JSON.parse((await f.snapshot())['config.json']).project.id,'prj_one');
 });

@@ -219,11 +219,17 @@ test('citation diagnostics never infer live readiness from credentials or expose
   }
 });
 
-test('top-level help exposes installer removal and recovery with explicit apply', async () => {
+test('top-level help exposes installer removal selections and recovery with explicit apply', async () => {
   const lines = [];
   assert.equal(await main(['--help'], { out: line => lines.push(String(line)), err: () => {} }), 0);
   const text = lines.join('\n');
-  for (const command of ['remove', 'recover']) {
-    assert.ok(text.includes(`agentlinkops agent ${command} [--scope project|user] [--apply] [--json]`));
+  for (const [command, expectedOptions] of [
+    ['remove', ['--skill ID ...', '--recipe ID ...', '--scope project|user', '--apply', '--json']],
+    ['recover', ['--scope project|user', '--apply', '--json']],
+  ]) {
+    const usage = text.split('\n').find(line => line.trimStart().startsWith(`agentlinkops agent ${command} `));
+    assert.ok(usage, `${command} usage is discoverable`);
+    const options = [...usage.matchAll(/\[([^\]]+)\]/gu)].map(match => match[1]);
+    assert.deepEqual(options.sort(), expectedOptions.sort(), `${command} preserves its complete optional selection, scope and explicit-apply contract`);
   }
 });

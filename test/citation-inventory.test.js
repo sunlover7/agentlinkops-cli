@@ -36,7 +36,7 @@ test('retained fixture inventory, gap and held library exports share exact evide
  const records=await exportCitationSources(inventory,{niche:{id:'tools',label:'Tools'},consentRef:'fixture-consent',excludedInputsAttested:true});
  assert.equal(records.length,1); records.forEach(parseOpportunityRecord); assert.equal(records[0].status,'held'); assert.equal(records[0].rights.redistributable,false); assert.equal(records[0].evidence[0].complete,false); assert.equal(records[0].provenance.seed_reason,'fixture_only');
  roundtrip.observations[0].cited=!roundtrip.observations[0].cited; assert.throws(()=>citationGap(roundtrip),/checksum/);
- const evidence=join(f.dir,'citations/evidence',f.epoch.epochId); const file=(await readdir(evidence)).find(p=>p.endsWith('.json')); await rm(join(evidence,file)); await symlink('/etc/hosts',join(evidence,file));
+ const evidence=join(f.dir,'citations/evidence',f.epoch.epochId); const file=(await readdir(evidence)).find(p=>/^[a-f0-9]{64}\.json$/.test(p)); await rm(join(evidence,file)); await symlink('/etc/hosts',join(evidence,file));
  const partial=await freezeCitationInventory(f); assert.equal(partial.missing_envelopes,1); assert.equal(partial.invalid_envelopes,1);
  const other=buildStarterPanel({domain:'other.example.org',brand:'Other',prompts:f.panel.prompts}); await assert.rejects(freezeCitationInventory({dir:f.dir,panel:other}),/matching panel/);
  } finally {await rm(f.dir,{recursive:true,force:true});}
@@ -66,10 +66,24 @@ test('branded prompts and unknown observations stay out of source exports; absen
 });
 
 const sha256 = text => createHash('sha256').update(text).digest('hex');
+test('filesystem metadata is not evidence while malformed hash-named envelopes remain invalid',async()=>{
+ const f=await fixture();try{
+  const dir=join(f.dir,'citations/evidence',f.epoch.epochId);
+  const before=await freezeCitationInventory(f);
+  const name=before.observations[0].local_evidence_sha256+'.json';
+  await writeFile(join(dir,'._'+name),Buffer.from([0,5,22,7,0,2,0,0]));
+  const metadata=await freezeCitationInventory(f);
+  assert.deepEqual(metadata.observations,before.observations);
+  assert.equal(metadata.missing_envelopes,0);assert.equal(metadata.invalid_envelopes,0);
+  await writeFile(join(dir,name),'{invalid JSON');
+  const damaged=await freezeCitationInventory(f);
+  assert.equal(damaged.observations.length,7);assert.equal(damaged.missing_envelopes,1);assert.equal(damaged.invalid_envelopes,1);
+ }finally{await rm(f.dir,{recursive:true,force:true});}
+});
 test('freezing rejects changed evidence and unreferenced files instead of blessing a new checksum',async()=>{
  const f=await fixture();try{
   const dir=join(f.dir,'citations/evidence',f.epoch.epochId);
-  const name=(await readdir(dir)).find(n=>n.endsWith('.json'));
+  const name=(await readdir(dir)).find(n=>/^[a-f0-9]{64}\.json$/.test(n));
   const original=JSON.parse(await readFile(join(dir,name),'utf8'));
   const changed={...original,answer:'A changed answer.',citations:[{url:'https://example.com/changed'}]};
   await writeFile(join(dir,name),JSON.stringify(changed));
