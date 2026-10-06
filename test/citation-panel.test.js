@@ -97,7 +97,7 @@ test('non-US mock epoch retains locale, separates competitor scopes and never sh
     assert.equal(gb.cells.find(cell => cell.cell_id.endsWith('d:rival.example.org')).k, 10);
     assert.equal(gb.cells.find(cell => cell.cell_id.endsWith('d:example.com')).mentioned, 10);
     const evidenceDir = join(dir, 'citations', 'evidence', gb.epochId);
-    const evidence = JSON.parse(await readFile(join(evidenceDir, (await readdir(evidenceDir)).find(name => name.endsWith('.json'))), 'utf8'));
+    const evidence = JSON.parse(await readFile(join(evidenceDir, (await readdir(evidenceDir)).find(name => /^[a-f0-9]{64}\.json$/.test(name))), 'utf8'));
     assert.deepEqual(evidence.locale_context, { locale: 'en-GB', country: 'GB', mode: 'fixture' });
     const before = JSON.stringify(evidence);
     analyzeRetainedAnswer(panel.targets[0], evidence);

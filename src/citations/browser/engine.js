@@ -217,11 +217,26 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
   async function loadStorageState() {
     // Accountless measurement never opens session files, even when they exist.
     if (authentication === 'accountless') return undefined;
+    const failure = () => Object.assign(new EngineError('Saved browser session is unavailable or unsafe. Restore private session storage or run citation login again.'), { code: 'BROWSER_SESSION_INVALID' });
+    let handle;
     try {
-      const { readFile } = await load('node:fs/promises');
-      return JSON.parse(await readFile(join(sessionDir, `${engineName}.json`), 'utf8'));
-    } catch {
-      return undefined; // anonymous session: several surfaces work logged-out
+      const storage = await load('node:fs/promises');
+      const directory = await storage.lstat(sessionDir);
+      if (!directory.isDirectory() || (platform !== 'win32' && (directory.mode & 0o7777) !== 0o700)) throw failure();
+      const filename = join(sessionDir, `${engineName}.json`);
+      const before = await storage.lstat(filename);
+      if (!before.isFile() || (platform !== 'win32' && (before.mode & 0o7777) !== 0o600)) throw failure();
+      handle = await storage.open(filename, 'r');
+      const opened = await handle.stat();
+      if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino || (platform !== 'win32' && (opened.mode & 0o7777) !== 0o600)) throw failure();
+      const state = JSON.parse(await handle.readFile('utf8'));
+      if (!state || !Array.isArray(state.cookies) || !Array.isArray(state.origins)) throw failure();
+      return state;
+    } catch (error) {
+      if (error.code === 'ENOENT') return undefined;
+      throw failure();
+    } finally {
+      try { await handle?.close(); } catch { throw failure(); }
     }
   }
 
@@ -274,10 +289,10 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     estimateCostUsd: () => ENGINE_NOMINAL_COST[engineName] ?? DEFAULT_NOMINAL_COST,
 
     async run({ prompt }) {
+      const storageState = await loadStorageState();
       const config = await ensureProviderConfig();
       const { browser } = await ensureBrowser();
       admission.assertReady();
-      const storageState = await loadStorageState();
       const context = await browser.newContext({
         storageState,
         locale: 'en-US',
@@ -463,10 +478,11 @@ export function createBrowserEngine({ engineName, env = process.env, onEvent = (
     },
   };
   const sample=engine.run.bind(engine),closeBrowser=engine.close.bind(engine);
-  const policyCodes=new Set(['CITATION_EXTRACTION_UNAVAILABLE','BROWSER_AUTH_POLICY_INVALID','PROXY_REQUIRED','PROXY_POLICY_INVALID','PROXY_POLICY_CONFLICT','PROXY_CONFIGURATION_INVALID','PROXY_ACQUIRE_FAILED','PROXY_SUPPLIER_INVALID','PROXY_LEASE_INVALID','PROXY_LEASE_EXPIRED','PROXY_QUARANTINE_FAILED','PROXY_RELEASE_FAILED','PROXY_RECEIPT_FAILED','PROXY_CUSTODY_UNAVAILABLE','BROWSER_CLEANUP_UNCONFIRMED','BROWSER_RUN_IN_PROGRESS']);
+  const policyCodes=new Set(['CITATION_EXTRACTION_UNAVAILABLE','BROWSER_AUTH_POLICY_INVALID','BROWSER_SESSION_INVALID','PROXY_REQUIRED','PROXY_POLICY_INVALID','PROXY_POLICY_CONFLICT','PROXY_CONFIGURATION_INVALID','PROXY_ACQUIRE_FAILED','PROXY_SUPPLIER_INVALID','PROXY_LEASE_INVALID','PROXY_LEASE_EXPIRED','PROXY_QUARANTINE_FAILED','PROXY_RELEASE_FAILED','PROXY_RECEIPT_FAILED','PROXY_CUSTODY_UNAVAILABLE','BROWSER_CLEANUP_UNCONFIRMED','BROWSER_RUN_IN_PROGRESS']);
   const safeError=cause=>{
     const code=policyCodes.has(cause?.code)?cause.code:'BROWSER_RUN_FAILED';
-    const error=Object.assign(new EngineError(code==='CITATION_EXTRACTION_UNAVAILABLE'?'Citation binding or extraction was unavailable.':code==='BROWSER_RUN_FAILED'?'Browser sample failed.':'Browser admission or cleanup failed.',{retriable:code==='BROWSER_RUN_FAILED'&&cause?.retriable===true}),{code});
+    const message=code==='BROWSER_SESSION_INVALID'?'Saved browser session is unavailable or unsafe. Restore private session storage or run citation login again.':code==='CITATION_EXTRACTION_UNAVAILABLE'?'Citation binding or extraction was unavailable.':code==='BROWSER_RUN_FAILED'?'Browser sample failed.':'Browser admission or cleanup failed.';
+    const error=Object.assign(new EngineError(message,{retriable:code==='BROWSER_RUN_FAILED'&&cause?.retriable===true}),{code});
     if(code==='BROWSER_RUN_FAILED'||cause?.unknown===true)error.unknown=true;
     return error;
   };

@@ -55,7 +55,7 @@ test('malformed ledger makes even offline sync planning fail instead of hiding r
  const cwd=await mkdtemp(join(tmpdir(),'linktrail-malformed-'));t.after(()=>rm(cwd,{recursive:true,force:true}));
  const dir=join(cwd,'.agentlinkops');await mkdir(dir);await writeFile(join(dir,'links.jsonl'),JSON.stringify(entry('lk_aaaaaaaa'))+'\n{broken}\n');
  const errors=[];assert.equal(await main(['sync','--dry-run'],{cwd,out:assert.fail,err:v=>errors.push(v)}),2);
- assert.match(errors.join('\n'),/ledger line/);assert.deepEqual(await readdir(dir),['links.jsonl']);
+ assert.match(errors.join('\n'),/ledger line/);assert.deepEqual((await readdir(dir)).filter(name=>!name.startsWith('._')),['links.jsonl']);
 });
 
 test('a partially refused upload persists successful mapping but exits nonzero',async t=>{

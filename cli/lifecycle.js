@@ -13,7 +13,7 @@ agentlinkops lifecycle report [--from YYYY-MM-DD] [--to YYYY-MM-DD]
 Uses the connected project. Deal costs are integer currency minor units. Null clears a field; costMinor and currency must be set or cleared together. Clear removes deal metadata, not the watch. Renew retains due events without sending a message. --decimal-cost reads cost_amount as an exact decimal string and cost_currency using the supported currency scale. sync --lifecycle pulls a deal mirror without editing the ledger.`;
 const fail=message=>{throw new ConfigError(message);};
 const integer=(value,name)=>{if(typeof value!=='string'||!/^\d+$/.test(value)||!Number.isSafeInteger(Number(value)))fail(`${name} requires a nonnegative integer`);return Number(value);};
-export async function lifecycleMain(args,{cwd=process.cwd(),env=process.env,out=console.log,fetchImpl=globalThis.fetch}={}){
+export async function lifecycleMain(args,{cwd=process.cwd(),env=process.env,out=console.log,err=console.error,fetchImpl=globalThis.fetch}={}){
  if(args.help){out(LIFECYCLE_CLI_HELP);return 0;}
  const action=args._?.[1],allowed={get:[],update:['revision','deal','decimal-cost'],clear:['revision'],renew:['limit'],report:['from','to']}[action];
  if(!allowed||args.tag?.length||Object.keys(args).some(key=>!['_','tag',...allowed].includes(key)))fail(LIFECYCLE_CLI_HELP);
@@ -36,5 +36,8 @@ export async function lifecycleMain(args,{cwd=process.cwd(),env=process.env,out=
  if(action==='renew'){name='record_lifecycle_renewals';schema=C.lifecycleRenewInput;output=C.lifecycleRenewOutput;if(args.limit!==undefined)input.limit=integer(args.limit,'--limit');}
  if(action==='report'){name='get_lifecycle_report';schema=C.lifecycleReportInput;output=C.lifecycleReportOutput;for(const key of ['from','to'])if(args[key]!==undefined)input[key]=args[key];}
  const parsed=schema.safeParse(input);if(!parsed.success)fail('Invalid lifecycle dates, fields or bounds');
- const result=await createClient({...connection,fetchImpl}).callCommand(name,parsed.data),checked=output.safeParse(result);if(!checked.success)fail('Invalid lifecycle service response');out(JSON.stringify(checked.data,null,2));return 0;
+ let result;
+ try{result=await createClient({...connection,fetchImpl}).callCommand(name,parsed.data);}
+ catch(error){if(!error.publicError)throw error;err(JSON.stringify({error:error.publicError}));return 2;}
+ const checked=output.safeParse(result);if(!checked.success)fail('Invalid lifecycle service response');out(JSON.stringify(checked.data,null,2));return 0;
 }

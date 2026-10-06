@@ -30,12 +30,28 @@ test('discovery fixtures are synthetic with distinct success, partial, empty and
 });
 
 test('query scope and caps reject implicit broadening and unsafe supplier targets', () => {
-  for (const target of ['example.com/path', 'example.com:443', 'EXAMPLE.com', 'www.example.com', '127.0.0.1', 'metadata.google.internal', 'user@example.com'])
+  for (const target of ['example.com/path', 'example.com:443', 'EXAMPLE.com', '127.0.0.1', 'metadata.google.internal', 'user@example.com'])
     assert.equal(DiscoveryQuery.safeParse({ ...fixture.query, target }).success, false, target);
   for (const patch of [{ page_limit: 0 }, { row_limit: 1001 }, { row_limit: 1 }, { page_limit: '2' }, { filters: ['rank', '>', 1] }, { unexpected: true }])
     assert.equal(DiscoveryQuery.safeParse({ ...fixture.query, ...patch }).success, false);
   assert.equal(DiscoveryQuery.safeParse({ ...fixture.query, target_kind: 'exact_url', target: 'https://example.com/Article' }).success, false);
   DiscoveryQuery.parse({ ...fixture.query, target_kind: 'exact_url', target: 'https://example.com/Article', include_subdomains: false });
+});
+
+test('domain queries preserve the chosen www or docs host and bind its explicit subdomain scope', async () => {
+  const hashes = new Set();
+  for (const target of ['example.com', 'www.example.com', 'docs.example.com']) {
+    for (const include_subdomains of [false, true]) {
+      const parsed = DiscoveryQuery.parse({ ...fixture.query, target, include_subdomains });
+      assert.equal(parsed.target_kind, 'domain');
+      assert.equal(parsed.target, target, 'an explicit host must not be reduced to its apex');
+      assert.equal(parsed.include_subdomains, include_subdomains, 'scope must not be broadened implicitly');
+      const hash = await queryHash(parsed);
+      assert.ok(!hashes.has(hash), 'distinct hosts and subdomain policies must have distinct query hashes');
+      hashes.add(hash);
+    }
+  }
+  assert.equal(hashes.size, 6);
 });
 
 test('query fingerprints ignore input key order but bind all scope, sorting and cap choices', async () => {

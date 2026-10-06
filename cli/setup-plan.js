@@ -147,18 +147,18 @@ function taskSteps(goal, mode, inspection, unsafe) {
         : 'Gather customer-supplied site, audience, source and asset context before drafting.',
       ['Site and audience context', 'Source and claims rules'], ['A bounded content brief with verified source requirements and an existing content owner']));
     steps.push(step('prepare-cited-content', 'customer_agent',
-      'Use the site’s content router when present, then source-cited-content-builder, source-cited-humanizer, content-defingerprinting, internal-linking-optimizer, applicable image workflow and pre-publish-review. An authored result has no AgentLinkOps account prerequisite.',
-      ['Approved task scope', 'Applicable content skills and primary-source evidence'], ['Cited content artifact and recorded review gates; draft, reviewed and published states remain distinct']));
+      'Follow the customer’s existing content, source and review process with their chosen tools. Use packaged recipes only when explicitly selected; installed skills do not select a method or replace customer instructions. Keep unsupported claims and incomplete reviews unresolved. Record actual review outcomes, and verify the public result only after separately authorized publication. An authored result has no AgentLinkOps account prerequisite.',
+      ['Authorized task scope', 'Customer-selected content process, source requirements and review policy'], ['Content artifact with supporting evidence and actual review outcomes; draft, reviewed and published states remain distinct, and publication requires public readback']));
   } else {
     steps.push(step('qualify-campaign-inputs', 'customer_agent',
       'Inspect customer-selected records and assets; qualify exact source pages and claim-specific evidence. Preserve unknowns and duplicate references. An optional SQLite CRM is not required.',
       ['Customer-selected records', 'A relevant asset and campaign objective'], ['Qualified opportunities with exact source pages, evidence, duplicate accounting and unresolved claims']));
     steps.push(step('prepare-campaign-handoff', 'customer_agent',
-      'Prepare an external-tool draft and reviewed mapping. Keep the customer’s CRM or sender responsible for contacts, suppression, reply stops and delivery; apply required content gates to authored copy.',
-      ['Qualified opportunities', 'Chosen external tool and its supported fields'], ['Draft handoff with campaign references and supported external IDs; no sending or connection is implied']));
+      'Prepare an external-tool draft and reviewed mapping using the customer’s source, editorial and review policy. Keep the customer’s CRM or sender responsible for contacts, suppression, reply stops and delivery. Packaged recipes are optional guidance only when explicitly selected and cannot override customer policy or authorize sending.',
+      ['Qualified opportunities', 'Chosen external tool, supported fields and customer review policy'], ['Draft handoff with actual review outcomes, campaign references and supported external IDs; no sending or connection is implied']));
   }
   steps.push(step('record-resume-checkpoint', 'customer_agent',
-    'Prepare a checkpoint in the customer’s chosen record format for later approval to save. Preserve references, external IDs and completed evidence; read back before replaying an external action.',
+    'Prepare or save a checkpoint in the customer’s chosen record format within their existing authorization. Preserve references, external IDs and completed evidence; distinguish a prepared checkpoint from a saved checkpoint with readback, and read back before replaying an external action.',
     ['Chosen record ownership and format'], ['Resumable next action; draft, sent, replied and independently verified placement states remain separate']));
   return steps;
 }

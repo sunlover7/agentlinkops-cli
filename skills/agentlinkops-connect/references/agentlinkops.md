@@ -9,18 +9,30 @@ records. This page is the complete agent reference: the same text prints from
 full once per session, then use `describe` (or `exec describe` on MCP) for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.9. 125 commands in 13 toolsets.
+Pack version 0.6.10. 139 commands in 15 toolsets.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)
 
 ```bash
-npx -y agentlinkops agent setup     # installs the skill pack for each detected agent client and
-                                    # writes its MCP entry; stores no credential
+npx -y agentlinkops --help          # inspect this package version's setup options
+npx -y agentlinkops agent setup     # writes the detected client's MCP entry; stores no credential
 agentlinkops agent status           # what is installed where
 ```
 
-`npx -y skills add https://agentlinkops.com` installs the skills alone; then add
+CLI 0.6.10 installs the connection skill and its reference by default. Select
+optional guidance explicitly. CLI 0.6.9 and earlier can install the complete pack.
+Check the installed version's help before using selection flags. Native-client
+acceptance remains separate from package checks.
+
+On a version supporting selections, add only the guidance the person chooses:
+`agentlinkops agent setup --skill ID` or `--recipe ID`, repeating the flag for several
+choices. `--all-skills` selects the complete pack. Recipes remain optional; their
+versioned procedures do not replace the person's existing instructions or authorize
+publication, outreach, spending or provider access. Checking supplied links does not
+require a campaign, content workflow or local CRM.
+
+`npx -y skills add https://agentlinkops.com` installs the product skills alone; then add
 `https://app.agentlinkops.com/mcp` as a remote HTTP MCP server in the client by hand. If the
 CLI is not installed, give the person that server URL and the next step instead of claiming
 the connection exists.
@@ -33,6 +45,10 @@ works:
 ```bash
 npx -y agentlinkops check --source https://publisher.example/resources --target https://your-site.example/guide
 ```
+
+When the person asks to save the portable JSON result, add `--json --out FILE`
+with their chosen file path. Read the saved result before reporting its state,
+check date, coverage and evidence limits. Preserve the person's other records.
 
 REST and the CLI use a scoped API key created in **Agent access > Create API key** in the
 [workspace](https://app.agentlinkops.com/app), supplied as `AGENTLINKOPS_API_KEY` in the
@@ -90,6 +106,9 @@ A retired command name still resolves to its canonical command for twelve months
 description says so.
 
 ## Start a session
+
+For a hosted task, inspect the connection and granted scopes first. The accountless local
+check above needs no hosted session, repository, ledger or optional recipe.
 
 1. `get_workspace` with `{}`: limits, usage and membership. Needs `projects:read`, the default
    advertised scope; an authenticated connection alone does not grant more.
@@ -240,9 +259,9 @@ counts, superlatives or claims about other products beyond dated public statemen
    invitation-only hosted access; `cadenceSeconds` between 3600 and 2592000; no availability
    percentage is published.
 4. **Usage and exit are readable:** `get_usage` totals with a `check_budget` block;
-   `export_link_watches` pages monitored placements out for local CRM recovery. Boundary:
-   payment collection is not active in this build; the ledger and CRM stay in the user's own
-   files.
+   `export_link_watches` pages monitored placements out for the person's records. Boundary:
+   payment collection is not active in this build; the person chooses where to keep their
+   campaign records.
 
 The human-readable version is
 [what your agent can prove to you](https://agentlinkops.com/what-your-agent-can-prove/).
@@ -250,16 +269,18 @@ The human-readable version is
 ## Tool reference
 
 <!-- generated:skill-tools begin (npm run generate:tools; source: src/tool-registry.js) -->
-125 commands in 13 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated today: request_competitor_inventory, request_domain_overview, discover_backlinks; these refuse before any persistence.
+139 commands in 15 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated today: prepare_domain_baseline, start_domain_baseline, request_competitor_inventory, request_domain_overview, discover_backlinks; these refuse before any persistence.
 
 | Toolset | Commands | What it covers |
 | --- | --- | --- |
 | `monitoring` | 17 | Watch earned links and destination URLs: create, list, update, import, export, recheck. |
 | `evidence` | 17 | What a check observed: histories, snapshots, change feeds, check jobs, published contacts. |
+| `rank` | 5 | Synthetic DataForSEO rank schedules and dated history; hosted collection disabled. |
 | `discovery` | 16 | Import candidate rows, read stored runs, verify selected candidates, enroll them. |
+| `baseline` | 7 | Scoped backlink baselines; supplier admission disabled. |
 | `library` | 3 | Read and export the coverage-stated opportunity library. |
 | `competitors` | 17 | Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports. |
-| `reports` | 5 | Profile, anchor and report summaries over the tracked dataset. |
+| `reports` | 7 | Profile, anchor and report summaries over the tracked dataset. |
 | `workspace` | 16 | Workspace, projects, usage, members, invitations, scratch-resource cleanup. |
 | `notifications` | 6 | Email notification preferences, previews, tests and deliveries. |
 | `webhooks` | 6 | Webhook endpoints, state, secrets and delivery records. |
@@ -275,11 +296,11 @@ AgentLinkOps grants no access to the mailbox or local files, has no independent 
 backlink index, authority metrics or email sending, does not browse sites for you and
 monitors supplied URLs. Finding prospects, campaign decisions, navigating sites and authorized
 outreach stay with the person's existing agent, research, browser and email tools; prospects,
-contacts, outreach references and earned placements stay together in their existing local
-CRM. The `agentlinkops-campaigns` and `agentlinkops-crm` skills cover those.
+contacts, outreach references and earned placements remain in their chosen files, CRM or
+other record system. The campaign and local CRM skills are optional guidance.
 
-With the installed ledger CLI, `agentlinkops connect --workspace WORKSPACE_ID --project-id
+If the person chooses the ledger CLI, `agentlinkops connect --workspace WORKSPACE_ID --project-id
 PROJECT_ID --selection selected-links.json` saves only connection metadata and a selection of
 existing ledger ids; `sync --dry-run` previews uploads offline and `sync --pull-only`
 retrieves history without creating watches. Review the plan before authorizing `sync`. The
-Python CRM helper separately needs `AGENTLINKOPS_API_URL` and `AGENTLINKOPS_API_KEY`.
+optional Python CRM helper separately needs `AGENTLINKOPS_API_URL` and `AGENTLINKOPS_API_KEY`.

@@ -3,6 +3,17 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.10 (2026-10-06)
+
+Inspect the installed version's help before using selectors; older published versions
+may install the full pack.
+
+- Default agent setup to the connection skill, its reference and detected-client connection setup. A connection-only upgrade retains previously installed optional payloads.
+- Select optional skills and versioned recipes with repeatable `--skill ID` and `--recipe ID`; choose the complete pack explicitly with `--all-skills`.
+- Refuse targeted skill removal while an installer-owned dependent recipe survives, including a preserved customer-edited body. Untrusted dependency metadata also refuses removal. Preview joint recipe/skill removal after reconciling edits, or preview a complete uninstall without selectors. Customer records and existing file/configuration custody rules remain in place.
+- Let customers choose their editorial process, tools and records. Publisher guidance and the bundled CRM are optional; selected recipe recovery no longer requires an unselected campaign recipe.
+- Make the supplied-link check visible before hosted examples. It fetches the source page without an account, repository, ledger, CRM or publisher recipe and retains observation uncertainty.
+
 ## 0.6.9 (2026-09-25)
 
 - Read ChatGPT citations in the current anonymous layout, where inline citations and source pills are buttons carrying their sources as JSON. 0.6.8 read only anchor links and recorded these answers as unknown. Code-copy, table-copy and entity controls are recognized as non-citations; any other unrecognized control still keeps the answer unknown.

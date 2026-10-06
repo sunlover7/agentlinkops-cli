@@ -75,7 +75,7 @@ test('runner persists a screenshot sibling for browser-engine runs', async () =>
   assert.ok(fakeBrowserEngine.closed, 'engine cleanup ran');
   assert.equal(result.spentEstimateUsd, 0.012);
 
-  const evidenceFiles = await readdir(join(dir, 'citations/evidence', result.epochId));
+  const evidenceFiles = (await readdir(join(dir, 'citations/evidence', result.epochId))).filter(name => !name.startsWith('._'));
   const shots = evidenceFiles.filter((f) => f.endsWith('.screenshot.png'));
   const jsons = evidenceFiles.filter((f) => f.endsWith('.json'));
   assert.equal(jsons.length, 3);

@@ -8,7 +8,7 @@ import { createBrowserEngine, BROWSER_PROVIDERS, guardDisplay, ensurePromptEnter
 import { OWN_PROVIDER_CONFIGS } from '../src/citations/browser/providers.js';
 
 let fixtureSequence=0;
-function harness({ authPolicy, guard, displayCleanupFails = false, strayKinds, submittedPrompt, bindingValid = () => true, citationState = {found:true,groups:0,unresolved:false,sources:[]}, stalledCleanup = false, sourcesFail = false, unavailable = false, answer = 'A retained fixture answer long enough to be interpreted independently.' } = {}) {
+function harness({ sessionFailure, authPolicy, guard, displayCleanupFails = false, strayKinds, submittedPrompt, bindingValid = () => true, citationState = {found:true,groups:0,unresolved:false,sources:[]}, stalledCleanup = false, sourcesFail = false, unavailable = false, answer = 'A retained fixture answer long enough to be interpreted independently.' } = {}) {
   const contexts = []; const launches = []; const resolves = []; const events = []; let closed = 0; let displayClosed = 0; let stateReads = 0; let bindingsDisposed = 0;
   const config = { navigateToPrompt: async () => {}, waitForResponse: async () => {}, extractResponse: async page => page.runDomOp('response-text', {}),
     ...(unavailable ? { citationExtraction: 'unsupported' } : {}),
@@ -27,7 +27,18 @@ function harness({ authPolicy, guard, displayCleanupFails = false, strayKinds, s
       if (path.endsWith('/domOps.js')) return { runPageDomOp: async () => answer };
       if (path.endsWith('/camoufox.js')) return { resolveCamoufoxLaunchOptions: async options => { resolves.push(options); return { executablePath: '/fixture/firefox' }; } };
       if (path.endsWith('/display.js')) return { detectDisplay: () => false, ensureDisplay: async () => ({ display: ':991', cleanup: async () => { if (displayCleanupFails) throw Error('xvfb stuck'); displayClosed++; } }) };
-      if (path === 'node:fs/promises') return { readFile: async () => {stateReads++; return JSON.stringify({ cookies: [{ name: 'account-cookie', value: 'saved-state-secret', domain: '.chatgpt.com', path: '/' }], origins: [] });} };
+      if (path === 'node:fs/promises') return {
+        lstat: async name => {
+          if (sessionFailure === 'missing') throw Object.assign(Error('missing'), { code: 'ENOENT' });
+          const directory = name === '/fixture/sessions';
+          return { isDirectory: () => directory && sessionFailure !== 'directory-symlink', isFile: () => !directory && sessionFailure !== 'file-symlink', mode: directory ? (sessionFailure === 'directory-mode' ? 0o755 : 0o700) : (sessionFailure === 'file-mode' ? 0o644 : 0o600), dev: 1, ino: 2 };
+        },
+        open: async () => ({
+          stat: async () => ({ isFile: () => true, mode: 0o600, dev: 1, ino: sessionFailure === 'replacement' ? 3 : 2 }),
+          readFile: async () => { stateReads++; if (sessionFailure === 'read') throw Error('saved-state-secret'); if (sessionFailure === 'json') return 'saved-state-secret'; if (sessionFailure === 'shape') return '{}'; return JSON.stringify({ cookies: [{ name: 'account-cookie', value: 'saved-state-secret', domain: '.chatgpt.com', path: '/' }], origins: [] }); },
+          close: async () => { if (sessionFailure === 'close') throw Error('saved-state-secret'); },
+        }),
+      };
       throw Error('Unexpected import ' + path);
     } };
   const engine = createBrowserEngine({ engineName: 'chatgpt', runtime, env: { ...(authPolicy === undefined ? {} : {AGENTLINKOPS_BROWSER_AUTH: authPolicy}), AGENTLINKOPS_PROXY_URL: `http://fixture-user-${++fixtureSequence}:fixture-secret@proxy.example.com:1234` }, onEvent: text => events.push(text) });
@@ -89,6 +100,28 @@ test('explicit accountless policy ignores saved state; legacy use requires expli
   const anonymous=harness({authPolicy:'accountless'});
   const run=await anonymous.engine.run({prompt:'fixture'});assert.equal(run.browserContext.authentication,'anonymous');assert.equal(anonymous.stateReads(),0);assert.equal(anonymous.contexts[0].options.storageState,undefined);await anonymous.engine.close();
   const legacy=harness({authPolicy:'saved-session'});const saved=await legacy.engine.run({prompt:'fixture'});assert.equal(legacy.stateReads(),1);assert.equal(saved.browserContext.authentication,'saved-session');assert.equal(legacy.contexts[0].options.storageState.cookies[0].value,'saved-state-secret');assert.ok(!JSON.stringify(saved).includes('saved-state-secret'));await legacy.engine.close();
+});
+
+for (const sessionFailure of ['directory-mode', 'directory-symlink', 'file-mode', 'file-symlink', 'replacement', 'read', 'json', 'shape', 'close']) {
+  test(`saved session ${sessionFailure} refuses before browser launch without leaking contents`, async () => {
+    const h = harness({ authPolicy: 'saved-session', sessionFailure });
+    await assert.rejects(h.engine.run({ prompt: 'fixture' }), error => {
+      assert.equal(error.code, 'BROWSER_SESSION_INVALID');
+      assert.match(error.message, /Restore private session storage or run citation login again/);
+      assert.equal(error.retriable, false);
+      assert.ok(!String(error).includes('saved-state-secret'));
+      return true;
+    });
+    assert.equal(h.launches.length, 0); assert.equal(h.contexts.length, 0);
+    if (!['read', 'json', 'shape', 'close'].includes(sessionFailure)) assert.equal(h.stateReads(), 0);
+    await h.engine.close();
+  });
+}
+test('missing legacy session remains anonymous and accountless ignores unsafe storage', async () => {
+  for (const options of [{authPolicy:'saved-session',sessionFailure:'missing'}, {authPolicy:'accountless',sessionFailure:'file-mode'}]) {
+    const h = harness(options); const result = await h.engine.run({prompt:'fixture'});
+    assert.equal(result.browserContext.authentication,'anonymous'); assert.equal(h.stateReads(),0); await h.engine.close();
+  }
 });
 
 test('invalid authentication policy fails before any module, saved-state read, lease or browser launch',()=>{

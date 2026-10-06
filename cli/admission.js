@@ -43,6 +43,7 @@ export async function admissionMain(
   argv,
   { client, out = console.log, err = console.error } = {},
 ) {
+  let json = false;
   try {
     const seen = new Set();
     for (const token of argv.filter((a) => a.startsWith("--"))) {
@@ -53,6 +54,7 @@ export async function admissionMain(
     }
     const a = parseArgs(argv, ["url"]),
       op = operations[a._[0]];
+    json = a.json === true;
     if (
       !op ||
       a._.length !== 1 ||
@@ -124,7 +126,13 @@ export async function admissionMain(
     out(JSON.stringify(result.data, null, 2));
     return 0;
   } catch (error) {
-    err(error?.code ? `${error.code}: ${error.message}` : error.message);
+    if (error.publicError) {
+      if (json) err(JSON.stringify({ error: error.publicError }));
+      else {
+        const next = [error.publicError.next, error.publicError.details?.next].find(value => typeof value === 'string' && value.trim());
+        err(`${error.code}: ${error.serverMessage ?? error.message}${next ? `\n${next}` : ''}`);
+      }
+    } else err(error?.code ? `${error.code}: ${error.message}` : error.message);
     return 2;
   }
 }

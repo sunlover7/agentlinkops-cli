@@ -1,8 +1,9 @@
+import { acquireSyncLock } from './sync-lock.js';
 // Portable, accountless first result and explicit repository adoption. No hosted client.
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { readFile, writeFile, mkdir, open, rename, unlink } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { matchesTarget } from '../src/verifier/url.js';
 import { validatePublicUrl } from '../src/verifier/index.js';
 import { runCheck } from './check.js';
@@ -124,8 +125,7 @@ export async function adoptLocalResult(config, supplied, { intent = 'wanted', af
   if (!['wanted', 'expected'].includes(intent)) throw new Error('adoption intent must be wanted or expected');
   const result = validateLocalResult(supplied);
   if (new Set([config.paths.ledger, config.paths.observations, config.paths.state]).size !== 3) throw new Error('adoption destinations must be distinct');
-  const lockPath = `${config.paths.ledger}.lock`;
-  const lock = await open(lockPath, 'wx');
+  const lock = await acquireSyncLock(dirname(config.paths.ledger), 'adopt-result', {markerName: `${basename(config.paths.ledger)}.lock`});
   const journalPath = join(config.dir, 'adopt-result-transaction.json');
   try {
     const pending = await textAt(journalPath);
@@ -157,5 +157,5 @@ export async function adoptLocalResult(config, supplied, { intent = 'wanted', af
     await writeFile(journalPath, JSON.stringify({ version: 1, parts }), { flag: 'wx' });
     await finishAdoption(journalPath, { version: 1, parts }, config, afterWrite);
     return { result_id: result.result_id, ledger_id: entry.id, created: !matches[0], observation_added: true };
-  } finally { await lock.close(); await unlink(lockPath); }
+  } finally { await lock.release(); }
 }

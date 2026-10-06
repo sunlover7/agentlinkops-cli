@@ -126,7 +126,7 @@ test('epoch runner: evidence, observations, epochs and first_epoch classificatio
   assert.equal(obs.length, 20);
   assert.ok(obs.every((o) => o.evidence_sha256.length === 64));
 
-  const evidenceFiles = await readdir(join(dir, 'citations/evidence', result.epochId));
+  const evidenceFiles = (await readdir(join(dir, 'citations/evidence', result.epochId))).filter(name => !name.startsWith('._'));
   assert.equal(evidenceFiles.length, 20);
   const one = JSON.parse(await readFile(join(dir, 'citations/evidence', result.epochId, evidenceFiles[0]), 'utf8'));
   assert.equal(one.schema_version, 1);

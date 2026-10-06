@@ -64,7 +64,7 @@ export const DiscoveryQuery = z.strictObject({
   row_limit: count.min(1).max(DISCOVERY_LIMITS.rows),
 }).superRefine((q, ctx) => {
   const url = validatePublicUrl(q.target_kind === 'domain' ? `https://${q.target}/` : q.target);
-  if (!url.valid || (q.target_kind === 'domain' ? url.hostname !== q.target || q.target.startsWith('www.') : url.url !== q.target))
+  if (!url.valid || (q.target_kind === 'domain' ? url.hostname !== q.target : url.url !== q.target))
     ctx.addIssue({ code: 'custom', message: 'Invalid or noncanonical discovery target.', path: ['target'] });
   if (q.target_kind === 'exact_url' && q.include_subdomains)
     ctx.addIssue({ code: 'custom', message: 'Exact URL scope cannot include subdomains.', path: ['include_subdomains'] });

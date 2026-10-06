@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { admissionMain } from "../cli/admission.js";
+import { CloudError } from "../cli/client.js";
 const rule = {
   id: "r",
   workspace_id: "w",
@@ -27,6 +28,29 @@ const decision = {
   rule_value: "bad.example.com",
   cap: null,
 };
+test('admission JSON preserves public recovery and client response metadata', async () => {
+  const envelope = { code: 'ADMISSION_REVISION_CONFLICT', message: 'Rule revision changed.', details: { next: 'Use list_admission_rules and reconcile the current revision.' } };
+  const error = new CloudError(envelope.code, 409, envelope.details, envelope.message, envelope, { requestId: 'req_admission', retryAfter: '12' });
+  const outputs = [];
+  let calls = 0;
+  const status = await admissionMain(['update', '--project', 'p', '--id', 'r', '--revision', '1', '--note', 'reviewed', '--json'], {
+    client: { callCommand: async () => { calls++; throw error; } },
+    out: () => assert.fail('rejected update must not succeed'), err: value => outputs.push(JSON.parse(value)),
+  });
+  assert.equal(status, 2);
+  assert.equal(calls, 1);
+  assert.deepEqual(outputs, [{ error: { ...envelope, requestId: 'req_admission', retryAfter: '12' } }]);
+});
+test('admission terminal retains producer explanation and recovery without changing local failures', async () => {
+  const envelope = { code: 'INVALID_CURSOR', message: 'Policy changed or cursor scope differs.', details: { next: 'Restart list_admission_rules for the same project without cursor.' } };
+  const outputs = [];
+  const options = { client: { callCommand: async () => { throw new CloudError(envelope.code, 400, envelope.details, envelope.message, envelope); } }, err: value => outputs.push(value) };
+  assert.equal(await admissionMain(['list', '--project', 'p'], options), 2);
+  assert.deepEqual(outputs, [`INVALID_CURSOR: ${envelope.message}\n${envelope.details.next}`]);
+  outputs.length = 0;
+  assert.equal(await admissionMain(['remove', '--project', 'p', '--id', 'r', '--revision', '1'], options), 2);
+  assert.match(outputs[0], /Removal requires --apply/);
+});
 function harness(reply) {
   const calls = [],
     outputs = [],

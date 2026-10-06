@@ -256,7 +256,8 @@ export function createOpenAiCompatibleEngine({ baseUrl, model, apiKey, fetchImpl
 // overview linked to — the citation equivalent of a chat engine's source list.
 // The fixture below proves the parser against the documented response shape;
 // the live adapter activates with credentials in fleet, never before.
-export function createGoogleAioEngine({ fetchImpl, credentials, costEstimateUsd = 0.0012, locationCode = 2840, country, languageCode = 'en', device = 'desktop', timeoutMs = CITATION_LIMITS.timeoutMs, maxResponseBytes = CITATION_LIMITS.answerBytes } = {}) {
+const GOOGLE_AIO_BASE_COST_USD = 0.002;
+export function createGoogleAioEngine({ fetchImpl, credentials, costEstimateUsd = GOOGLE_AIO_BASE_COST_USD, locationCode = 2840, country, languageCode = 'en', device = 'desktop', timeoutMs = CITATION_LIMITS.timeoutMs, maxResponseBytes = CITATION_LIMITS.answerBytes } = {}) {
   const doFetch = fetchImpl ?? globalThis.fetch?.bind(globalThis);
   const error = (code, message, details = {}) => Object.assign(new EngineError(message), { code, ...details });
   if (country !== undefined) {
@@ -390,6 +391,6 @@ function parseAioResponse(body, prompt) {
     citations,
     fanOut: [],
     usage: { input_tokens: 0, output_tokens: 0 },
-    costEstimateUsd: body?.cost ?? 0.0012,
+    costEstimateUsd: body?.cost ?? GOOGLE_AIO_BASE_COST_USD,
   };
 }

@@ -26,6 +26,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import stat
 import sys
 import urllib.error
 import urllib.parse
@@ -117,6 +118,31 @@ def migrations():
     return result
 
 
+def require_private_file(info):
+    if not stat.S_ISREG(info.st_mode):
+        raise CRMError("CRM storage must be a regular file", "DATABASE_ERROR")
+    if os.name == "posix" and stat.S_IMODE(info.st_mode) != 0o600:
+        raise CRMError("CRM storage requires mode 0600; secure existing files or use a filesystem that enforces private permissions", "PRIVATE_STORAGE_REQUIRED")
+
+
+def open_private_file(path):
+    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    identity = None
+    try:
+        identity = os.fstat(descriptor)
+        require_private_file(identity)
+        return descriptor
+    except Exception:
+        # Check the created inode is still empty before cleanup.
+        try:
+            current = os.lstat(path)
+            if identity and (current.st_dev, current.st_ino) == (identity.st_dev, identity.st_ino) and current.st_size == 0:
+                os.unlink(path)
+        finally:
+            os.close(descriptor)
+        raise
+
+
 def connect(path, allow_create=False):
     path = Path(path).expanduser()
     if path.is_symlink():
@@ -125,8 +151,8 @@ def connect(path, allow_create=False):
         raise CRMError("CRM does not exist; run init with a workspace ID", "DATABASE_ERROR")
     if allow_create and not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        os.close(descriptor)
+        os.close(open_private_file(path))
+    require_private_file(path.lstat())
     connection = sqlite3.connect(str(path), timeout=10, isolation_level=None)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
@@ -172,8 +198,7 @@ def migrate(connection, path, workspace_id=None, initialize=False):
     backup = None
     if version and pending:
         backup = str(Path(path).expanduser()) + ".pre-v" + str(version + 1) + "." + dt.datetime.now().strftime("%Y%m%d%H%M%S%f") + ".bak"
-        descriptor = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        os.close(descriptor)
+        os.close(open_private_file(backup))
         with sqlite3.connect(backup) as target:
             connection.backup(target)
     connection.execute("BEGIN IMMEDIATE")
@@ -500,7 +525,7 @@ def write_new(path, content, suffix=None):
     path = Path(path).expanduser()
     if suffix and path.suffix.lower() != suffix:
         raise CRMError(f"Output file must end in {suffix}")
-    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    descriptor = open_private_file(path)
     with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as output:
         output.write(content)
 

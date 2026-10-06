@@ -25,11 +25,19 @@ import { NUDGE } from "./skill.js";
 // client. It is idempotent, never overwrites a file it did not write, and prints exactly what
 // changed. `agent status` reports what is installed without touching anything.
 const USAGE =
-  "agent setup [--client ID ...] [--scope project|user] [--origin URL] [--pack DIR] [--dry-run] [--json] | agent status [--json] | agent remove|recover [--scope project|user] [--apply] [--json]";
+  "agent setup [--client ID ...] [--scope project|user] [--origin URL] [--pack DIR] [--skill ID ...] [--recipe ID ...] [--all-skills] [--dry-run] [--json] | agent status [--json] | agent remove [--skill ID ...] [--recipe ID ...] [--scope project|user] [--apply] [--json] | agent recover [--scope project|user] [--apply] [--json]";
 export const DEFAULT_ORIGIN = "https://app.agentlinkops.com";
 export const SERVER_NAME = "agentlinkops";
 const RECEIPT = ".agentlinkops/agent-setup.json";
 const SHARED = Symbol("package siblings");
+const SELECTION = Symbol("selected payloads");
+const CORE_SKILL = "agentlinkops-connect";
+const selectionIds = (value, flag) => {
+  const ids = value === undefined ? [] : [].concat(value);
+  if (ids.some((id) => typeof id !== "string" || !/^[a-z][a-z0-9-]{0,79}$/u.test(id)))
+    throw new ConfigError(`--${flag} requires a named ID without traversal.`);
+  return [...new Set(ids)];
+};
 const ignored = (path) =>
   /(^|\/)(?:\._[^/]*|__pycache__|\.DS_Store)(?:\/|$)|\.(?:py[co]|sqlite(?:3)?(?:-[a-z]+)?|bak)$/u.test(
     path,
@@ -180,6 +188,136 @@ export async function readPack(dir) {
     );
   Object.defineProperty(skills, SHARED, { value: siblings });
   return skills;
+}
+
+// Selection is additive: a core upgrade does not uninstall earlier opt-in payloads.
+// Explicit full-pack installation retains the legacy complete-pack upgrade behavior.
+export function selectPack(pack, { skills = [], recipes = [], all = false } = {}) {
+  if (all && (skills.length || recipes.length))
+    throw new ConfigError("Choose --all-skills or named --skill/--recipe selections.");
+  if (!Object.hasOwn(pack, CORE_SKILL) || !pack[CORE_SKILL]["SKILL.md"]?.bytes.length)
+    throw new ConfigError("The core connection skill is missing from the package.");
+  if (!pack[CORE_SKILL]["references/agentlinkops.md"]?.bytes.length)
+    throw new ConfigError("The core connection reference is missing from the package.");
+  if (all) return { pack, selection: { mode: "all", skills: Object.keys(pack), recipes: [] } };
+  const selected = new Set([CORE_SKILL, ...skills]);
+  const siblings = pack[SHARED] ?? {};
+  let catalog = null;
+  if (recipes.length) {
+    try { catalog = JSON.parse(siblings["references/recipes/catalog.json"]?.bytes.toString("utf8")); }
+    catch { throw new ConfigError("The package recipe catalog is unavailable or invalid."); }
+    if (catalog?.schemaVersion !== 1 || !Array.isArray(catalog.recipes))
+      throw new ConfigError("The package recipe catalog is unavailable or invalid.");
+    if (!siblings["references/recipes/command-notes.md"]?.bytes.length)
+      throw new ConfigError("The required recipe command notes are missing from the package.");
+  }
+  const chosenRecipes = recipes.map((id) => {
+    const matches = catalog.recipes.filter((row) => row?.id === id);
+    const row = matches[0];
+    if (matches.length !== 1 || row.path !== `${id}.md` ||
+        typeof row.version !== "string" || !/^\d+\.\d+\.\d+$/u.test(row.version) ||
+        typeof row.skill !== "string" || !Object.hasOwn(pack, row.skill) ||
+        !siblings[`references/recipes/${row.path}`])
+      throw new ConfigError(`Unknown or invalid recipe ${id}.`);
+    selected.add(row.skill);
+    return { id, version: row.version, skill: row.skill };
+  });
+  for (const id of selected)
+    if (!Object.hasOwn(pack, id)) throw new ConfigError(`Unknown skill ${id}.`);
+  const result = Object.fromEntries([...selected].map((id) => [id, pack[id]]));
+  const support = {};
+  // Optional growth skills retain their bundled support dependencies. Recipe bodies
+  // are separately selected; the catalog describes availability, not installation.
+  if ([...selected].some((id) => id !== CORE_SKILL))
+    for (const [name, data] of Object.entries(siblings))
+      if (!name.startsWith("references/recipes/")) support[name] = data;
+  if (recipes.length) {
+    for (const name of ["catalog.json", "command-notes.md", ...recipes.map((id) => `${id}.md`)]) {
+      const key = `references/recipes/${name}`;
+      if (siblings[key]) support[key] = siblings[key];
+    }
+  }
+  Object.defineProperty(result, SHARED, { value: support });
+  Object.defineProperty(result, SELECTION, { value: true });
+  return { pack: result, selection: { mode: "selected", skills: [...selected], recipes: chosenRecipes } };
+}
+
+// Targeted removal can operate with a historical receipt and no current package.
+// Shared support is retained because other installed skills may still depend on it.
+function selectedRemovalPath(path, skills, recipes, cwd, home) {
+  return AGENT_CLIENTS.some((client) => {
+    const bases = [client.skills.project && join(cwd, client.skills.project), expand(client.skills.user, home)].filter(Boolean);
+    return bases.some((base) => skills.some((id) => {
+      const rel = relative(join(base, id), path);
+      return rel && !rel.startsWith("..") && !isAbsolute(rel);
+    }) || recipes.some((id) => path === join(base, "..", "references", "recipes", `${id}.md`)));
+  });
+}
+
+// Derive dependencies from surviving owned payloads, not the most recent setup
+// selection: a later core-only upgrade deliberately retains earlier recipes.
+async function assertRemovalDependencies(receipt, operations, skills, cwd, home, scope) {
+  if (!skills.length) return;
+  const recovery = `Keep required skills, or preview removing each dependent recipe with its associated --skill ID after reconciling customer edits. For an intended complete uninstall, preview agent remove --scope ${scope}, then add --apply; no dependent files or MCP entries were changed.`;
+  const deleting = new Set(operations.filter((operation) => operation.bytes === null).map((operation) => operation.path));
+  const surviving = [];
+  for (const path of Object.keys(receipt.files)) {
+    if (deleting.has(path)) continue;
+    try {
+      await safePath(path);
+      if (!(await lstat(path)).isFile()) throw new Error("not a regular payload");
+      surviving.push(path);
+    } catch (error) {
+      if (error.code !== "ENOENT")
+        throw new ConfigError(`Cannot inspect surviving installer-owned payloads: an owned path is unsafe, unreadable or not a regular file. ${recovery}`);
+    }
+  }
+  const bases = new Set(AGENT_CLIENTS.flatMap((client) =>
+    [client.skills.project && join(cwd, client.skills.project), expand(client.skills.user, home)].filter(Boolean)));
+  const dependents = new Set();
+  for (const base of bases) {
+    if (skills.includes(CORE_SKILL)) {
+      for (const path of surviving) {
+        const rel = relative(base, path);
+        const id = rel.split(/[\\/]/u)[0];
+        if (rel && !rel.startsWith("..") && !isAbsolute(rel) && id !== CORE_SKILL)
+          dependents.add(`skill ${id} (requires ${CORE_SKILL})`);
+      }
+    }
+    const recipeRoot = join(base, "..", "references", "recipes");
+    const recipes = surviving.flatMap((path) => {
+      const match = /^([a-z][a-z0-9-]{0,79})\.md$/u.exec(relative(recipeRoot, path));
+      return match && match[1] !== "command-notes" ? [match[1]] : [];
+    });
+    if (!recipes.length) continue;
+    if (skills.includes(CORE_SKILL)) {
+      for (const id of recipes) dependents.add(`recipe ${id} (requires ${CORE_SKILL})`);
+      continue;
+    }
+    const catalogPath = join(recipeRoot, "catalog.json");
+    let catalog;
+    try {
+      if (!Object.hasOwn(receipt.files, catalogPath)) throw new Error("unowned catalog");
+      const catalogBytes = await bytesAt(catalogPath);
+      if (!catalogBytes || sha256(catalogBytes) !== receipt.files[catalogPath]) throw new Error("catalog custody changed");
+      catalog = JSON.parse(catalogBytes);
+      if (catalog?.schemaVersion !== 1 || !Array.isArray(catalog.recipes)) throw new Error("invalid catalog");
+    } catch {
+      throw new ConfigError(`Cannot determine dependencies of surviving recipes ${recipes.join(", ")}: the owned recipe catalog is missing, edited or invalid. ${recovery}`);
+    }
+    for (const id of recipes) {
+      const matches = catalog.recipes.filter((row) => row?.id === id);
+      const row = matches[0];
+      if (matches.length !== 1 || row.path !== `${id}.md` || typeof row.skill !== "string" ||
+          !/^[a-z][a-z0-9-]{0,79}$/u.test(row.skill))
+        throw new ConfigError(`Cannot determine the required skill for surviving recipe ${id}: its owned catalog entry is missing or ambiguous. ${recovery}`);
+      if (skills.includes(row.skill)) dependents.add(`recipe ${id} (requires skill ${row.skill}; select --recipe ${id} with --skill ${row.skill})`);
+    }
+  }
+  if (skills.includes(CORE_SKILL) && Object.keys(receipt.mcp ?? {}).length)
+    dependents.add("retained MCP connection ownership");
+  if (dependents.size)
+    throw new ConfigError(`Removal would leave surviving dependents or MCP connection ownership: ${[...dependents].sort().join("; ")}. ${recovery}`);
 }
 
 const expand = (path, home) =>
@@ -445,7 +583,7 @@ export async function planSkills(client, pack, { cwd, home, scope, receipt }) {
     unchanged: [],
     conflicts: [],
     desired: [],
-    roots: [
+    roots: pack[SELECTION] ? Object.keys(pack).map((name) => join(dir, name)) : [
       dir,
       ...["scripts", "references", "templates"].map((name) =>
         join(dir, "..", name),
@@ -764,7 +902,7 @@ export async function agentMain(
     afterOperation,
   } = {},
 ) {
-  const args = parseArgs(argv, ["client"]);
+  const args = parseArgs(argv, ["client", "skill", "recipe"]);
   const [command, sub] = args._;
   if (
     command !== "agent" ||
@@ -774,24 +912,34 @@ export async function agentMain(
     throw new ConfigError(USAGE);
   const allowed =
     sub === "setup"
-      ? ["_", "client", "scope", "origin", "pack", "dry-run", "json"]
-      : ["remove", "recover"].includes(sub)
-        ? ["_", "scope", "apply", "json"]
+      ? ["_", "client", "scope", "origin", "pack", "skill", "recipe", "all-skills", "dry-run", "json"]
+      : sub === "remove"
+        ? ["_", "scope", "apply", "skill", "recipe", "json"]
+        : sub === "recover" ? ["_", "scope", "apply", "json"]
         : ["_", "json"];
   if (Object.keys(args).some((k) => !allowed.includes(k)))
     throw new ConfigError(USAGE);
+  const skillIds = selectionIds(args.skill, "skill");
+  const recipeIds = selectionIds(args.recipe, "recipe");
+  if (args["all-skills"] !== undefined && args["all-skills"] !== true)
+    throw new ConfigError("--all-skills is a boolean flag.");
   const json = args.json === true || !isTTY;
   const scope = args.scope ?? "project";
   if (!["project", "user"].includes(scope))
     throw new ConfigError("--scope is project or user");
-  const origin = (
-    args.origin ??
-    env.AGENTLINKOPS_API_URL ??
-    env.LINKTRAIL_API_URL ??
-    DEFAULT_ORIGIN
-  ).replace(/\/$/u, "");
-  if (!/^https:\/\/[^/?#]+$/u.test(origin))
-    throw new ConfigError("--origin must be an https origin without a path.");
+  const suppliedOrigin = args.origin ?? env.AGENTLINKOPS_API_URL ?? env.LINKTRAIL_API_URL ?? DEFAULT_ORIGIN;
+  let origin;
+  try {
+    if (typeof suppliedOrigin !== "string" || /[\u0000-\u0020\u007f"'\\@]/u.test(suppliedOrigin))
+      throw new Error("invalid origin");
+    const parsed = new URL(suppliedOrigin);
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== "/" ||
+        (suppliedOrigin !== parsed.origin && suppliedOrigin !== `${parsed.origin}/`))
+      throw new Error("invalid origin");
+    origin = parsed.origin;
+  } catch {
+    throw new ConfigError("--origin must be a canonical https origin without credentials, controls or a path.");
+  }
   const only = args.client ? [].concat(args.client) : null;
   for (const id of only ?? [])
     if (!clientById(id))
@@ -818,9 +966,18 @@ export async function agentMain(
   }
   const receipt = await readReceipt(paths.receipt, cwd, home);
   if (sub === "remove") {
-    const operations = [],
-      preserved = [];
+    const targeted = skillIds.length > 0 || recipeIds.length > 0;
+    const operations = [], preserved = [], retained = [];
+    for (const id of [...skillIds, ...recipeIds]) {
+      const found = Object.keys(receipt?.files ?? {}).some((path) => selectedRemovalPath(path,
+        skillIds.includes(id) ? [id] : [], recipeIds.includes(id) ? [id] : [], cwd, home));
+      if (!found) throw new ConfigError(`Selection ${id} is not owned by this installation.`);
+    }
     for (const [path, digest] of Object.entries(receipt?.files ?? {})) {
+      if (targeted && !selectedRemovalPath(path, skillIds, recipeIds, cwd, home)) {
+        retained.push(path);
+        continue;
+      }
       const bytes = await bytesAt(path);
       if (bytes === null) continue;
       if (sha256(bytes) !== digest) {
@@ -829,9 +986,10 @@ export async function agentMain(
       }
       operations.push({ path, bytes: null, expected: digest });
     }
+    if (targeted) await assertRemovalDependencies(receipt, operations, skillIds, cwd, home, scope);
     const remainingMcp = { ...(receipt?.mcp ?? {}) };
     const configurations = [];
-    for (const [path, record] of Object.entries(remainingMcp)) {
+    for (const [path, record] of Object.entries(targeted ? {} : remainingMcp)) {
       const planned = await planMcpRemoval(path, record);
       if (planned.preserved) {
         preserved.push(path);
@@ -845,7 +1003,7 @@ export async function agentMain(
     }
     const remaining = Object.fromEntries(
       Object.entries(receipt?.files ?? {}).filter(([p]) =>
-        preserved.includes(p),
+        preserved.includes(p) || retained.includes(p),
       ),
     );
     if (receipt) {
@@ -875,6 +1033,7 @@ export async function agentMain(
             .filter((o) => o.path !== paths.receipt && o.bytes === null)
             .map((o) => o.path),
           preserved,
+          retained,
           configurations,
         },
         null,
@@ -912,17 +1071,21 @@ export async function agentMain(
       ? {
           installedAt: receipt.installedAt,
           files: Object.keys(receipt.files).length,
+          ...(receipt.lastSetupSelection ? { lastSetupSelection: receipt.lastSetupSelection } : {}),
         }
       : null;
     out(json ? JSON.stringify(report, null, 2) : renderStatus(report));
     return 0;
   }
 
-  const pack = await readPack(await locatePack(args.pack ?? packDir));
+  const { pack, selection } = selectPack(await readPack(await locatePack(args.pack ?? packDir)), {
+    skills: skillIds, recipes: recipeIds, all: args["all-skills"] === true,
+  });
   const clients = await detectClients(home, only);
   const report = {
     origin,
     scope,
+    selection,
     dryRun: args["dry-run"] === true,
     clients: [],
     next: [],
@@ -999,6 +1162,8 @@ export async function agentMain(
       report.next.push(`${client.name}: ${c.target} ${c.note}`);
     report.clients.push(entry);
   }
+  report.retainedExisting = Object.keys(receipt?.files ?? {}).filter((path) => !desired.has(path) &&
+    ![...selectedRoots].some((root) => { const rel = relative(root, path); return rel && !rel.startsWith("..") && !isAbsolute(rel); }));
   report.pruned = [];
   report.preservedObsolete = [];
   let ownershipChanged = false;
@@ -1039,6 +1204,7 @@ export async function agentMain(
             origin,
             scope,
             clients: report.clients.map((c) => c.id),
+            lastSetupSelection: selection,
             files: ownedFiles,
             mcp: ownedMcp,
           },
@@ -1070,8 +1236,11 @@ export async function agentMain(
     }
   }
   report.next.push(
-    "Sign in through each client's MCP OAuth flow; no credential was stored by this command.",
+    "For a chosen hosted task, sign in through the client's MCP OAuth flow. Local supplied-link checks require no AgentLinkOps account; no credential was stored by this command.",
   );
+  if (report.retainedExisting.length)
+    report.next.push("Earlier payloads outside this selection were retained. Preview agent remove --skill ID or --recipe ID to remove them explicitly.");
+  report.next.push("Optional skills and recipes: agent setup --skill ID or --recipe ID; --all-skills installs the complete pack.");
   report.next.push(NUDGE);
   out(json ? JSON.stringify(report, null, 2) : renderSetup(report));
   return report.clients.some(

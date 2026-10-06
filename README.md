@@ -12,27 +12,49 @@ separate service; this package is the local half and needs no account.
 
 ## Give your agent AgentLinkOps
 
-Four steps, the same ones the docs and the landing page show. Node.js 22.13 or later.
+Use Node.js 22.13 or later. Choose a supplied-link check or a hosted task, then inspect
+the installed version's help before selecting guidance.
 
-1. **Install the skill.** Detects the agent clients on this machine (Claude Code, Codex,
-   Cursor, Gemini CLI, Hermes), installs the skill pack at each one's skills path and writes
-   its MCP entry; stores no credential and prints what it changed.
+1. **Inspect setup and choose guidance.** CLI 0.6.10 installs the connection skill
+   and its reference by default, with MCP setup for detected clients. Select optional
+   guidance explicitly. Setup stores no credential and reports changes. CLI 0.6.9
+   and earlier can install the complete pack. Native-client acceptance remains
+   separate from package checks.
 
    ```sh
+   npx -y agentlinkops --help
    npx -y agentlinkops agent setup
    ```
 
    With the `skills` CLI instead: `npx -y skills add https://agentlinkops.com`, then add
    `https://app.agentlinkops.com/mcp` as a remote HTTP MCP server in your client.
-2. **Sign in when your agent asks.** The client opens the AgentLinkOps sign-in; you pick the
-   account, workspace and scopes. Nothing is pasted into a chat.
-3. **Verify.** Ask your agent to list your AgentLinkOps projects, or run `agentlinkops doctor`.
+   On a version whose help supports selection, use `agentlinkops agent setup --skill ID`
+   or `--recipe ID` for optional guidance; repeat either flag for several choices.
+   Choose `--all-skills` only for the complete pack. Customer instructions and records
+   remain the customer's choice.
+
+   Preview `agentlinkops agent remove --recipe ID` or `--skill ID` before adding
+   `--apply`. The installer refuses skill removal while a recipe it owns still
+   needs the skill. Keep the skill or select both that recipe and its skill after
+   reconciling customer edits. The installer preserves edited recipe bodies, which
+   can still block joint removal.
+   For an intended complete uninstall, preview
+   `agentlinkops agent remove --scope project` (or `user`), then add `--apply`.
+2. **Sign in for a chosen hosted task.** The client opens the AgentLinkOps sign-in;
+   you pick the account, workspace and scopes. Nothing is pasted into a chat.
+   A supplied-link check needs no account or hosted connection.
+3. **Verify hosted access when needed.** Ask your agent to list your AgentLinkOps
+   projects, or run `agentlinkops doctor`.
 4. **Check a placement.** Ask: "check whether [publisher page] links to [my page], show the
    dated observation and any uncertainty." No account yet? The same verifier runs locally:
 
    ```sh
-   npx -y agentlinkops check --source https://publisher.example/resources --target https://your-site.example/guide
+   npx -y agentlinkops check --source https://publisher.example/resources --target https://your-site.example/guide --scope exact --json
    ```
+
+   This fetches a public source page and returns an observation; no repository,
+   ledger, CRM or publisher recipe is required. Read the state and evidence limits,
+   including an unknown result. A returned result does not establish presence.
 
 The skill is a short door: the first time your agent uses AgentLinkOps in a session it reads
 the full agent reference, which `agentlinkops skill` prints and
@@ -50,10 +72,19 @@ agentlinkops --help
 Or run it once without installing:
 
 ```sh
-npx agentlinkops check
+npx -y agentlinkops check --source https://publisher.example/resources --target https://your-site.example/guide --scope exact --json
 ```
 
 ## Check one link with no account
+
+Check a supplied pair from any working directory, without creating a ledger:
+
+```sh
+agentlinkops check --source https://publisher.example/resources --target https://your-site.example/guide --scope exact --json
+```
+
+If you choose to retain expected links in a repository ledger, use the optional
+local workflow:
 
 ```sh
 cd your-repository
@@ -67,9 +98,10 @@ agentlinkops status
 the source page and appends an observation to the mirror. `status` names every entry whose
 observations disagree with its intent and proposes the edit; applying it is a commit you make.
 
-Exit codes: `0` when every expected link is present, `1` only when an expected link is observed
-absent with complete evidence, `2` for a usage, configuration or ledger error. An unknown never
-fails the run. Pass `--fail-on-unknown` when your CI wants it to.
+For ledger checks, exit codes are `0` when every expected link is present, `1` only
+when an expected link is observed absent with complete evidence, and `2` for a usage,
+configuration or ledger error. An unknown never fails the run.
+Pass `--fail-on-unknown` when your CI wants it to.
 
 `agentlinkops doctor` verifies the ledger, the verifier self-test, cloud reachability and the
 token, and prints a fix line for anything that fails.

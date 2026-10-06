@@ -15,7 +15,7 @@ Files must be new. CSV exports are limited to 20 MiB and include a receipt.
 Review column mapping before importing. The export does not prove links are live.`;
 
 // This factory also runs in Playwriter's CommonJS sandbox. Keep dependencies explicit.
-export function createGscBrowserExporter({ fs, path, createHash, parseCsv }) {
+export function createGscBrowserExporter({ fs, path, createHash, parseCsv, platform = process.platform }) {
   const limit = 20 * 1024 * 1024;
   const fail = (code, message) => Object.assign(new Error(message), { code, exitCode: 2 });
   async function bounded(promise, milliseconds) {
@@ -82,7 +82,7 @@ export function createGscBrowserExporter({ fs, path, createHash, parseCsv }) {
     const report = new URL('https://search.google.com/search-console/links');
     report.searchParams.set('resource_id', property);
     report.searchParams.set('hl', 'en');
-    let download, ownedOutput = false, ownedReceipt = false;
+    let download, outputHandle, receiptHandle, ownedOutput = false, ownedReceipt = false;
     const receive = item => { if (!download) download = item; };
     try {
       await page.goto(report.href, { waitUntil: 'domcontentloaded', timeout: 20000 });
@@ -190,14 +190,27 @@ export function createGscBrowserExporter({ fs, path, createHash, parseCsv }) {
         source_column: sourceHeader, target_mapping_required: true,
         sampled: true, current_link_status: 'unverified',
       };
-      await fs.writeFile(outputPath, Buffer.concat(chunks), { flag: 'wx', mode: 0o600 }); ownedOutput = true;
-      await fs.writeFile(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx', mode: 0o600 }); ownedReceipt = true;
+      outputHandle = await fs.open(outputPath, 'wx', 0o600); ownedOutput = true;
+      receiptHandle = await fs.open(receiptPath, 'wx', 0o600); ownedReceipt = true;
+      for (const handle of [outputHandle, receiptHandle]) {
+        const info = await handle.stat();
+        if (!info.isFile() || (platform !== 'win32' && (info.mode & 0o7777) !== 0o600)) {
+          throw fail('private_storage_required', 'GSC exports require private files with mode 0600. Choose a filesystem that enforces private permissions.');
+        }
+      }
+      await outputHandle.writeFile(Buffer.concat(chunks));
+      await receiptHandle.writeFile(`${JSON.stringify(receipt, null, 2)}\n`);
+      await outputHandle.close(); outputHandle = undefined;
+      await receiptHandle.close(); receiptHandle = undefined;
       return receipt;
     } catch (error) {
       await download?.cancel?.().catch(() => {});
+      await outputHandle?.close().catch(() => {});
+      await receiptHandle?.close().catch(() => {});
       if (ownedOutput) await fs.unlink(outputPath).catch(() => {});
       if (ownedReceipt) await fs.unlink(receiptPath).catch(() => {});
       if (error.exitCode === 2) throw error;
+      if (error.code === 'EEXIST') throw fail('output_exists', 'The output or receipt file already exists. Choose a new path.');
       throw fail('browser_export_failed', 'GSC export failed. Check your browser session and retry.');
     } finally {
       page.off('download', receive);
@@ -206,7 +219,7 @@ export function createGscBrowserExporter({ fs, path, createHash, parseCsv }) {
   };
 }
 
-export const exportGscLinks = createGscBrowserExporter({ fs, path, createHash, parseCsv });
+export const exportGscLinks = createGscBrowserExporter({ fs, path, createHash, parseCsv, platform: process.platform });
 
 export async function gscLinksMain(argv, { cwd = process.cwd(), out = console.log, execFileImpl = promisify(execFile) } = {}) {
   const args = parseArgs(argv);
@@ -221,7 +234,7 @@ export async function gscLinksMain(argv, { cwd = process.cwd(), out = console.lo
   const scratch = await fs.mkdtemp(path.join(tmpdir(), 'agentlinkops-gsc-'));
   try {
     // Pass source/config as a file argument, never interpolate a shell command.
-    const script = `const CsvError = ${CsvError.toString()};\nconst parseCsv = ${parseCsv.toString()};\nconst exportLinks = (${createGscBrowserExporter.toString()})({fs:require('node:fs').promises,path:require('node:path'),createHash:require('node:crypto').createHash,parseCsv});\nconst config = ${JSON.stringify({ property: args.property, outputPath, kind: args.kind ?? 'latest' })};\nconst exportPage = await context.newPage();\ntry { const receipt = await exportLinks({...config,page:exportPage}); console.log('AGENTLINKOPS_GSC_RECEIPT '+JSON.stringify(receipt)); } catch(error) { console.log('AGENTLINKOPS_GSC_ERROR '+JSON.stringify({code:error.code||'browser_export_failed',message:error.message})); } finally { await exportPage.close(); }\n`;
+    const script = `const CsvError = ${CsvError.toString()};\nconst parseCsv = ${parseCsv.toString()};\nconst exportLinks = (${createGscBrowserExporter.toString()})({fs:require('node:fs').promises,path:require('node:path'),createHash:require('node:crypto').createHash,parseCsv,platform:require('node:os').platform()});\nconst config = ${JSON.stringify({ property: args.property, outputPath, kind: args.kind ?? 'latest' })};\nconst exportPage = await context.newPage();\ntry { const receipt = await exportLinks({...config,page:exportPage}); console.log('AGENTLINKOPS_GSC_RECEIPT '+JSON.stringify(receipt)); } catch(error) { console.log('AGENTLINKOPS_GSC_ERROR '+JSON.stringify({code:error.code||'browser_export_failed',message:error.message})); } finally { await exportPage.close(); }\n`;
     const scriptPath = path.join(scratch, 'export.js');
     await fs.writeFile(scriptPath, script, { mode: 0o600 });
     let stdout;

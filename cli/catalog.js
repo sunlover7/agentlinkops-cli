@@ -8,7 +8,9 @@ export const CATALOG_TOOLSETS = {
  "digests": "Own-address digest preferences, delivery history and exact events.",
  "monitoring": "Watch earned links and destination URLs: create, list, update, import, export, recheck.",
  "evidence": "What a check observed: histories, snapshots, change feeds, check jobs, published contacts.",
+ "rank": "Synthetic DataForSEO rank schedules and dated history; hosted collection disabled.",
  "discovery": "Import candidate rows, read stored runs, verify selected candidates, enroll them.",
+ "baseline": "Scoped backlink baselines; supplier admission disabled.",
  "library": "Read and export the coverage-stated opportunity library.",
  "competitors": "Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports.",
  "reports": "Profile, anchor and report summaries over the tracked dataset.",
@@ -17,6 +19,5070 @@ export const CATALOG_TOOLSETS = {
  "webhooks": "Webhook endpoints, state, secrets and delivery records."
 };
 export const CATALOG_COMMANDS = [
+ {
+  "name": "monitor_domain_baseline_candidates",
+  "toolset": "baseline",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "monitor selected baseline links",
+   "weekly"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read",
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Monitor selected baseline links. Enroll 1 to 10 explicitly selected fresh-present links with durable per-item outcomes. Defaults to weekly. User-paused watches require explicit resume; existing cadence and retries remain unchanged.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "runId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the run returned by its create or list operation."
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "pattern": "^[\\x21-\\x7e]{1,200}$",
+     "description": "Caller-generated key reused only for retries of the same operation and arguments in this workspace."
+    },
+    "items": {
+     "minItems": 1,
+     "maxItems": 10,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "candidateId": {
+        "type": "string",
+        "pattern": "^dc_[a-f0-9]{64}$"
+       },
+       "verificationJobId": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       }
+      },
+      "required": [
+       "candidateId",
+       "verificationJobId"
+      ],
+      "additionalProperties": false
+     },
+     "description": "Selected stored candidates to check, each by candidateId with an optional localReference for the caller's own record."
+    },
+    "cadenceSeconds": {
+     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "type": "integer",
+     "minimum": 3600,
+     "maximum": 2592000
+    }
+   },
+   "required": [
+    "runId",
+    "idempotencyKey",
+    "items"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "type": "number",
+     "const": 1
+    },
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "baseline_run_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "workspace_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "manifest_hash": {
+     "type": "string",
+     "minLength": 1
+    },
+    "cadence_seconds": {
+     "type": "integer",
+     "minimum": 3600,
+     "maximum": 2592000
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "pending",
+      "partial",
+      "completed"
+     ]
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "pending": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "created": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "already_monitored": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "ineligible": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "failed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      }
+     },
+     "required": [
+      "pending",
+      "created",
+      "already_monitored",
+      "ineligible",
+      "failed"
+     ],
+     "additionalProperties": false
+    },
+    "items": {
+     "maxItems": 10,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "ordinal": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10
+       },
+       "candidate_id": {
+        "type": "string"
+       },
+       "verification_job_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "state": {
+        "type": "string",
+        "enum": [
+         "pending",
+         "created",
+         "already_monitored",
+         "ineligible",
+         "failed"
+        ]
+       },
+       "error_code": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "watch_id": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "observation_id": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "local_reference": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "attempt_count": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3
+       }
+      },
+      "required": [
+       "ordinal",
+       "candidate_id",
+       "verification_job_id",
+       "state",
+       "error_code",
+       "watch_id",
+       "observation_id",
+       "local_reference",
+       "attempt_count"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "replayed": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "schema_version",
+    "id",
+    "baseline_run_id",
+    "workspace_id",
+    "project_id",
+    "manifest_hash",
+    "cadence_seconds",
+    "state",
+    "counts",
+    "items",
+    "replayed"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "get_domain_baseline_monitor_batch",
+  "toolset": "baseline",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "baseline monitor receipt"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read",
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read a monitor batch receipt. Per-item outcomes distinguish created, already monitored, ineligible and failed; reading never activates a watch or checks a source.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "batchId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the batch returned by its create or list operation."
+    }
+   },
+   "required": [
+    "batchId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "type": "number",
+     "const": 1
+    },
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "baseline_run_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "workspace_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "manifest_hash": {
+     "type": "string",
+     "minLength": 1
+    },
+    "cadence_seconds": {
+     "type": "integer",
+     "minimum": 3600,
+     "maximum": 2592000
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "pending",
+      "partial",
+      "completed"
+     ]
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "pending": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "created": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "already_monitored": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "ineligible": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "failed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      }
+     },
+     "required": [
+      "pending",
+      "created",
+      "already_monitored",
+      "ineligible",
+      "failed"
+     ],
+     "additionalProperties": false
+    },
+    "items": {
+     "maxItems": 10,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "ordinal": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10
+       },
+       "candidate_id": {
+        "type": "string"
+       },
+       "verification_job_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "state": {
+        "type": "string",
+        "enum": [
+         "pending",
+         "created",
+         "already_monitored",
+         "ineligible",
+         "failed"
+        ]
+       },
+       "error_code": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "watch_id": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "observation_id": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "local_reference": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "attempt_count": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3
+       }
+      },
+      "required": [
+       "ordinal",
+       "candidate_id",
+       "verification_job_id",
+       "state",
+       "error_code",
+       "watch_id",
+       "observation_id",
+       "local_reference",
+       "attempt_count"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "replayed": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "schema_version",
+    "id",
+    "baseline_run_id",
+    "workspace_id",
+    "project_id",
+    "manifest_hash",
+    "cadence_seconds",
+    "state",
+    "counts",
+    "items",
+    "replayed"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "get_link_review_checkpoint",
+  "toolset": "reports",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "weekly review",
+   "review checkpoint",
+   "last reviewed"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "events:read"
+  ],
+  "readOnly": true,
+  "description": "Read the latest explicit human review checkpoint for one authorized project. Includes the exact held artifact, sequence and retained-history gaps. Reading or copying never completes a review or changes monitoring.",
+  "examples": [
+   {
+    "projectId": "prj_example"
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the project returned by its create or list operation."
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "type": "number",
+     "const": 1
+    },
+    "checkpoint": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "artifact_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "workspace_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 128
+        },
+        "project_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 128
+        },
+        "sha256": {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        "through_sequence": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "completed_at": {
+         "type": "string"
+        },
+        "coverage": {
+         "type": "object",
+         "properties": {
+          "complete": {
+           "type": "boolean"
+          },
+          "truncated": {
+           "type": "boolean"
+          },
+          "scan_limited": {
+           "type": "boolean"
+          },
+          "retention_limited": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "complete",
+          "truncated",
+          "scan_limited",
+          "retention_limited"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "required": [
+        "artifact_id",
+        "workspace_id",
+        "project_id",
+        "sha256",
+        "through_sequence",
+        "completed_at",
+        "coverage"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "schema_version",
+    "checkpoint"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "prepare_domain_baseline",
+  "toolset": "baseline",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain baseline",
+   "onboarding",
+   "backlinks"
+  ],
+  "confirm": "none",
+  "admissionGated": true,
+  "scopes": [
+   "discovery:read",
+   "watches:read",
+   "discovery:write",
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Prepare a baseline offer. No provider calls. Supplier admission is disabled; retained runs remain readable. The offer binds the exact host, initial static checks and explicit consent. No recurring monitoring.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "domain": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 4096,
+     "description": "Project domain name, for example example.com."
+    },
+    "includeSubdomains": {
+     "type": "boolean",
+     "description": "Include subdomains of the selected domain in this query."
+    },
+    "confirmNormalizedScope": {
+     "description": "The confirm normalized scope value; allowed values and bounds are specified in this schema.",
+     "type": "boolean"
+    },
+    "forceRefresh": {
+     "description": "The force refresh value; allowed values and bounds are specified in this schema.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "projectId",
+    "domain",
+    "includeSubdomains"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "anyOf": [
+      {
+       "type": "number",
+       "const": 1
+      },
+      {
+       "type": "number",
+       "const": 2
+      }
+     ]
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "offer",
+      "saved_run"
+     ]
+    },
+    "offer": {
+     "oneOf": [
+      {
+       "type": "object",
+       "properties": {
+        "schema_version": {
+         "type": "number",
+         "const": 1
+        },
+        "id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "workspace_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "project_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "actor_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 128
+        },
+        "scope": {
+         "type": "object",
+         "properties": {
+          "domain": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 253
+          },
+          "include_subdomains": {
+           "type": "boolean"
+          },
+          "website_revision": {
+           "type": "string",
+           "pattern": "^[a-f0-9]{64}$"
+          },
+          "query_version": {
+           "type": "string",
+           "const": "dataforseo-as-is-v1"
+          }
+         },
+         "required": [
+          "domain",
+          "include_subdomains",
+          "website_revision",
+          "query_version"
+         ],
+         "additionalProperties": false
+        },
+        "source": {
+         "type": "string",
+         "const": "dataforseo"
+        },
+        "data_mode": {
+         "type": "string",
+         "const": "synthetic"
+        },
+        "tariff_version": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "selection_policy": {
+         "type": "string",
+         "const": "distinct-host-target-order-v1"
+        },
+        "limits": {
+         "type": "object",
+         "properties": {
+          "indexed_rows": {
+           "type": "number",
+           "const": 1000
+          },
+          "source_checks": {
+           "type": "number",
+           "const": 10
+          },
+          "renders": {
+           "type": "number",
+           "const": 0
+          },
+          "supplier_requests": {
+           "type": "number",
+           "const": 2
+          },
+          "recurring_monitors": {
+           "type": "number",
+           "const": 0
+          }
+         },
+         "required": [
+          "indexed_rows",
+          "source_checks",
+          "renders",
+          "supplier_requests",
+          "recurring_monitors"
+         ],
+         "additionalProperties": false
+        },
+        "created_at": {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        "expires_at": {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        "consumption": {
+         "type": "string",
+         "const": "explicit_start"
+        },
+        "consent_required": {
+         "type": "boolean",
+         "const": true
+        },
+        "recurring_monitoring_created": {
+         "type": "boolean",
+         "const": false
+        }
+       },
+       "required": [
+        "schema_version",
+        "id",
+        "workspace_id",
+        "project_id",
+        "actor_id",
+        "scope",
+        "source",
+        "data_mode",
+        "tariff_version",
+        "selection_policy",
+        "limits",
+        "created_at",
+        "expires_at",
+        "consumption",
+        "consent_required",
+        "recurring_monitoring_created"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "object",
+       "properties": {
+        "schema_version": {
+         "type": "number",
+         "const": 2
+        },
+        "id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "workspace_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "project_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "actor_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 128
+        },
+        "scope": {
+         "type": "object",
+         "properties": {
+          "domain": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 253
+          },
+          "include_subdomains": {
+           "type": "boolean"
+          },
+          "website_revision": {
+           "type": "string",
+           "pattern": "^[a-f0-9]{64}$"
+          },
+          "query_version": {
+           "type": "string",
+           "const": "dataforseo-as-is-v1"
+          }
+         },
+         "required": [
+          "domain",
+          "include_subdomains",
+          "website_revision",
+          "query_version"
+         ],
+         "additionalProperties": false
+        },
+        "source": {
+         "type": "string",
+         "const": "dataforseo"
+        },
+        "data_mode": {
+         "type": "string",
+         "const": "provider_index"
+        },
+        "tariff_version": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "selection_policy": {
+         "type": "string",
+         "const": "distinct-host-target-order-v1"
+        },
+        "limits": {
+         "type": "object",
+         "properties": {
+          "indexed_rows": {
+           "type": "number",
+           "const": 1000
+          },
+          "source_checks": {
+           "type": "number",
+           "const": 10
+          },
+          "renders": {
+           "type": "number",
+           "const": 0
+          },
+          "supplier_requests": {
+           "type": "number",
+           "const": 2
+          },
+          "recurring_monitors": {
+           "type": "number",
+           "const": 0
+          }
+         },
+         "required": [
+          "indexed_rows",
+          "source_checks",
+          "renders",
+          "supplier_requests",
+          "recurring_monitors"
+         ],
+         "additionalProperties": false
+        },
+        "created_at": {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        "expires_at": {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        "consumption": {
+         "type": "string",
+         "const": "explicit_start"
+        },
+        "consent_required": {
+         "type": "boolean",
+         "const": true
+        },
+        "recurring_monitoring_created": {
+         "type": "boolean",
+         "const": false
+        }
+       },
+       "required": [
+        "schema_version",
+        "id",
+        "workspace_id",
+        "project_id",
+        "actor_id",
+        "scope",
+        "source",
+        "data_mode",
+        "tariff_version",
+        "selection_policy",
+        "limits",
+        "created_at",
+        "expires_at",
+        "consumption",
+        "consent_required",
+        "recurring_monitoring_created"
+       ],
+       "additionalProperties": false
+      }
+     ]
+    },
+    "run": {
+     "type": "object",
+     "properties": {
+      "schema_version": {
+       "anyOf": [
+        {
+         "type": "number",
+         "const": 1
+        },
+        {
+         "type": "number",
+         "const": 2
+        }
+       ]
+      },
+      "id": {
+       "type": "string",
+       "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+      },
+      "workspace_id": {
+       "type": "string",
+       "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+      },
+      "project_id": {
+       "type": "string",
+       "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+      },
+      "scope": {
+       "type": "object",
+       "properties": {
+        "domain": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 253
+        },
+        "include_subdomains": {
+         "type": "boolean"
+        },
+        "website_revision": {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        "query_version": {
+         "type": "string",
+         "const": "dataforseo-as-is-v1"
+        }
+       },
+       "required": [
+        "domain",
+        "include_subdomains",
+        "website_revision",
+        "query_version"
+       ],
+       "additionalProperties": false
+      },
+      "source": {
+       "type": "string",
+       "const": "dataforseo"
+      },
+      "data_mode": {
+       "type": "string",
+       "enum": [
+        "synthetic",
+        "provider_index"
+       ]
+      },
+      "state": {
+       "type": "string",
+       "enum": [
+        "queued",
+        "fetching",
+        "checking",
+        "ready",
+        "partial",
+        "empty",
+        "failed",
+        "cancelled",
+        "reconciliation_required"
+       ]
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time",
+       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+      },
+      "updated_at": {
+       "type": "string",
+       "format": "date-time",
+       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+      },
+      "execution_deadline": {
+       "type": "string",
+       "format": "date-time",
+       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+      },
+      "timing": {
+       "type": "object",
+       "properties": {
+        "first_result_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "finished_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "first_result_ms": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "first_result_at",
+        "finished_at",
+        "first_result_ms"
+       ],
+       "additionalProperties": false
+      },
+      "components": {
+       "type": "object",
+       "properties": {
+        "summary": {
+         "type": "object",
+         "properties": {
+          "state": {
+           "type": "string",
+           "enum": [
+            "pending",
+            "running",
+            "succeeded",
+            "partial",
+            "empty",
+            "failed",
+            "cancelled",
+            "reconciliation_required"
+           ]
+          },
+          "run_id": {
+           "anyOf": [
+            {
+             "type": "string",
+             "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "retrieved_at": {
+           "anyOf": [
+            {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "error_code": {
+           "anyOf": [
+            {
+             "type": "string",
+             "maxLength": 80
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "state",
+          "run_id",
+          "retrieved_at",
+          "error_code"
+         ],
+         "additionalProperties": false
+        },
+        "list": {
+         "type": "object",
+         "properties": {
+          "state": {
+           "type": "string",
+           "enum": [
+            "pending",
+            "running",
+            "succeeded",
+            "partial",
+            "empty",
+            "failed",
+            "cancelled",
+            "reconciliation_required"
+           ]
+          },
+          "run_id": {
+           "anyOf": [
+            {
+             "type": "string",
+             "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "retrieved_at": {
+           "anyOf": [
+            {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "error_code": {
+           "anyOf": [
+            {
+             "type": "string",
+             "maxLength": 80
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "state",
+          "run_id",
+          "retrieved_at",
+          "error_code"
+         ],
+         "additionalProperties": false
+        },
+        "checks": {
+         "type": "object",
+         "properties": {
+          "state": {
+           "type": "string",
+           "enum": [
+            "pending",
+            "running",
+            "succeeded",
+            "partial",
+            "empty",
+            "failed",
+            "cancelled",
+            "reconciliation_required"
+           ]
+          },
+          "run_id": {
+           "anyOf": [
+            {
+             "type": "string",
+             "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "retrieved_at": {
+           "anyOf": [
+            {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "error_code": {
+           "anyOf": [
+            {
+             "type": "string",
+             "maxLength": 80
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "state",
+          "run_id",
+          "retrieved_at",
+          "error_code"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "required": [
+        "summary",
+        "list",
+        "checks"
+       ],
+       "additionalProperties": false
+      },
+      "summary": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "v": {
+           "type": "number",
+           "const": 1
+          },
+          "overview_run_id": {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          "workspace_id": {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          "project_id": {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          "provider": {
+           "type": "string",
+           "enum": [
+            "linktrail_corpus",
+            "dataforseo",
+            "imported"
+           ]
+          },
+          "data_mode": {
+           "type": "string",
+           "enum": [
+            "synthetic",
+            "owned_corpus",
+            "provider_index",
+            "imported"
+           ]
+          },
+          "provider_retrieved_at": {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          "provider_first_seen": {
+           "anyOf": [
+            {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "provider_lost_date": {
+           "anyOf": [
+            {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "verified_at": {
+           "type": "null"
+          },
+          "coverage": {
+           "type": "string",
+           "enum": [
+            "provider_summary",
+            "corpus_subset",
+            "partial"
+           ]
+          },
+          "counts": {
+           "type": "object",
+           "properties": {
+            "backlinks": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "referring_domains": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "referring_main_domains": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "referring_pages": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "referring_ips": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "referring_subnets": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "crawled_pages": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "broken_backlinks": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "broken_pages": {
+             "anyOf": [
+              {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              {
+               "type": "null"
+              }
+             ]
+            }
+           },
+           "required": [
+            "backlinks",
+            "referring_domains",
+            "referring_main_domains",
+            "referring_pages",
+            "referring_ips",
+            "referring_subnets",
+            "crawled_pages",
+            "broken_backlinks",
+            "broken_pages"
+           ],
+           "additionalProperties": false
+          },
+          "provider_metrics": {
+           "anyOf": [
+            {
+             "type": "object",
+             "properties": {
+              "dataforseo": {
+               "type": "object",
+               "properties": {
+                "rank": {
+                 "anyOf": [
+                  {
+                   "type": "integer",
+                   "minimum": 0,
+                   "maximum": 1000
+                  },
+                  {
+                   "type": "null"
+                  }
+                 ]
+                },
+                "backlinks_spam_score": {
+                 "anyOf": [
+                  {
+                   "type": "integer",
+                   "minimum": 0,
+                   "maximum": 100
+                  },
+                  {
+                   "type": "null"
+                  }
+                 ]
+                },
+                "rank_scale": {
+                 "type": "string",
+                 "const": "one_thousand"
+                }
+               },
+               "required": [
+                "rank",
+                "backlinks_spam_score",
+                "rank_scale"
+               ],
+               "additionalProperties": false
+              }
+             },
+             "required": [
+              "dataforseo"
+             ],
+             "additionalProperties": false
+            },
+            {
+             "type": "object",
+             "properties": {
+              "linktrail_corpus": {
+               "type": "object",
+               "properties": {
+                "corpus_source_pages": {
+                 "anyOf": [
+                  {
+                   "type": "integer",
+                   "minimum": 0,
+                   "maximum": 9007199254740991
+                  },
+                  {
+                   "type": "null"
+                  }
+                 ]
+                },
+                "corpus_last_expanded_at": {
+                 "anyOf": [
+                  {
+                   "type": "string",
+                   "format": "date-time",
+                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+                  },
+                  {
+                   "type": "null"
+                  }
+                 ]
+                }
+               },
+               "required": [
+                "corpus_source_pages",
+                "corpus_last_expanded_at"
+               ],
+               "additionalProperties": false
+              }
+             },
+             "required": [
+              "linktrail_corpus"
+             ],
+             "additionalProperties": false
+            }
+           ]
+          }
+         },
+         "required": [
+          "v",
+          "overview_run_id",
+          "workspace_id",
+          "project_id",
+          "provider",
+          "data_mode",
+          "provider_retrieved_at",
+          "provider_first_seen",
+          "provider_lost_date",
+          "verified_at",
+          "coverage",
+          "counts",
+          "provider_metrics"
+         ],
+         "additionalProperties": false
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "counts": {
+       "type": "object",
+       "properties": {
+        "indexed_total": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_candidates": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "selected_checks": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10
+        },
+        "checked": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10
+        },
+        "present": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10
+        },
+        "absent": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10
+        },
+        "source_unavailable": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10
+        },
+        "unknown": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10
+        }
+       },
+       "required": [
+        "indexed_total",
+        "retrieved_candidates",
+        "selected_checks",
+        "checked",
+        "present",
+        "absent",
+        "source_unavailable",
+        "unknown"
+       ],
+       "additionalProperties": false
+      },
+      "coverage": {
+       "type": "object",
+       "properties": {
+        "whole_web": {
+         "type": "boolean",
+         "const": false
+        },
+        "sample": {
+         "type": "boolean",
+         "const": true
+        },
+        "ordering": {
+         "type": "string",
+         "const": "rank,desc"
+        },
+        "reason": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "whole_web",
+        "sample",
+        "ordering",
+        "reason"
+       ],
+       "additionalProperties": false
+      },
+      "selection": {
+       "type": "object",
+       "properties": {
+        "policy": {
+         "type": "string",
+         "const": "distinct-host-target-order-v1"
+        },
+        "manifest_hash": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-f0-9]{64}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "candidate_ids": {
+         "maxItems": 10,
+         "type": "array",
+         "items": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+         }
+        },
+        "render_limit": {
+         "type": "number",
+         "const": 0
+        }
+       },
+       "required": [
+        "policy",
+        "manifest_hash",
+        "candidate_ids",
+        "render_limit"
+       ],
+       "additionalProperties": false
+      },
+      "recurring_monitoring_created": {
+       "type": "boolean",
+       "const": false
+      },
+      "recovery": {
+       "type": "string",
+       "enum": [
+        "read_saved_run",
+        "reconcile_receipt",
+        "explicit_new_offer"
+       ]
+      },
+      "replayed": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "schema_version",
+      "id",
+      "workspace_id",
+      "project_id",
+      "scope",
+      "source",
+      "data_mode",
+      "state",
+      "created_at",
+      "updated_at",
+      "execution_deadline",
+      "timing",
+      "components",
+      "summary",
+      "counts",
+      "coverage",
+      "selection",
+      "recurring_monitoring_created",
+      "recovery"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "schema_version",
+    "kind"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "start_domain_baseline",
+  "toolset": "baseline",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain baseline",
+   "onboarding",
+   "backlinks"
+  ],
+  "confirm": "none",
+  "admissionGated": true,
+  "scopes": [
+   "discovery:read",
+   "watches:read",
+   "discovery:write",
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Start a baseline. Requires a prepared offer, explicit consent and a retry key. Returns the same durable baseline on replay. Admission is disabled until supplier prerequisites are recorded; retries cannot activate it.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "offerId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the offer returned by its create or list operation."
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "pattern": "^[\\x21-\\x7e]{1,200}$",
+     "description": "Caller-generated key reused only for retries of the same operation and arguments in this workspace."
+    },
+    "consent": {
+     "type": "boolean",
+     "const": true,
+     "description": "The consent value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "offerId",
+    "idempotencyKey",
+    "consent"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "anyOf": [
+      {
+       "type": "number",
+       "const": 1
+      },
+      {
+       "type": "number",
+       "const": 2
+      }
+     ]
+    },
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "workspace_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "scope": {
+     "type": "object",
+     "properties": {
+      "domain": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 253
+      },
+      "include_subdomains": {
+       "type": "boolean"
+      },
+      "website_revision": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "query_version": {
+       "type": "string",
+       "const": "dataforseo-as-is-v1"
+      }
+     },
+     "required": [
+      "domain",
+      "include_subdomains",
+      "website_revision",
+      "query_version"
+     ],
+     "additionalProperties": false
+    },
+    "source": {
+     "type": "string",
+     "const": "dataforseo"
+    },
+    "data_mode": {
+     "type": "string",
+     "enum": [
+      "synthetic",
+      "provider_index"
+     ]
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "queued",
+      "fetching",
+      "checking",
+      "ready",
+      "partial",
+      "empty",
+      "failed",
+      "cancelled",
+      "reconciliation_required"
+     ]
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "updated_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "execution_deadline": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "timing": {
+     "type": "object",
+     "properties": {
+      "first_result_at": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "finished_at": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "first_result_ms": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "first_result_at",
+      "finished_at",
+      "first_result_ms"
+     ],
+     "additionalProperties": false
+    },
+    "components": {
+     "type": "object",
+     "properties": {
+      "summary": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      },
+      "list": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      },
+      "checks": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "summary",
+      "list",
+      "checks"
+     ],
+     "additionalProperties": false
+    },
+    "summary": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "v": {
+         "type": "number",
+         "const": 1
+        },
+        "overview_run_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "workspace_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "project_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "provider": {
+         "type": "string",
+         "enum": [
+          "linktrail_corpus",
+          "dataforseo",
+          "imported"
+         ]
+        },
+        "data_mode": {
+         "type": "string",
+         "enum": [
+          "synthetic",
+          "owned_corpus",
+          "provider_index",
+          "imported"
+         ]
+        },
+        "provider_retrieved_at": {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        "provider_first_seen": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "provider_lost_date": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "verified_at": {
+         "type": "null"
+        },
+        "coverage": {
+         "type": "string",
+         "enum": [
+          "provider_summary",
+          "corpus_subset",
+          "partial"
+         ]
+        },
+        "counts": {
+         "type": "object",
+         "properties": {
+          "backlinks": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_domains": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_main_domains": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_ips": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_subnets": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "crawled_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "broken_backlinks": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "broken_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "backlinks",
+          "referring_domains",
+          "referring_main_domains",
+          "referring_pages",
+          "referring_ips",
+          "referring_subnets",
+          "crawled_pages",
+          "broken_backlinks",
+          "broken_pages"
+         ],
+         "additionalProperties": false
+        },
+        "provider_metrics": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "dataforseo": {
+             "type": "object",
+             "properties": {
+              "rank": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 1000
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "backlinks_spam_score": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 100
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "rank_scale": {
+               "type": "string",
+               "const": "one_thousand"
+              }
+             },
+             "required": [
+              "rank",
+              "backlinks_spam_score",
+              "rank_scale"
+             ],
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "dataforseo"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "linktrail_corpus": {
+             "type": "object",
+             "properties": {
+              "corpus_source_pages": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 9007199254740991
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "corpus_last_expanded_at": {
+               "anyOf": [
+                {
+                 "type": "string",
+                 "format": "date-time",
+                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              }
+             },
+             "required": [
+              "corpus_source_pages",
+              "corpus_last_expanded_at"
+             ],
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "linktrail_corpus"
+           ],
+           "additionalProperties": false
+          }
+         ]
+        }
+       },
+       "required": [
+        "v",
+        "overview_run_id",
+        "workspace_id",
+        "project_id",
+        "provider",
+        "data_mode",
+        "provider_retrieved_at",
+        "provider_first_seen",
+        "provider_lost_date",
+        "verified_at",
+        "coverage",
+        "counts",
+        "provider_metrics"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "indexed_total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "retrieved_candidates": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "selected_checks": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "checked": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "present": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "absent": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "source_unavailable": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "unknown": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      }
+     },
+     "required": [
+      "indexed_total",
+      "retrieved_candidates",
+      "selected_checks",
+      "checked",
+      "present",
+      "absent",
+      "source_unavailable",
+      "unknown"
+     ],
+     "additionalProperties": false
+    },
+    "coverage": {
+     "type": "object",
+     "properties": {
+      "whole_web": {
+       "type": "boolean",
+       "const": false
+      },
+      "sample": {
+       "type": "boolean",
+       "const": true
+      },
+      "ordering": {
+       "type": "string",
+       "const": "rank,desc"
+      },
+      "reason": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 80
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "whole_web",
+      "sample",
+      "ordering",
+      "reason"
+     ],
+     "additionalProperties": false
+    },
+    "selection": {
+     "type": "object",
+     "properties": {
+      "policy": {
+       "type": "string",
+       "const": "distinct-host-target-order-v1"
+      },
+      "manifest_hash": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "candidate_ids": {
+       "maxItems": 10,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       }
+      },
+      "render_limit": {
+       "type": "number",
+       "const": 0
+      }
+     },
+     "required": [
+      "policy",
+      "manifest_hash",
+      "candidate_ids",
+      "render_limit"
+     ],
+     "additionalProperties": false
+    },
+    "recurring_monitoring_created": {
+     "type": "boolean",
+     "const": false
+    },
+    "recovery": {
+     "type": "string",
+     "enum": [
+      "read_saved_run",
+      "reconcile_receipt",
+      "explicit_new_offer"
+     ]
+    },
+    "replayed": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "schema_version",
+    "id",
+    "workspace_id",
+    "project_id",
+    "scope",
+    "source",
+    "data_mode",
+    "state",
+    "created_at",
+    "updated_at",
+    "execution_deadline",
+    "timing",
+    "components",
+    "summary",
+    "counts",
+    "coverage",
+    "selection",
+    "recurring_monitoring_created",
+    "recovery"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "get_domain_baseline",
+  "toolset": "baseline",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain baseline",
+   "onboarding",
+   "backlinks"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read",
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read a saved baseline. Counts separate indexed, retrieved and independently checked links. Unknown outcomes remain unknown. Reads never refresh the sample, purchase requests or enroll monitors.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "runId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the run returned by its create or list operation."
+    }
+   },
+   "required": [
+    "runId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "anyOf": [
+      {
+       "type": "number",
+       "const": 1
+      },
+      {
+       "type": "number",
+       "const": 2
+      }
+     ]
+    },
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "workspace_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "scope": {
+     "type": "object",
+     "properties": {
+      "domain": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 253
+      },
+      "include_subdomains": {
+       "type": "boolean"
+      },
+      "website_revision": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "query_version": {
+       "type": "string",
+       "const": "dataforseo-as-is-v1"
+      }
+     },
+     "required": [
+      "domain",
+      "include_subdomains",
+      "website_revision",
+      "query_version"
+     ],
+     "additionalProperties": false
+    },
+    "source": {
+     "type": "string",
+     "const": "dataforseo"
+    },
+    "data_mode": {
+     "type": "string",
+     "enum": [
+      "synthetic",
+      "provider_index"
+     ]
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "queued",
+      "fetching",
+      "checking",
+      "ready",
+      "partial",
+      "empty",
+      "failed",
+      "cancelled",
+      "reconciliation_required"
+     ]
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "updated_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "execution_deadline": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "timing": {
+     "type": "object",
+     "properties": {
+      "first_result_at": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "finished_at": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "first_result_ms": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "first_result_at",
+      "finished_at",
+      "first_result_ms"
+     ],
+     "additionalProperties": false
+    },
+    "components": {
+     "type": "object",
+     "properties": {
+      "summary": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      },
+      "list": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      },
+      "checks": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "summary",
+      "list",
+      "checks"
+     ],
+     "additionalProperties": false
+    },
+    "summary": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "v": {
+         "type": "number",
+         "const": 1
+        },
+        "overview_run_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "workspace_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "project_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "provider": {
+         "type": "string",
+         "enum": [
+          "linktrail_corpus",
+          "dataforseo",
+          "imported"
+         ]
+        },
+        "data_mode": {
+         "type": "string",
+         "enum": [
+          "synthetic",
+          "owned_corpus",
+          "provider_index",
+          "imported"
+         ]
+        },
+        "provider_retrieved_at": {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        "provider_first_seen": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "provider_lost_date": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "verified_at": {
+         "type": "null"
+        },
+        "coverage": {
+         "type": "string",
+         "enum": [
+          "provider_summary",
+          "corpus_subset",
+          "partial"
+         ]
+        },
+        "counts": {
+         "type": "object",
+         "properties": {
+          "backlinks": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_domains": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_main_domains": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_ips": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_subnets": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "crawled_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "broken_backlinks": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "broken_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "backlinks",
+          "referring_domains",
+          "referring_main_domains",
+          "referring_pages",
+          "referring_ips",
+          "referring_subnets",
+          "crawled_pages",
+          "broken_backlinks",
+          "broken_pages"
+         ],
+         "additionalProperties": false
+        },
+        "provider_metrics": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "dataforseo": {
+             "type": "object",
+             "properties": {
+              "rank": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 1000
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "backlinks_spam_score": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 100
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "rank_scale": {
+               "type": "string",
+               "const": "one_thousand"
+              }
+             },
+             "required": [
+              "rank",
+              "backlinks_spam_score",
+              "rank_scale"
+             ],
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "dataforseo"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "linktrail_corpus": {
+             "type": "object",
+             "properties": {
+              "corpus_source_pages": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 9007199254740991
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "corpus_last_expanded_at": {
+               "anyOf": [
+                {
+                 "type": "string",
+                 "format": "date-time",
+                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              }
+             },
+             "required": [
+              "corpus_source_pages",
+              "corpus_last_expanded_at"
+             ],
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "linktrail_corpus"
+           ],
+           "additionalProperties": false
+          }
+         ]
+        }
+       },
+       "required": [
+        "v",
+        "overview_run_id",
+        "workspace_id",
+        "project_id",
+        "provider",
+        "data_mode",
+        "provider_retrieved_at",
+        "provider_first_seen",
+        "provider_lost_date",
+        "verified_at",
+        "coverage",
+        "counts",
+        "provider_metrics"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "indexed_total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "retrieved_candidates": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "selected_checks": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "checked": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "present": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "absent": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "source_unavailable": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "unknown": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      }
+     },
+     "required": [
+      "indexed_total",
+      "retrieved_candidates",
+      "selected_checks",
+      "checked",
+      "present",
+      "absent",
+      "source_unavailable",
+      "unknown"
+     ],
+     "additionalProperties": false
+    },
+    "coverage": {
+     "type": "object",
+     "properties": {
+      "whole_web": {
+       "type": "boolean",
+       "const": false
+      },
+      "sample": {
+       "type": "boolean",
+       "const": true
+      },
+      "ordering": {
+       "type": "string",
+       "const": "rank,desc"
+      },
+      "reason": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 80
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "whole_web",
+      "sample",
+      "ordering",
+      "reason"
+     ],
+     "additionalProperties": false
+    },
+    "selection": {
+     "type": "object",
+     "properties": {
+      "policy": {
+       "type": "string",
+       "const": "distinct-host-target-order-v1"
+      },
+      "manifest_hash": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "candidate_ids": {
+       "maxItems": 10,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       }
+      },
+      "render_limit": {
+       "type": "number",
+       "const": 0
+      }
+     },
+     "required": [
+      "policy",
+      "manifest_hash",
+      "candidate_ids",
+      "render_limit"
+     ],
+     "additionalProperties": false
+    },
+    "recurring_monitoring_created": {
+     "type": "boolean",
+     "const": false
+    },
+    "recovery": {
+     "type": "string",
+     "enum": [
+      "read_saved_run",
+      "reconcile_receipt",
+      "explicit_new_offer"
+     ]
+    },
+    "replayed": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "schema_version",
+    "id",
+    "workspace_id",
+    "project_id",
+    "scope",
+    "source",
+    "data_mode",
+    "state",
+    "created_at",
+    "updated_at",
+    "execution_deadline",
+    "timing",
+    "components",
+    "summary",
+    "counts",
+    "coverage",
+    "selection",
+    "recurring_monitoring_created",
+    "recovery"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "list_domain_baseline_candidates",
+  "toolset": "baseline",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain baseline",
+   "onboarding",
+   "backlinks"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read",
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Page baseline candidates. Retains source provenance and exact baseline/discovery identities. Defaults to 25 rows, maximum 100 and 64 KiB. Continue using the scoped cursor. Indexed status is not an independent check.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "runId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the run returned by its create or list operation."
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "maxLength": 1024
+    }
+   },
+   "required": [
+    "runId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "anyOf": [
+      {
+       "type": "number",
+       "const": 1
+      },
+      {
+       "type": "number",
+       "const": 2
+      }
+     ]
+    },
+    "baseline_run_id": {
+     "type": "string"
+    },
+    "discovery_run_id": {
+     "type": "string"
+    },
+    "scope": {
+     "type": "object",
+     "properties": {
+      "domain": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 253
+      },
+      "include_subdomains": {
+       "type": "boolean"
+      },
+      "website_revision": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "query_version": {
+       "type": "string",
+       "const": "dataforseo-as-is-v1"
+      }
+     },
+     "required": [
+      "domain",
+      "include_subdomains",
+      "website_revision",
+      "query_version"
+     ],
+     "additionalProperties": false
+    },
+    "coverage": {
+     "type": "object",
+     "properties": {
+      "whole_web": {
+       "type": "boolean",
+       "const": false
+      },
+      "sample": {
+       "type": "boolean",
+       "const": true
+      },
+      "ordering": {
+       "type": "string",
+       "const": "rank,desc"
+      },
+      "reason": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 80
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "whole_web",
+      "sample",
+      "ordering",
+      "reason"
+     ],
+     "additionalProperties": false
+    },
+    "items": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "v": {
+        "type": "number",
+        "const": 1
+       },
+       "id": {
+        "type": "string",
+        "pattern": "^dc_[a-f0-9]{64}$"
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[a-zA-Z0-9_-]+$"
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[a-zA-Z0-9_-]+$"
+       },
+       "discovery_run_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[a-zA-Z0-9_-]+$"
+       },
+       "source_url": {
+        "type": "string",
+        "maxLength": 4096
+       },
+       "target_url": {
+        "type": "string",
+        "maxLength": 4096
+       },
+       "provider": {
+        "type": "string",
+        "enum": [
+         "linktrail_corpus",
+         "dataforseo",
+         "imported"
+        ]
+       },
+       "data_mode": {
+        "type": "string",
+        "enum": [
+         "synthetic",
+         "owned_corpus",
+         "provider_index",
+         "imported"
+        ]
+       },
+       "provider_retrieved_at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+       },
+       "provider_first_seen": {
+        "anyOf": [
+         {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "provider_prev_seen": {
+        "anyOf": [
+         {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "provider_last_seen": {
+        "anyOf": [
+         {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "provider_status": {
+        "type": "object",
+        "properties": {
+         "is_lost": {
+          "type": [
+           "boolean",
+           "null"
+          ]
+         },
+         "is_broken": {
+          "type": [
+           "boolean",
+           "null"
+          ]
+         },
+         "is_new": {
+          "type": [
+           "boolean",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "is_lost",
+         "is_broken",
+         "is_new"
+        ],
+        "additionalProperties": false
+       },
+       "anchor": {
+        "anyOf": [
+         {
+          "type": "string",
+          "maxLength": 4096
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "rel": {
+        "anyOf": [
+         {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 128
+          }
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "dofollow": {
+        "type": [
+         "boolean",
+         "null"
+        ]
+       },
+       "link_type": {
+        "anyOf": [
+         {
+          "type": "string",
+          "maxLength": 64
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "source_http_status": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "target_http_status": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "links_count": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "provider_metrics": {
+        "anyOf": [
+         {
+          "type": "object",
+          "properties": {
+           "dataforseo": {
+            "type": "object",
+            "properties": {
+             "rank": {
+              "anyOf": [
+               {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "page_from_rank": {
+              "anyOf": [
+               {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "domain_from_rank": {
+              "anyOf": [
+               {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "backlink_spam_score": {
+              "anyOf": [
+               {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "rank_scale": {
+              "type": "string",
+              "const": "one_thousand"
+             }
+            },
+            "required": [
+             "rank",
+             "page_from_rank",
+             "domain_from_rank",
+             "backlink_spam_score",
+             "rank_scale"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "dataforseo"
+          ],
+          "additionalProperties": false
+         },
+         {
+          "type": "object",
+          "properties": {
+           "imported": {
+            "type": "object",
+            "properties": {
+             "supplier": {
+              "type": "string",
+              "enum": [
+               "ahrefs",
+               "google_search_console",
+               "bing_webmaster_tools",
+               "semrush",
+               "majestic",
+               "moz",
+               "dataforseo",
+               "linkody",
+               "csv"
+              ]
+             },
+             "supplier_row_id": {
+              "anyOf": [
+               {
+                "type": "string",
+                "maxLength": 256
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "supplier_generated_at": {
+              "anyOf": [
+               {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "supplier_metrics": {
+              "anyOf": [
+               {
+                "type": "object",
+                "propertyNames": {
+                 "type": "string",
+                 "minLength": 1,
+                 "maxLength": 64
+                },
+                "additionalProperties": {
+                 "anyOf": [
+                  {
+                   "type": "number"
+                  },
+                  {
+                   "type": "string",
+                   "maxLength": 256
+                  },
+                  {
+                   "type": "null"
+                  }
+                 ]
+                }
+               },
+               {
+                "type": "null"
+               }
+              ]
+             }
+            },
+            "required": [
+             "supplier",
+             "supplier_row_id",
+             "supplier_generated_at",
+             "supplier_metrics"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "imported"
+          ],
+          "additionalProperties": false
+         },
+         {
+          "type": "object",
+          "properties": {
+           "linktrail_corpus": {
+            "type": "object",
+            "properties": {
+             "source_outlink_count": {
+              "anyOf": [
+               {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "source_external_outlink_count": {
+              "anyOf": [
+               {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "fetch_kind": {
+              "type": "string",
+              "enum": [
+               "direct",
+               "rendered",
+               "proxied"
+              ]
+             },
+             "extraction_complete": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "source_outlink_count",
+             "source_external_outlink_count",
+             "fetch_kind",
+             "extraction_complete"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "linktrail_corpus"
+          ],
+          "additionalProperties": false
+         }
+        ]
+       },
+       "verification_status": {
+        "type": "string",
+        "enum": [
+         "not_checked",
+         "present",
+         "absent",
+         "unknown",
+         "source_unavailable"
+        ]
+       },
+       "verified_at": {
+        "anyOf": [
+         {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "observation_id": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [
+       "v",
+       "id",
+       "workspace_id",
+       "project_id",
+       "discovery_run_id",
+       "source_url",
+       "target_url",
+       "provider",
+       "data_mode",
+       "provider_retrieved_at",
+       "provider_first_seen",
+       "provider_prev_seen",
+       "provider_last_seen",
+       "provider_status",
+       "anchor",
+       "rel",
+       "dofollow",
+       "link_type",
+       "source_http_status",
+       "target_http_status",
+       "links_count",
+       "provider_metrics",
+       "verification_status",
+       "verified_at",
+       "observation_id"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "truncated": {
+     "type": "boolean"
+    },
+    "snapshot": {
+     "type": "object",
+     "properties": {
+      "through_provider_page": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "refresh_from_start_for_new_results": {
+       "type": "boolean",
+       "const": true
+      }
+     },
+     "required": [
+      "through_provider_page",
+      "refresh_from_start_for_new_results"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "schema_version",
+    "baseline_run_id",
+    "discovery_run_id",
+    "scope",
+    "coverage",
+    "items",
+    "has_more",
+    "next_cursor",
+    "truncated",
+    "snapshot"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "cancel_domain_baseline",
+  "toolset": "baseline",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain baseline",
+   "onboarding",
+   "backlinks"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read",
+   "watches:read",
+   "discovery:write",
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Cancel baseline work. Releases unused grants and undispatched work. Sent or ambiguous supplier requests retain their accounting and evidence. Existing recurring monitor preferences remain unchanged.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "runId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the run returned by its create or list operation."
+    }
+   },
+   "required": [
+    "runId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "anyOf": [
+      {
+       "type": "number",
+       "const": 1
+      },
+      {
+       "type": "number",
+       "const": 2
+      }
+     ]
+    },
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "workspace_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "scope": {
+     "type": "object",
+     "properties": {
+      "domain": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 253
+      },
+      "include_subdomains": {
+       "type": "boolean"
+      },
+      "website_revision": {
+       "type": "string",
+       "pattern": "^[a-f0-9]{64}$"
+      },
+      "query_version": {
+       "type": "string",
+       "const": "dataforseo-as-is-v1"
+      }
+     },
+     "required": [
+      "domain",
+      "include_subdomains",
+      "website_revision",
+      "query_version"
+     ],
+     "additionalProperties": false
+    },
+    "source": {
+     "type": "string",
+     "const": "dataforseo"
+    },
+    "data_mode": {
+     "type": "string",
+     "enum": [
+      "synthetic",
+      "provider_index"
+     ]
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "queued",
+      "fetching",
+      "checking",
+      "ready",
+      "partial",
+      "empty",
+      "failed",
+      "cancelled",
+      "reconciliation_required"
+     ]
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "updated_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "execution_deadline": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "timing": {
+     "type": "object",
+     "properties": {
+      "first_result_at": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "finished_at": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "first_result_ms": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "first_result_at",
+      "finished_at",
+      "first_result_ms"
+     ],
+     "additionalProperties": false
+    },
+    "components": {
+     "type": "object",
+     "properties": {
+      "summary": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      },
+      "list": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      },
+      "checks": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "partial",
+          "empty",
+          "failed",
+          "cancelled",
+          "reconciliation_required"
+         ]
+        },
+        "run_id": {
+         "anyOf": [
+          {
+           "type": "string",
+           "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retrieved_at": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "error_code": {
+         "anyOf": [
+          {
+           "type": "string",
+           "maxLength": 80
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "run_id",
+        "retrieved_at",
+        "error_code"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "summary",
+      "list",
+      "checks"
+     ],
+     "additionalProperties": false
+    },
+    "summary": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "v": {
+         "type": "number",
+         "const": 1
+        },
+        "overview_run_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "workspace_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "project_id": {
+         "type": "string",
+         "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "provider": {
+         "type": "string",
+         "enum": [
+          "linktrail_corpus",
+          "dataforseo",
+          "imported"
+         ]
+        },
+        "data_mode": {
+         "type": "string",
+         "enum": [
+          "synthetic",
+          "owned_corpus",
+          "provider_index",
+          "imported"
+         ]
+        },
+        "provider_retrieved_at": {
+         "type": "string",
+         "format": "date-time",
+         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+        },
+        "provider_first_seen": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "provider_lost_date": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "verified_at": {
+         "type": "null"
+        },
+        "coverage": {
+         "type": "string",
+         "enum": [
+          "provider_summary",
+          "corpus_subset",
+          "partial"
+         ]
+        },
+        "counts": {
+         "type": "object",
+         "properties": {
+          "backlinks": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_domains": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_main_domains": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_ips": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "referring_subnets": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "crawled_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "broken_backlinks": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "broken_pages": {
+           "anyOf": [
+            {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "backlinks",
+          "referring_domains",
+          "referring_main_domains",
+          "referring_pages",
+          "referring_ips",
+          "referring_subnets",
+          "crawled_pages",
+          "broken_backlinks",
+          "broken_pages"
+         ],
+         "additionalProperties": false
+        },
+        "provider_metrics": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "dataforseo": {
+             "type": "object",
+             "properties": {
+              "rank": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 1000
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "backlinks_spam_score": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 100
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "rank_scale": {
+               "type": "string",
+               "const": "one_thousand"
+              }
+             },
+             "required": [
+              "rank",
+              "backlinks_spam_score",
+              "rank_scale"
+             ],
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "dataforseo"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "linktrail_corpus": {
+             "type": "object",
+             "properties": {
+              "corpus_source_pages": {
+               "anyOf": [
+                {
+                 "type": "integer",
+                 "minimum": 0,
+                 "maximum": 9007199254740991
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "corpus_last_expanded_at": {
+               "anyOf": [
+                {
+                 "type": "string",
+                 "format": "date-time",
+                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              }
+             },
+             "required": [
+              "corpus_source_pages",
+              "corpus_last_expanded_at"
+             ],
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "linktrail_corpus"
+           ],
+           "additionalProperties": false
+          }
+         ]
+        }
+       },
+       "required": [
+        "v",
+        "overview_run_id",
+        "workspace_id",
+        "project_id",
+        "provider",
+        "data_mode",
+        "provider_retrieved_at",
+        "provider_first_seen",
+        "provider_lost_date",
+        "verified_at",
+        "coverage",
+        "counts",
+        "provider_metrics"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "indexed_total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "retrieved_candidates": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "selected_checks": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "checked": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "present": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "absent": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "source_unavailable": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      },
+      "unknown": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 10
+      }
+     },
+     "required": [
+      "indexed_total",
+      "retrieved_candidates",
+      "selected_checks",
+      "checked",
+      "present",
+      "absent",
+      "source_unavailable",
+      "unknown"
+     ],
+     "additionalProperties": false
+    },
+    "coverage": {
+     "type": "object",
+     "properties": {
+      "whole_web": {
+       "type": "boolean",
+       "const": false
+      },
+      "sample": {
+       "type": "boolean",
+       "const": true
+      },
+      "ordering": {
+       "type": "string",
+       "const": "rank,desc"
+      },
+      "reason": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 80
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "whole_web",
+      "sample",
+      "ordering",
+      "reason"
+     ],
+     "additionalProperties": false
+    },
+    "selection": {
+     "type": "object",
+     "properties": {
+      "policy": {
+       "type": "string",
+       "const": "distinct-host-target-order-v1"
+      },
+      "manifest_hash": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "candidate_ids": {
+       "maxItems": 10,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       }
+      },
+      "render_limit": {
+       "type": "number",
+       "const": 0
+      }
+     },
+     "required": [
+      "policy",
+      "manifest_hash",
+      "candidate_ids",
+      "render_limit"
+     ],
+     "additionalProperties": false
+    },
+    "recurring_monitoring_created": {
+     "type": "boolean",
+     "const": false
+    },
+    "recovery": {
+     "type": "string",
+     "enum": [
+      "read_saved_run",
+      "reconcile_receipt",
+      "explicit_new_offer"
+     ]
+    },
+    "replayed": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "schema_version",
+    "id",
+    "workspace_id",
+    "project_id",
+    "scope",
+    "source",
+    "data_mode",
+    "state",
+    "created_at",
+    "updated_at",
+    "execution_deadline",
+    "timing",
+    "components",
+    "summary",
+    "counts",
+    "coverage",
+    "selection",
+    "recurring_monitoring_created",
+    "recovery"
+   ],
+   "additionalProperties": false
+  }
+ },
  {
   "name": "get_profile_distributions",
   "toolset": "reports",
@@ -1685,6 +6751,1357 @@ export const CATALOG_COMMANDS = [
     "notes"
    ],
    "additionalProperties": {}
+  }
+ },
+ {
+  "name": "create_rank_schedule",
+  "toolset": "rank",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain rank",
+   "dataforseo",
+   "schedule",
+   "rank monitoring"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:write"
+  ],
+  "readOnly": false,
+  "description": "Configure synthetic DataForSEO rank monitoring. Hosted enrollment is disabled; no supplier call or Ahrefs DR.",
+  "examples": [
+   {
+    "scheduleId": "rank_example",
+    "projectId": "pr_01example",
+    "target": "example.com",
+    "anchorAt": "2026-09-30T00:00:00.000Z"
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "scheduleId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the schedule returned by its create or list operation."
+    },
+    "projectId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "target": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 253,
+     "description": "Exact URL or domain to query, interpreted according to targetKind."
+    },
+    "includeSubdomains": {
+     "description": "Include subdomains of the selected domain in this query.",
+     "type": "boolean"
+    },
+    "anchorAt": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+     "description": "The anchor at value; allowed values and bounds are specified in this schema."
+    },
+    "cadenceSeconds": {
+     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 2592000
+    },
+    "staleAfterSeconds": {
+     "description": "The stale after seconds value; allowed values and bounds are specified in this schema.",
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 5184000
+    },
+    "alerts": {
+     "description": "The alerts value; allowed values and bounds are specified in this schema.",
+     "type": "object",
+     "properties": {
+      "enabled": {
+       "type": "boolean"
+      },
+      "direction": {
+       "type": "string",
+       "enum": [
+        "increase",
+        "decrease",
+        "either"
+       ]
+      },
+      "minimumChange": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 1000
+      }
+     },
+     "required": [
+      "enabled",
+      "direction",
+      "minimumChange"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "scheduleId",
+    "projectId",
+    "target",
+    "anchorAt"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "collection_revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "config_version": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "provider": {
+     "type": "string",
+     "const": "dataforseo"
+    },
+    "data_mode": {
+     "type": "string",
+     "const": "synthetic"
+    },
+    "metric": {
+     "type": "string",
+     "const": "rank"
+    },
+    "rank_scale": {
+     "type": "string",
+     "const": "one_thousand"
+    },
+    "target": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 253
+    },
+    "include_subdomains": {
+     "type": "boolean"
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "active",
+      "paused"
+     ]
+    },
+    "anchor_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "cadence_seconds": {
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 2592000
+    },
+    "stale_after_seconds": {
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 5184000
+    },
+    "alerts": {
+     "type": "object",
+     "properties": {
+      "enabled": {
+       "type": "boolean"
+      },
+      "direction": {
+       "type": "string",
+       "enum": [
+        "increase",
+        "decrease",
+        "either"
+       ]
+      },
+      "minimum_change": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 1000
+      }
+     },
+     "required": [
+      "enabled",
+      "direction",
+      "minimum_change"
+     ],
+     "additionalProperties": false
+    },
+    "last_admitted_slot": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time",
+       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "updated_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "availability": {
+     "type": "object",
+     "properties": {
+      "collection": {
+       "type": "string",
+       "enum": [
+        "disabled",
+        "synthetic"
+       ]
+      },
+      "alert_delivery": {
+       "type": "string",
+       "const": "not_enabled"
+      }
+     },
+     "required": [
+      "collection",
+      "alert_delivery"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "id",
+    "project_id",
+    "collection_revision",
+    "config_version",
+    "provider",
+    "data_mode",
+    "metric",
+    "rank_scale",
+    "target",
+    "include_subdomains",
+    "state",
+    "anchor_at",
+    "cadence_seconds",
+    "stale_after_seconds",
+    "alerts",
+    "last_admitted_slot",
+    "created_at",
+    "updated_at",
+    "availability"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "list_rank_schedules",
+  "toolset": "rank",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain rank",
+   "rank monitoring",
+   "schedules"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "List authorized rank schedules. Active configuration does not prove hosted collection is enabled.",
+  "examples": [
+   {
+    "limit": 50
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "description": "Identifier of the project returned by its create or list operation.",
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 1024
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "project_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "collection_revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "config_version": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "provider": {
+        "type": "string",
+        "const": "dataforseo"
+       },
+       "data_mode": {
+        "type": "string",
+        "const": "synthetic"
+       },
+       "metric": {
+        "type": "string",
+        "const": "rank"
+       },
+       "rank_scale": {
+        "type": "string",
+        "const": "one_thousand"
+       },
+       "target": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 253
+       },
+       "include_subdomains": {
+        "type": "boolean"
+       },
+       "state": {
+        "type": "string",
+        "enum": [
+         "active",
+         "paused"
+        ]
+       },
+       "anchor_at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+       },
+       "cadence_seconds": {
+        "type": "integer",
+        "minimum": 86400,
+        "maximum": 2592000
+       },
+       "stale_after_seconds": {
+        "type": "integer",
+        "minimum": 86400,
+        "maximum": 5184000
+       },
+       "alerts": {
+        "type": "object",
+        "properties": {
+         "enabled": {
+          "type": "boolean"
+         },
+         "direction": {
+          "type": "string",
+          "enum": [
+           "increase",
+           "decrease",
+           "either"
+          ]
+         },
+         "minimum_change": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+         }
+        },
+        "required": [
+         "enabled",
+         "direction",
+         "minimum_change"
+        ],
+        "additionalProperties": false
+       },
+       "last_admitted_slot": {
+        "anyOf": [
+         {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+       },
+       "updated_at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+       },
+       "availability": {
+        "type": "object",
+        "properties": {
+         "collection": {
+          "type": "string",
+          "enum": [
+           "disabled",
+           "synthetic"
+          ]
+         },
+         "alert_delivery": {
+          "type": "string",
+          "const": "not_enabled"
+         }
+        },
+        "required": [
+         "collection",
+         "alert_delivery"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "required": [
+       "id",
+       "project_id",
+       "collection_revision",
+       "config_version",
+       "provider",
+       "data_mode",
+       "metric",
+       "rank_scale",
+       "target",
+       "include_subdomains",
+       "state",
+       "anchor_at",
+       "cadence_seconds",
+       "stale_after_seconds",
+       "alerts",
+       "last_admitted_slot",
+       "created_at",
+       "updated_at",
+       "availability"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 1024
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "items",
+    "has_more",
+    "next_cursor"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "get_rank_schedule",
+  "toolset": "rank",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain rank",
+   "rank monitoring",
+   "version"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Read one rank schedule, version and collection availability. No supplier request.",
+  "examples": [
+   {
+    "scheduleId": "rank_example"
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "scheduleId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the schedule returned by its create or list operation."
+    }
+   },
+   "required": [
+    "scheduleId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "collection_revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "config_version": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "provider": {
+     "type": "string",
+     "const": "dataforseo"
+    },
+    "data_mode": {
+     "type": "string",
+     "const": "synthetic"
+    },
+    "metric": {
+     "type": "string",
+     "const": "rank"
+    },
+    "rank_scale": {
+     "type": "string",
+     "const": "one_thousand"
+    },
+    "target": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 253
+    },
+    "include_subdomains": {
+     "type": "boolean"
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "active",
+      "paused"
+     ]
+    },
+    "anchor_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "cadence_seconds": {
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 2592000
+    },
+    "stale_after_seconds": {
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 5184000
+    },
+    "alerts": {
+     "type": "object",
+     "properties": {
+      "enabled": {
+       "type": "boolean"
+      },
+      "direction": {
+       "type": "string",
+       "enum": [
+        "increase",
+        "decrease",
+        "either"
+       ]
+      },
+      "minimum_change": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 1000
+      }
+     },
+     "required": [
+      "enabled",
+      "direction",
+      "minimum_change"
+     ],
+     "additionalProperties": false
+    },
+    "last_admitted_slot": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time",
+       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "updated_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "availability": {
+     "type": "object",
+     "properties": {
+      "collection": {
+       "type": "string",
+       "enum": [
+        "disabled",
+        "synthetic"
+       ]
+      },
+      "alert_delivery": {
+       "type": "string",
+       "const": "not_enabled"
+      }
+     },
+     "required": [
+      "collection",
+      "alert_delivery"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "id",
+    "project_id",
+    "collection_revision",
+    "config_version",
+    "provider",
+    "data_mode",
+    "metric",
+    "rank_scale",
+    "target",
+    "include_subdomains",
+    "state",
+    "anchor_at",
+    "cadence_seconds",
+    "stale_after_seconds",
+    "alerts",
+    "last_admitted_slot",
+    "created_at",
+    "updated_at",
+    "availability"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "update_rank_schedule",
+  "toolset": "rank",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain rank",
+   "pause rank",
+   "rank settings"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "discovery:write"
+  ],
+  "readOnly": false,
+  "description": "Pause or change rank settings with expectedVersion. Hosted resume is disabled; history is retained.",
+  "examples": [
+   {
+    "scheduleId": "rank_example",
+    "expectedVersion": 1,
+    "state": "paused"
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "scheduleId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the schedule returned by its create or list operation."
+    },
+    "expectedVersion": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991,
+     "description": "The expected version value; allowed values and bounds are specified in this schema."
+    },
+    "state": {
+     "description": "Requested resource state or saved-observation filter, as enumerated here.",
+     "type": "string",
+     "enum": [
+      "active",
+      "paused"
+     ]
+    },
+    "staleAfterSeconds": {
+     "description": "The stale after seconds value; allowed values and bounds are specified in this schema.",
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 5184000
+    },
+    "alerts": {
+     "description": "The alerts value; allowed values and bounds are specified in this schema.",
+     "type": "object",
+     "properties": {
+      "enabled": {
+       "type": "boolean"
+      },
+      "direction": {
+       "type": "string",
+       "enum": [
+        "increase",
+        "decrease",
+        "either"
+       ]
+      },
+      "minimumChange": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 1000
+      }
+     },
+     "required": [
+      "enabled",
+      "direction",
+      "minimumChange"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "scheduleId",
+    "expectedVersion"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "collection_revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "config_version": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "provider": {
+     "type": "string",
+     "const": "dataforseo"
+    },
+    "data_mode": {
+     "type": "string",
+     "const": "synthetic"
+    },
+    "metric": {
+     "type": "string",
+     "const": "rank"
+    },
+    "rank_scale": {
+     "type": "string",
+     "const": "one_thousand"
+    },
+    "target": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 253
+    },
+    "include_subdomains": {
+     "type": "boolean"
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "active",
+      "paused"
+     ]
+    },
+    "anchor_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "cadence_seconds": {
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 2592000
+    },
+    "stale_after_seconds": {
+     "type": "integer",
+     "minimum": 86400,
+     "maximum": 5184000
+    },
+    "alerts": {
+     "type": "object",
+     "properties": {
+      "enabled": {
+       "type": "boolean"
+      },
+      "direction": {
+       "type": "string",
+       "enum": [
+        "increase",
+        "decrease",
+        "either"
+       ]
+      },
+      "minimum_change": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 1000
+      }
+     },
+     "required": [
+      "enabled",
+      "direction",
+      "minimum_change"
+     ],
+     "additionalProperties": false
+    },
+    "last_admitted_slot": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time",
+       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "updated_at": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+    },
+    "availability": {
+     "type": "object",
+     "properties": {
+      "collection": {
+       "type": "string",
+       "enum": [
+        "disabled",
+        "synthetic"
+       ]
+      },
+      "alert_delivery": {
+       "type": "string",
+       "const": "not_enabled"
+      }
+     },
+     "required": [
+      "collection",
+      "alert_delivery"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "id",
+    "project_id",
+    "collection_revision",
+    "config_version",
+    "provider",
+    "data_mode",
+    "metric",
+    "rank_scale",
+    "target",
+    "include_subdomains",
+    "state",
+    "anchor_at",
+    "cadence_seconds",
+    "stale_after_seconds",
+    "alerts",
+    "last_admitted_slot",
+    "created_at",
+    "updated_at",
+    "availability"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "list_rank_history",
+  "toolset": "rank",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "domain rank",
+   "dataforseo rank",
+   "rank history",
+   "rank evidence"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "discovery:read"
+  ],
+  "readOnly": true,
+  "description": "Read dated DataForSEO thousand-scale rank evidence and candidate-only alerts. Unknown is not loss or zero.",
+  "examples": [
+   {
+    "scheduleId": "rank_example",
+    "limit": 50
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "scheduleId": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+     "description": "Identifier of the schedule returned by its create or list operation."
+    },
+    "cursor": {
+     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 1024
+    },
+    "limit": {
+     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "format": {
+     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "type": "string",
+     "enum": [
+      "concise",
+      "detailed"
+     ]
+    }
+   },
+   "required": [
+    "scheduleId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schedule_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "schedule_revision": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "project_id": {
+     "type": "string",
+     "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "target": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 253
+    },
+    "include_subdomains": {
+     "type": "boolean"
+    },
+    "provider": {
+     "type": "string",
+     "const": "dataforseo"
+    },
+    "data_mode": {
+     "type": "string",
+     "const": "synthetic"
+    },
+    "metric": {
+     "type": "string",
+     "const": "rank"
+    },
+    "scale": {
+     "type": "object",
+     "properties": {
+      "minimum": {
+       "type": "number",
+       "const": 0
+      },
+      "maximum": {
+       "type": "number",
+       "const": 1000
+      },
+      "name": {
+       "type": "string",
+       "const": "one_thousand"
+      }
+     },
+     "required": [
+      "minimum",
+      "maximum",
+      "name"
+     ],
+     "additionalProperties": false
+    },
+    "items": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "overview_run_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "slot_at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+       },
+       "rank": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "observed_at": {
+        "type": "null"
+       },
+       "retrieved_at": {
+        "anyOf": [
+         {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "freshness": {
+        "type": "string",
+        "enum": [
+         "unknown",
+         "stale",
+         "fresh"
+        ]
+       },
+       "outcome": {
+        "type": "string",
+        "enum": [
+         "unknown",
+         "measured"
+        ]
+       },
+       "execution": {
+        "type": "object",
+        "properties": {
+         "status": {
+          "type": "string",
+          "enum": [
+           "queued",
+           "running",
+           "succeeded",
+           "failed",
+           "reconciliation_required"
+          ]
+         },
+         "error_code": {
+          "anyOf": [
+           {
+            "type": "string",
+            "pattern": "^[A-Z_]{1,80}$"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "provider_task_id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "status",
+         "error_code",
+         "provider_task_id"
+        ],
+        "additionalProperties": false
+       },
+       "cost": {
+        "type": "object",
+        "properties": {
+         "currency": {
+          "type": "string",
+          "const": "USD"
+         },
+         "max_cost_microusd": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+         },
+         "reserved_cost_microusd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "provider_reported_cost_microusd": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "request_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "reconciliation_required": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "currency",
+         "max_cost_microusd",
+         "reserved_cost_microusd",
+         "provider_reported_cost_microusd",
+         "request_count",
+         "reconciliation_required"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "required": [
+       "overview_run_id",
+       "slot_at",
+       "rank",
+       "observed_at",
+       "retrieved_at",
+       "freshness",
+       "outcome",
+       "execution",
+       "cost"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "alert_candidates": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "schedule_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "provider": {
+        "type": "string",
+        "const": "dataforseo"
+       },
+       "metric": {
+        "type": "string",
+        "const": "rank"
+       },
+       "rank_scale": {
+        "type": "string",
+        "const": "one_thousand"
+       },
+       "previous_run_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "current_run_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+       },
+       "previous_rank": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1000
+       },
+       "current_rank": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1000
+       },
+       "change": {
+        "type": "integer",
+        "minimum": -1000,
+        "maximum": 1000
+       },
+       "observed_at": {
+        "type": "null"
+       },
+       "retrieved_at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+       },
+       "delivery_state": {
+        "type": "string",
+        "const": "candidate_only"
+       }
+      },
+      "required": [
+       "id",
+       "schedule_id",
+       "provider",
+       "metric",
+       "rank_scale",
+       "previous_run_id",
+       "current_run_id",
+       "previous_rank",
+       "current_rank",
+       "change",
+       "observed_at",
+       "retrieved_at",
+       "delivery_state"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 1024
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "schedule_id",
+    "schedule_revision",
+    "project_id",
+    "target",
+    "include_subdomains",
+    "provider",
+    "data_mode",
+    "metric",
+    "scale",
+    "items",
+    "alert_candidates",
+    "has_more",
+    "next_cursor"
+   ],
+   "additionalProperties": false
   }
  },
  {
@@ -9226,7 +15643,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Explicitly enroll the watch from a completed present candidate verification. Preserves candidate, run, observation and local-reference provenance. Active-watch limits apply; replay never reactivates a subsequently paused watch. Cadence applies when activating a paused watch.",
+  "description": "Explicitly enroll a candidate-only watch from a present verification no older than 24 hours, with no superseding observation. Preserves candidate, run, observation and local-reference provenance. Active-watch limits apply; replay never reactivates a subsequently paused watch. User-paused watches require explicit resume; existing schedules are preserved.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -9611,8 +16028,14 @@ export const CATALOG_COMMANDS = [
      "type": "boolean"
     },
     "recurring_monitoring_created": {
-     "type": "boolean",
-     "const": true
+     "type": "boolean"
+    },
+    "enrollment_outcome": {
+     "type": "string",
+     "enum": [
+      "created",
+      "already_monitored"
+     ]
     }
    },
    "required": [
@@ -13647,6 +20070,164 @@ export const CATALOG_COMMANDS = [
     "events",
     "next_cursor",
     "has_more"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_link_change_report",
+  "toolset": "reports",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "recent changes",
+   "weekly review",
+   "placement changes",
+   "period report"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "events:read"
+  ],
+  "readOnly": true,
+  "description": "Read retained placement changes in one recent UTC period for an authorized website. The bounded response names its frozen request boundary, row count, truncation and retention uncertainty; incomplete results do not prove a quiet period.",
+  "examples": [
+   {
+    "projectId": "prj_example",
+    "from": "2026-10-01T00:00:00.000Z"
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "Identifier of the project returned by its create or list operation."
+    },
+    "from": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+     "description": "The from value; allowed values and bounds are specified in this schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "from"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "type": "number",
+     "const": 1
+    },
+    "workspace_id": {
+     "type": "string"
+    },
+    "project_id": {
+     "type": "string"
+    },
+    "coverage_scope": {
+     "type": "string",
+     "const": "retained_event_feed"
+    },
+    "from": {
+     "type": "string"
+    },
+    "as_of": {
+     "type": "string"
+    },
+    "through_sequence": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "count": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "limit": {
+     "type": "number",
+     "const": 500
+    },
+    "truncated": {
+     "type": "boolean"
+    },
+    "complete": {
+     "type": "boolean"
+    },
+    "retention_limited": {
+     "type": "boolean"
+    },
+    "scan_limit": {
+     "type": "number",
+     "const": 10000
+    },
+    "scan_limited": {
+     "type": "boolean"
+    },
+    "events": {
+     "maxItems": 500,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "workspace_id": {
+        "type": "string"
+       },
+       "project_id": {
+        "type": "string"
+       },
+       "type": {
+        "type": "string",
+        "enum": [
+         "placement_acquired",
+         "placement_recovered",
+         "placement_lost"
+        ]
+       },
+       "created_at": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "type",
+       "created_at"
+      ],
+      "additionalProperties": {}
+     }
+    }
+   },
+   "required": [
+    "schema_version",
+    "workspace_id",
+    "project_id",
+    "coverage_scope",
+    "from",
+    "as_of",
+    "through_sequence",
+    "count",
+    "limit",
+    "truncated",
+    "complete",
+    "retention_limited",
+    "scan_limit",
+    "scan_limited",
+    "events"
    ],
    "additionalProperties": {}
   }
