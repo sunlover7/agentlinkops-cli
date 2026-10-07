@@ -8084,6 +8084,19 @@ export const CATALOG_COMMANDS = [
        "type": "null"
       }
      ]
+    },
+    "defaults_applied": {
+     "type": "object",
+     "properties": {
+      "format": {
+       "type": "string",
+       "enum": [
+        "concise",
+        "detailed"
+       ]
+      }
+     },
+     "additionalProperties": false
     }
    },
    "required": [
