@@ -74,7 +74,12 @@ for (const unsafe of ['directory-mode', 'directory-symlink', 'file-mode', 'file-
     if (unsafe === 'directory-symlink') {
       const target = join(f.dir, 'actual'); await fs.rename(f.sessionDir, target); await fs.symlink(target, f.sessionDir);
     }
-    if (unsafe === 'file-mode') await fs.writeFile(f.sessionPath, 'previous session', { mode: 0o644 });
+    if (unsafe === 'file-mode') {
+      await fs.writeFile(f.sessionPath, 'previous session', { mode: 0o644 });
+      // Creation mode is masked by the caller's umask; make the unsafe fixture real.
+      await fs.chmod(f.sessionPath, 0o644);
+      assert.equal((await fs.lstat(f.sessionPath)).mode & 0o7777, 0o644);
+    }
     if (unsafe === 'file-directory') await fs.mkdir(f.sessionPath);
     await assert.rejects(login(f), { code: 'PRIVATE_STORAGE_REQUIRED' });
     if (unsafe === 'file-mode') assert.equal(await readFile(f.sessionPath, 'utf8'), 'previous session');
