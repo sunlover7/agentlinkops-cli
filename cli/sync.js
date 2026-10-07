@@ -12,6 +12,24 @@ import { CloudError } from './client.js';
 
 const PUSH_BATCH = 100;
 
+function completeImportRows(result, expected) {
+  const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const text = value => typeof value === 'string' && value.trim().length > 0;
+  const refuse = () => { throw new CloudError('INVALID_IMPORT_RESPONSE', 502, null,
+    'The cloud returned an incomplete or invalid watch import result. Some watches may already have been stored. Inspect accessible watches and their local references before retrying sync; this request was not automatically replayed.'); };
+  if (!record(result) || !Array.isArray(result.rows) || result.rows.length !== expected) refuse();
+  const seen = new Set();
+  for (const row of result.rows) {
+    if (!record(row) || !Number.isInteger(row.index) || row.index < 0 || row.index >= expected || seen.has(row.index)) refuse();
+    seen.add(row.index);
+    const watch = Object.hasOwn(row, 'watch'), error = Object.hasOwn(row, 'error');
+    if (watch === error) refuse();
+    if (watch && (!record(row.watch) || !text(row.watch.id) || typeof row.watch.created !== 'boolean')) refuse();
+    if (error && (!record(row.error) || !text(row.error.code) || !text(row.error.message))) refuse();
+  }
+  return result.rows;
+}
+
 export function syncPlan(entries, state, { includeWanted = false, ledgerIds = null } = {}) {
   if (ledgerIds !== null && (!Array.isArray(ledgerIds) || ledgerIds.some(id => typeof id !== 'string') || ledgerIds.some(id => !entries.some(entry => entry.id === id))))
     throw new CloudError('INVALID_SYNC_SELECTION', 0);
@@ -38,12 +56,13 @@ export async function pushExpectations(client, entries, state, { projectId, onPr
   for (let index = 0; index < watched.length; index += PUSH_BATCH) {
     const batch = watched.slice(index, index + PUSH_BATCH);
     const result = await client.importWatches(projectId, batch.map(toWatchInput));
-    for (const row of result.rows ?? []) {
+    // Validate the complete acknowledgement before adopting any of this batch.
+    // Earlier POSTs may have committed; a malformed response never authorizes a replay.
+    for (const row of completeImportRows(result, batch.length)) {
       const entry = batch[row.index];
-      if (!entry) continue;
       if (row.error) { failed.push({ id: entry.id, code: row.error.code, message: row.error.message }); continue; }
       mapping[entry.id] = row.watch.id;
-      if (row.watch.created !== false) created.push(entry.id);
+      if (row.watch.created) created.push(entry.id);
     }
     onProgress?.(Math.min(index + PUSH_BATCH, watched.length), watched.length);
   }

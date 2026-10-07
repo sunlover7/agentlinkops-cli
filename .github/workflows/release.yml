@@ -1,8 +1,5 @@
-# One tagged version reaches npm from here, with provenance, under the AgentLinkOps identity:
-# push a tag `vX.Y.Z` that matches package.json, and this workflow tests, packs and publishes
-# through npm trusted publishing (OIDC; no token in the repository). The GitHub release is
-# created from the tag with the CHANGELOG entry. `workflow_dispatch` with dry_run rehearses
-# everything except the final upload.
+# Releases are qualified, packed and published locally under the owner deployment policy.
+# The retained workflow is disabled so pushing a tag cannot build or publish a second artifact.
 name: Release
 on:
   push:
@@ -18,6 +15,8 @@ permissions:
   id-token: write
 jobs:
   release:
+    # Owner policy: qualify and publish locally; tags must not launch a release job.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

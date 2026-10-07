@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClient, CloudError } from '../cli/client.js';
+import {mkdtemp,mkdir,writeFile,readFile,readdir,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 
 const ORIGIN='https://app.example.test', TOKEN='lt_fixture';
 const page=()=>Response.json({items:[],next_cursor:null});
@@ -8,14 +11,14 @@ const unavailable=(status,headers={})=>Response.json({error:{code:status===429?'
   {status,headers:{'X-Request-ID':`req-${status}`,...headers}});
 const client=(fetchImpl,options={})=>createClient({origin:ORIGIN,token:TOKEN,fetchImpl,...options});
 
-test('the REST client sends the 0.6.11 release User-Agent', async () => {
+test('the REST client sends the 0.6.12 release User-Agent', async () => {
   const requests = [];
   const result = await client(async (url, init) => {
     const request = new Request(url, init);
     requests.push(request);
     assert.equal(request.url, ORIGIN + '/v1/watches');
     assert.equal(request.method, 'GET');
-    assert.equal(request.headers.get('user-agent'), 'agentlinkops-cli/0.6.11');
+    assert.equal(request.headers.get('user-agent'), 'agentlinkops-cli/0.6.12');
     assert.equal(request.headers.get('authorization'), 'Bearer ' + TOKEN);
     return page();
   }).listWatches();
@@ -113,4 +116,43 @@ test('timeouts and exhausted network failures have actionable classifications',a
       assert.equal(error.code,'CLOUD_TIMEOUT');assert.match(error.serverMessage,/Check the operation result before sending it again/);
       assert.match(error.publicError.message,/Check the operation result before sending it again/);return true;
     });
+});
+
+for(const [code,failure]of [
+  ['CLOUD_TIMEOUT',()=>new DOMException('PRIVATE_EXCEPTION_SENTINEL','TimeoutError')],
+  ['CLOUD_NETWORK_ERROR',()=>new TypeError('PRIVATE_EXCEPTION_SENTINEL')],
+])test(`actual sync CLI gives trusted ${code} recovery without replay or local adoption`,async t=>{
+  // Exercise actual main/client/push/state code and the real local sync lock.
+  // The supplied HTTP transport is an offline ambiguous-write fixture only.
+  const cwd=await mkdtemp(join(tmpdir(),'alo-sync-transport-'));
+  t.after(()=>rm(cwd,{recursive:true,force:true}));
+  const dir=join(cwd,'.agentlinkops');await mkdir(dir,{mode:0o700});
+  const ledger=JSON.stringify({id:'lk_netdrop000001',intent:'expected',
+    source:'https://publisher.fixture.invalid/drop',target:'https://customer.fixture.invalid/guide',scope:'exact'})+'\n';
+  const config=JSON.stringify({project:{id:'pr_transport_fixture'},cloud:{origin:ORIGIN,token:TOKEN}});
+  const state=JSON.stringify({v:2,entries:{},watches:{},cursors:{events:'source-before',target_events:'target-before'},customerCheckpoint:{retain:true}})+'\n';
+  await writeFile(join(dir,'links.jsonl'),ledger);
+  await writeFile(join(dir,'config.json'),config);
+  await writeFile(join(dir,'state.json'),state);
+  const {main}=await import('../cli/main.js'),out=[],err=[];let calls=0,committed=false;
+  const result=await main(['sync'],{cwd,env:{},out:value=>out.push(value),err:value=>err.push(value),
+    fetchImpl:async(url,init)=>{
+      assert.equal(url,ORIGIN+'/v1/watches/import');assert.equal(init.method,'POST');
+      const body=JSON.parse(init.body);assert.equal(body.projectId,'pr_transport_fixture');assert.equal(body.watches.length,1);
+      calls++;committed=true;
+      const error=failure();error.serverMessage='PRIVATE_SERVER_SENTINEL';error.details={token:'PRIVATE_TOKEN_SENTINEL'};
+      throw error;
+    }});
+  assert.equal(result,2);assert.equal(calls,1);assert.equal(committed,true,'only the fixture knows its write committed');
+  assert.deepEqual(out,[],'unknown write outcome cannot claim a completed push');
+  assert.equal(err.length,1);assert.ok(err[0].startsWith(`agentlinkops: ${code}\n`));
+  assert.match(err[0],/Check the operation result before sending it again/);
+  assert.match(err[0],/sync --pull-only --recover-cursors/);
+  assert.match(err[0],/Do not broaden grants or replay remote writes/);
+  assert.doesNotMatch(err[0],/PRIVATE_(?:EXCEPTION|SERVER|TOKEN)_SENTINEL/);
+  assert.equal(await readFile(join(dir,'links.jsonl'),'utf8'),ledger);
+  assert.equal(await readFile(join(dir,'config.json'),'utf8'),config);
+  assert.equal(await readFile(join(dir,'state.json'),'utf8'),state);
+  const files=await readdir(dir);
+  assert.ok(!files.includes('events.jsonl'));assert.ok(!files.includes('observations.jsonl'));
 });

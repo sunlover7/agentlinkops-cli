@@ -71,6 +71,77 @@ test('a row the cloud refuses is reported, and the rest still land', async () =>
   assert.deepEqual(result.failed, [{ id: 'lk_ffffffff', code: 'WATCH_LIMIT_REACHED', message: 'The plan allows 100 watches.' }]);
 });
 
+test('sync import acknowledgement refuses incomplete, ambiguous and malformed batch results without replay or local mutation', async t => {
+  const ok = index => ({index, watch: {id: `wat_ack_${index}`, created: true}});
+  const cases = [
+    ['missing rows', {status: 'succeeded'}],
+    ['missing position', {status: 'succeeded', rows: [ok(0)]}],
+    ['duplicate position', {status: 'succeeded', rows: [ok(0), ok(0)]}],
+    ['out of range position', {status: 'succeeded', rows: [ok(0), ok(2)]}],
+    ['negative position', {status: 'succeeded', rows: [ok(0), ok(-1)]}],
+    ['fractional position', {status: 'succeeded', rows: [ok(0), ok(0.5)]}],
+    ['string position', {status: 'succeeded', rows: [ok(0), ok('1')]}],
+    ['null row', {status: 'succeeded', rows: [ok(0), null]}],
+    ['nonarray rows', {status: 'succeeded', rows: {0: ok(0), 1: ok(1)}}],
+    ['missing outcome', {status: 'succeeded', rows: [ok(0), {index: 1}]}],
+    ['both outcomes', {status: 'partial', rows: [ok(0), {...ok(1), error: {code: 'REFUSED', message: 'Refused.'}}]}],
+    ['missing watch identity', {status: 'succeeded', rows: [ok(0), {index: 1, watch: {created: true}}]}],
+    ['nonboolean creation', {status: 'succeeded', rows: [ok(0), {index: 1, watch: {id: 'wat_ack_1', created: 'false'}}]}],
+    ['malformed row rejection', {status: 'partial', rows: [ok(0), {index: 1, error: {message: 'Refused.'}}]}],
+  ];
+  for (const [name, response] of cases) await t.test(name, async () => {
+    const entries = [entry('lk_ackfirst'), entry('lk_acksecond'), entry('lk_ackretired', {intent: 'retired'})];
+    const state = {watches: {lk_retained: 'wat_retained', lk_ackretired: 'wat_retired'}, cursors: {events: 'saved_cursor'}};
+    const originalEntries = structuredClone(entries), originalState = structuredClone(state), progress = [];
+    const {client, calls} = cloud({'POST /v1/watches/import': () => response});
+    await assert.rejects(pushExpectations(client, entries, state, {projectId: 'pr_1', onProgress: (...values) => progress.push(values)}), error => {
+      assert.ok(error instanceof CloudError);
+      assert.equal(error.code, 'INVALID_IMPORT_RESPONSE');
+      assert.equal(error.status, 502);
+      assert.match(error.serverMessage, /result|watch/i);
+      assert.match(error.serverMessage, /retry|again/i);
+      return true;
+    });
+    assert.equal(calls.length, 1, 'An ambiguous POST is not automatically replayed or followed by a pause');
+    assert.equal(calls[0].key, 'POST /v1/watches/import');
+    assert.deepEqual(entries, originalEntries, 'Customer ledger values remain unchanged');
+    assert.deepEqual(state, originalState, 'Previously adopted mappings and cursors remain unchanged');
+    assert.deepEqual(progress, [], 'A batch without complete acknowledgements cannot be reported complete');
+  });
+});
+
+test('sync import acknowledgement accepts reordered complete results and legitimate per-row refusals', async () => {
+  const entries = [entry('lk_ackfirst'), entry('lk_acksecond'), entry('lk_ackthird')];
+  const {client, calls} = cloud({'POST /v1/watches/import': () => ({status: 'partial', rows: [
+    {index: 2, watch: {id: 'wat_existing', created: false}},
+    {index: 0, error: {code: 'WATCH_LIMIT_REACHED', message: 'The plan allows 100 watches.'}},
+    {index: 1, watch: {id: 'wat_new', created: true}},
+  ]})});
+  const progress = [], state = {watches: {lk_retained: 'wat_retained'}};
+  const result = await pushExpectations(client, entries, state, {projectId: 'pr_1', onProgress: (...values) => progress.push(values)});
+  assert.equal(calls.length, 1);
+  assert.equal(result.pushed, 3);
+  assert.equal(result.created, 1);
+  assert.deepEqual(result.watches, {lk_retained: 'wat_retained', lk_acksecond: 'wat_new', lk_ackthird: 'wat_existing'});
+  assert.deepEqual(result.failed, [{id: 'lk_ackfirst', code: 'WATCH_LIMIT_REACHED', message: 'The plan allows 100 watches.'}]);
+  assert.deepEqual(progress, [[3, 3]]);
+  assert.deepEqual(state, {watches: {lk_retained: 'wat_retained'}});
+});
+
+test('sync import acknowledgement stops at a later invalid batch without replay, final progress or customer-state adoption', async () => {
+  const entries = Array.from({length: 101}, (_, index) => entry(`lk_ack${index}`));
+  entries.push(entry('lk_ackretired', {intent: 'retired'}));
+  const state = {watches: {lk_ackretired: 'wat_retired'}, cursors: {events: 'saved_cursor'}};
+  const original = structuredClone({entries, state}), progress = [];
+  const {client, calls} = cloud({'POST /v1/watches/import': (parsed, init, seen) => seen.length === 1 ? imported(parsed, init) : {status: 'succeeded', rows: []}});
+  await assert.rejects(pushExpectations(client, entries, state, {projectId: 'pr_1', onProgress: (...values) => progress.push(values)}),
+    {code: 'INVALID_IMPORT_RESPONSE', status: 502});
+  assert.equal(calls.length, 2, 'Only the first two POSTs occurred; no automatic replay or later pause');
+  assert.deepEqual(calls.map(call => call.body.watches.length), [100, 1]);
+  assert.deepEqual(progress, [[100, 101]], 'Earlier complete batch progress is retained without declaring final success');
+  assert.deepEqual({entries, state}, original);
+});
+
 test('a page applies before the cursor advances', async () => {
   const pages = [
     { events: [{ id: 'e1', watch_id: 'w1', type: 'watch.checked', cursor: 'c1', data: {} }], next_cursor: 'c1', has_more: true },

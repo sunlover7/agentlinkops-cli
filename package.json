@@ -1,6 +1,6 @@
 {
   "name": "agentlinkops",
-  "version": "0.6.11",
+  "version": "0.6.12",
   "description": "Backlink checks with dated evidence and portable results, optional repository ledgers, supplier-export imports and sync to AgentLinkOps.",
   "author": "AgentLinkOps (https://agentlinkops.com)",
   "license": "Apache-2.0",

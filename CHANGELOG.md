@@ -3,6 +3,12 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.12 (2026-10-07)
+
+- Check every watch import result before updating sync mappings or reporting progress. Reject incomplete, duplicate or out-of-range results without resending the request.
+- Show inspection and read-only cursor recovery steps after a sync timeout or lost connection. Keep the project ledger and history while the write outcome is unknown.
+- Test multi-batch imports and uncertain responses in the assembled CLI package.
+
 ## 0.6.11 (2026-10-06)
 
 - Keep `check --json` stdout limited to observation rows. Send empty-ledger, not-due and filter notices to stderr.
