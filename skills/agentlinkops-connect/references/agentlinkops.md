@@ -9,7 +9,7 @@ records. This page is the complete agent reference: the same text prints from
 full once per session, then use `describe` (or `exec describe` on MCP) for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.11. 139 commands in 15 toolsets.
+Pack version 0.6.12. 139 commands in 15 toolsets.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)

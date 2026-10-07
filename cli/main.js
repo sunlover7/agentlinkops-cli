@@ -625,6 +625,13 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       err(JSON.stringify({error: {code: error.code, status: error.status, next: 'Keep this project ledger and its history. Resolve authorized read access for the configured project, then retry agentlinkops sync --pull-only --recover-cursors. Do not broaden grants or replay remote writes.'}}));
       return 2;
     }
+    if (command === 'sync' && error instanceof CloudError && error.status === 0 &&
+        ['CLOUD_TIMEOUT', 'CLOUD_NETWORK_ERROR'].includes(error.code)) {
+      // A local transport failure cannot establish whether a write committed.
+      // Print trusted recovery guidance, never attached exception/server text.
+      err(`agentlinkops: ${error.code}\nThe request outcome is unknown. Check the operation result before sending it again. Keep this project ledger and its history. Inspect accessible watches and their local references with agentlinkops sync --pull-only --recover-cursors. Do not broaden grants or replay remote writes.`);
+      return 2;
+    }
     err(`agentlinkops: ${error?.message ?? error}`);
     return 2;
   } finally {

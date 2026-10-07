@@ -62,7 +62,7 @@ function retryDelay(error, attempt, now) {
 
 async function sdkClient({url, token, workspaceId, fetchImpl}) {
   const {Client, StreamableHTTPClientTransport} = await import('@modelcontextprotocol/client');
-  const client = new Client({name: 'agentlinkops-cli', version: '0.6.11'});
+  const client = new Client({name: 'agentlinkops-cli', version: '0.6.12'});
   const destination = new URL(url);
   const transport = new StreamableHTTPClientTransport(destination, {
     authProvider: {token: async () => token},
@@ -71,7 +71,7 @@ async function sdkClient({url, token, workspaceId, fetchImpl}) {
       if (target.href !== destination.href) fail('OAUTH_TOKEN_DESTINATION_MISMATCH');
       const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined));
       if (workspaceId) headers.set('X-Workspace-ID', workspaceId);
-      headers.set('User-Agent', 'agentlinkops-cli/0.6.11');
+      headers.set('User-Agent', 'agentlinkops-cli/0.6.12');
       const response = await fetchImpl(input, {...init, headers, redirect: 'error', signal: AbortSignal.timeout(30000)});
       if (response.redirected || response.status >= 300 && response.status < 400
         || response.url && response.url !== destination.href) fail('OAUTH_TOKEN_DESTINATION_MISMATCH');
