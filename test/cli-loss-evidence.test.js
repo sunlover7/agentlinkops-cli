@@ -17,7 +17,7 @@ import { verifyLink } from '../src/verifier/index.js';
 const entry = normalizeEntry({ id: 'lk_evidence01', intent: 'expected', source: SOURCE, target: TARGET });
 const timestamp = index => new Date(Date.UTC(2026, 8, 30, 0, index)).toISOString();
 function observation(state, complete = true, index = 0, source = 'local') {
-  return observationRow(entry.id, { state, checkedAt: timestamp(index), reason: `fixture_${state}`,
+  return observationRow(entry.id, { sourceUrl: SOURCE, targetUrl: TARGET, targetScope: 'exact', state, checkedAt: timestamp(index), reason: `fixture_${state}`,
     occurrences: state === 'present' ? [{}] : [], evidence: { complete, checkerVersion: 'fixture_v1' } }, { source });
 }
 function hosted(state, uncertain = false) {
@@ -104,7 +104,7 @@ test('real status retains hosted confirmed-missing evidence but refuses incomple
   const f = await workspace(t, [observation('confirmed_missing', true, 0, 'cloud')]);
   const confirmed = await invoke(f.dir, ['status', '--json']);
   assert.equal(JSON.parse(confirmed.out)[0].kind, 'lost');
-  assert.match((await invoke(f.dir, ['status'])).out, /\bLOST \(1\)/);
+  assert.match((await invoke(f.dir, ['status'])).out, /confirmed missing \(1\)/);
   await writeObservations(f.mirror, [observation('confirmed_missing', false, 1, 'cloud')]);
   const before = await bytes(f.dir), incomplete = await invoke(f.dir, ['status', '--json']);
   assert.equal(JSON.parse(incomplete.out)[0].kind, 'cannot_say');
@@ -165,7 +165,7 @@ test('actual hosted snapshot normalization preserves confirmed watch state throu
   const status = await invoke(f.dir, ['status', '--json']), human = await invoke(f.dir, ['status']);
   const found = JSON.parse(status.out)[0];
   assert.equal(found.kind, 'lost'); assert.equal(found.row.state, 'absent');
-  assert.equal(found.row.result.watchState, 'confirmed_missing'); assert.match(human.out, /\bLOST \(1\)/);
+  assert.equal(found.row.result.watchState, 'confirmed_missing'); assert.match(human.out, /confirmed missing \(1\)/);
   assert.deepEqual(await bytes(f.dir), before);
 });
 

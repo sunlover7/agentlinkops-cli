@@ -3,7 +3,7 @@
 // script, the MCP router, the CLI index and the generators all read the same definitions.
 // Rules: docs/technical/AGENT-SURFACE-CONTRACT.md (DP-0036).
 
-export const TOOLSETS = ['monitoring','evidence','rank','discovery','baseline','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
+export const TOOLSETS = ['monitoring','evidence','rank','licensed','discovery','baseline','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
 
 // One line per toolset: what the group is for. Printed by the site brief, the REST index and the
 // catalog snapshot so the same wording reaches every client; a toolset without a summary is a
@@ -16,11 +16,12 @@ export const TOOLSET_SUMMARIES = {
   monitoring: 'Watch earned links and destination URLs: create, list, update, import, export, recheck.',
   evidence: 'What a check observed: histories, snapshots, change feeds, check jobs, published contacts.',
   rank: 'Synthetic DataForSEO rank schedules and dated history; hosted collection disabled.',
+  licensed: 'Licensed source-search evidence and charge custody; operator admission required.',
   discovery: 'Import candidate rows, read stored runs, verify selected candidates, enroll them.',
   baseline: 'Scoped backlink baselines; supplier admission disabled.',
   library: 'Read and export the coverage-stated opportunity library.',
   competitors: 'Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports.',
-  reports: 'Profile, anchor and report summaries over the tracked dataset.',
+  reports: 'Placement chronology, service assurance and backlink reports.',
   workspace: 'Workspace, projects, usage, members, invitations, scratch-resource cleanup.',
   notifications: 'Email notification preferences, previews, tests and deliveries.',
   webhooks: 'Webhook endpoints, state, secrets and delivery records.',
@@ -57,10 +58,10 @@ export function oneLiner(description, max = 60) {
 }
 
 // entries: [{ name, description, toolset, tier, readOnly }]. Grouped, one line per command.
-export function manifestText(entries, { max = 36 } = {}) {
+export function manifestText(entries, { max = 28 } = {}) {
   const groups = new Map(TOOLSETS.map(t => [t, []]));
   for (const entry of entries) (groups.get(entry.toolset) ?? groups.set(entry.toolset, []).get(entry.toolset)).push(entry);
-  const lines = ['Commands by toolset (name: what it does). On /mcp use exec: `exec search <words>`, `exec describe <name>`, `exec call <name> <json>`; the CLI mirrors the verbs as `agentlinkops tools | describe | call`.'];
+  const lines = ['Commands by toolset. MCP: `exec search <words>`, `exec describe <name>`, `exec call <name> <json>`. CLI: `agentlinkops tools | describe | call`. Licensed supplier calls require operator admission.'];
   for (const [toolset, members] of groups) {
     if (!members.length) continue;
     lines.push(`\n${toolset}:`);

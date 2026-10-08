@@ -13,10 +13,10 @@ async function scratch(t) {
 }
 
 const entry = (id, intent, source) => `${JSON.stringify({ id, intent, source, target: 'https://me.example/', scope: 'domain' })}\n`;
-const observation = (id, state, checked_at = '2026-09-11T05:00:00.000Z') => `${JSON.stringify({
+const observation = (id, state, checked_at = '2026-09-11T05:00:00.000Z', sourceUrl = `https://${id}.example/x`) => `${JSON.stringify({
   id, checked_at, state, reason: state === 'present' ? 'link_found' : 'no_matching_link_in_complete_html',
   occurrences: state === 'present' ? 1 : 0, complete: true, checker_version: '1', source: 'local', evidence_key: null,
-  result: { state, reason: 'x', sourceUrl: `https://${id}.example/x`, directives: { noindex: false } },
+  result: { state, reason: 'x', sourceUrl, targetUrl: 'https://me.example/', targetScope: 'domain', directives: { noindex: false } },
 })}\n`;
 
 test('fleet summarises each project on its own and never merges intent', async t => {
@@ -27,7 +27,7 @@ test('fleet summarises each project on its own and never merges intent', async t
   // merely wanted in another. Two files, two ids, and the summary must report both.
   await writeFile(join(dir, 'a', 'links.jsonl'), entry('lk_expected1', 'expected', 'https://platform.example/a') + entry('lk_wantedaa', 'wanted', 'https://other.example/'));
   await writeFile(join(dir, 'b', 'links.jsonl'), entry('lk_wantedbb', 'wanted', 'https://platform.example/b'));
-  await writeFile(join(dir, 'a', 'observations.jsonl'), observation('lk_expected1', 'present'));
+  await writeFile(join(dir, 'a', 'observations.jsonl'), observation('lk_expected1', 'present', undefined, 'https://platform.example/a'));
 
   const summary = await fleetSummary(
     [{ name: 'a', ledger: join(dir, 'a', 'links.jsonl') }, { name: 'b', ledger: join(dir, 'b', 'links.jsonl') }],

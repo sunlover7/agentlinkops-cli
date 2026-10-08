@@ -18,13 +18,15 @@
 // evidence reference that resolves to the observation itself. One dataset feeds both exports:
 // this HTML view for a human client, and `report --json` for an agent, so the two can never
 // disagree about what was observed.
+// v3 freezes activity separately from retained receipts. Older v2 datasets still render with
+// their original columns and wording; activity never changes an old observation's date/hash.
 import {indexRowsForUrl} from './index-observations.js';
 import {reconcileIndexObservations} from '../src/index-observation.js';
 import { createHash } from 'node:crypto';
-import { latestByEntry } from './mirror.js';
+import { projectPlacements } from './placement-projection.js';
 import { mirrorEvidenceReference } from '../src/evidence-reference.js';
 
-export const REPORT_VERSION = 2;
+export const REPORT_VERSION = 3;
 
 /** HTML-escape. Every value below is publisher or customer content and none of it is trusted. */
 export const escape = value => String(value ?? '')
@@ -35,6 +37,10 @@ const STATE_LABEL = Object.freeze({
   present: 'Present', absent: 'Not found', unknown: 'Could not check',
   source_unavailable: 'Page unavailable', unchecked: 'Never checked',
 });
+const CURRENT_STATE_LABEL = Object.freeze({
+  ...STATE_LABEL,
+  suspected_missing: 'Suspected missing', confirmed_missing: 'Confirmed missing',
+});
 
 /**
  * The frozen dataset a report renders.
@@ -42,12 +48,10 @@ const STATE_LABEL = Object.freeze({
  * Selection happens here and nowhere else, so a caller can hold this object, assert it, and know
  * the rendered document is a pure function of it.
  */
-export function freezeDataset(entries, observations, { asOf, title = 'Backlink report', includeNotes = false, includeRetired = false, indexObservations = [] } = {}) {
-  const latest = latestByEntry(observations);
-  const rows = entries
-    .filter(entry => includeRetired || entry.intent !== 'retired')
-    .map(entry => {
-      const row = latest.get(entry.id) ?? null;
+export function freezeDataset(entries, observations, { asOf, title = 'Backlink report', includeNotes = false, includeRetired = false, indexObservations = [], activityState = null } = {}) {
+  const rows = projectPlacements(entries.filter(entry => includeRetired || entry.intent !== 'retired'), observations, { state: activityState })
+    .map(projection => {
+      const { entry, row } = projection;
       const indexRows=indexRowsForUrl(indexObservations,entry.source);
       const origin = row?.source === 'cloud' ? 'cloud' : (row?.source ?? null);
       return {
@@ -57,6 +61,16 @@ export function freezeDataset(entries, observations, { asOf, title = 'Backlink r
         reason: row?.reason ?? null,
         occurrences: row?.occurrences ?? 0,
         checked_at: row?.checked_at ?? null,
+        current_state: projection.current_state,
+        uncertain: projection.uncertain,
+        activity: {
+          available: projection.activity_available,
+          identity_status: projection.identity_status,
+          latest_attempt: projection.latest_attempt,
+          last_successful_observation: projection.last_successful_observation,
+          last_link_verification: projection.last_link_verification,
+          first_present: projection.first_present,
+        },
         checked_by: row?.source ?? null,
         anchor: row?.result?.occurrences?.[0]?.anchor ?? null,
         rel: row?.result?.occurrences?.[0]?.rel ?? [],
@@ -105,10 +119,16 @@ export function freezeDataset(entries, observations, { asOf, title = 'Backlink r
     // Stated rather than implied. A report over a ledger nobody has checked is not a report about
     // links, and the reader should see that before the table.
     coverage: {
-      checked: rows.filter(row => row.checked_at).length,
-      never_checked: rows.filter(row => !row.checked_at).length,
+      checked: rows.filter(row => row.activity.latest_attempt).length,
+      never_checked: rows.filter(row => !row.activity.latest_attempt).length,
+      retained_receipt_entries: rows.filter(row => row.checked_at).length,
+      missing_receipt_entries: rows.filter(row => !row.checked_at).length,
       observed_from: dates[0] ?? null,
       observed_to: dates.at(-1) ?? null,
+      activity_entries: rows.filter(row => row.activity.available).length,
+      identity_unmatched_entries: rows.filter(row => row.activity.identity_status === 'not_matched').length,
+      denominator: includeRetired ? 'all_ledger_entries' : 'non_retired_ledger_entries',
+      known_present_after_unknown: rows.filter(row => row.current_state === 'present' && row.uncertain).length,
     },
   };
 }
@@ -149,6 +169,18 @@ export function renderReport(dataset, { brand = null } = {}) {
   const digest = createHash('sha256').update(JSON.stringify(dataset)).digest('hex');
   const card = (label, value) => `<div class="card"><b>${escape(value)}</b><span>${escape(label)}</span></div>`;
   const coverage = dataset.coverage;
+  const hasActivity = dataset.v >= 3;
+  const activityCell = row => {
+    const activity = row.activity ?? {};
+    const describe = (label, attempt) => `<div>${escape(label)}: ${attempt ? `${escape(attempt.state)} · ${escape(attempt.checked_at)}` : 'not retained'}</div>`
+      + (attempt ? `<div class="note">${escape(attempt.reason ?? 'reason not recorded')} · ${escape(attempt.method ?? 'method not recorded')}</div>`
+        + `<div class="ref">${escape(attempt.evidence_reference ?? 'no retained receipt reference')}</div>` : '');
+    return `<div>${escape(CURRENT_STATE_LABEL[row.current_state] ?? row.current_state ?? 'Unknown')}${row.uncertain ? ' · latest attempt inconclusive' : ''}</div>`
+      + describe('Latest attempt', activity.latest_attempt)
+      + describe('Last conclusive check', activity.last_successful_observation)
+      + describe('Last link verification', activity.last_link_verification)
+      + `<div class="note">Activity ${activity.available ? 'recorded' : 'not supplied or not retained'}; identity ${escape(activity.identity_status ?? 'not retained')}</div>`;
+  };
   // The receipt column. "hash not recorded" is stated rather than papered over: a local check
   // that never completed a fetch has no hash, and a cloud-synced row may carry its snapshot key
   // without a hash in an older event. Neither is a claim about the link.
@@ -164,10 +196,10 @@ export function renderReport(dataset, { brand = null } = {}) {
   const rows = dataset.rows.map(row => `<tr>
       <td class="url"><a href="${escape(row.source)}">${escape(row.source)}</a></td>
       <td class="url">${escape(row.target)}</td>
-      <td><span class="state ${escape(row.state)}">${escape(STATE_LABEL[row.state] ?? row.state)}</span></td>
+      <td><span class="state ${escape(row.state)}">${escape(hasActivity && !row.evidence && row.activity?.latest_attempt ? 'No retained observation' : (hasActivity ? CURRENT_STATE_LABEL : STATE_LABEL)[row.state] ?? row.state)}</span></td>
       <td>${row.anchor ? escape(row.anchor) : '<span class="note">&mdash;</span>'}${(row.rel ?? []).length ? `<div class="note">rel: ${escape(row.rel.join(' '))}</div>` : ''}</td>
       <td>${row.checked_at ? escape(row.checked_at.slice(0, 10)) : '<span class="note">never</span>'}</td>
-      <td>${evidenceCell(row)}</td>
+      <td>${evidenceCell(row)}</td>${hasActivity ? `\n      <td>${activityCell(row)}</td>` : ''}
       ${hasIndex?`<td>${(row.index_observations??[]).map(o=>`${escape(o.tier)} · ${escape(o.reason)}<div>${escape(o.checked_at)} · ${escape(o.backend)}</div><div class="ref">${escape(o.locator)}</div>`).join('<hr>')||'Not checked'}</td>`:''}
       ${dataset.include_notes ? `<td class="note">${escape(row.ref ?? '')}${row.note ? `<div>${escape(row.note)}</div>` : ''}</td>` : ''}
     </tr>`).join('\n');
@@ -188,21 +220,21 @@ export function renderReport(dataset, { brand = null } = {}) {
 <p class="sub">${brand ? `${escape(brand)} &middot; ` : ''}Prepared ${escape(dataset.as_of)}</p>
 <div class="cards">
 ${card('links in report', dataset.totals.entries)}
-${card('present', dataset.totals.present ?? 0)}
-${card('not found', dataset.totals.absent ?? 0)}
-${card('could not check', (dataset.totals.unknown ?? 0) + (dataset.totals.source_unavailable ?? 0))}
-${card('never checked', dataset.totals.unchecked ?? 0)}
+${card(hasActivity ? 'retained present' : 'present', dataset.totals.present ?? 0)}
+${card(hasActivity ? 'retained not found' : 'not found', dataset.totals.absent ?? 0)}
+${card(hasActivity ? 'retained could not check' : 'could not check', (dataset.totals.unknown ?? 0) + (dataset.totals.source_unavailable ?? 0))}
+${card('never checked', hasActivity ? coverage.never_checked : dataset.totals.unchecked ?? 0)}
 </div>
 <p class="caveat"><strong>What these dates mean.</strong> Every row shows the date that link was
 last observed, between ${escape(coverage.observed_from ?? 'n/a')} and ${escape(coverage.observed_to ?? 'n/a')}.
 The date at the top is when this document was prepared and does not make any observation newer
-than it is. ${coverage.never_checked ? `${coverage.never_checked} of ${dataset.totals.entries} links have never been checked and are listed as such.` : ''}</p>
+than it is. ${coverage.never_checked ? `${coverage.never_checked} of ${dataset.totals.entries} links have never been checked and are listed as such.` : ''}</p>${hasActivity ? '\n<p class="caveat"><strong>Activity and verification.</strong> The result and receipt date describe the retained observation. Activity lists later attempts and complete checks separately; an unchanged recheck can be newer than that receipt. An inconclusive attempt preserves the earlier verified state, and does not prove loss. A complete unavailable source is a conclusive source check, not a link verification. Missing activity is not inferred from a report preparation date.</p>' : ''}
 <p class="caveat"><strong>What a result means.</strong> &ldquo;Present&rdquo; means the link was in
 the observed HTML. &ldquo;Could not check&rdquo; is not the same as
 &ldquo;not found&rdquo;: it means the page could not be read, and no conclusion was drawn.
 Each receipt identifies the check method when it was recorded. A snapshot alone does not prove the link was visible on screen.</p>
 <table><thead><tr>
-<th>Source page</th><th>Target</th><th>Result</th><th>Anchor</th><th>Observed</th><th>Evidence</th>${hasIndex?'<th>Index evidence</th>':''}${dataset.include_notes ? '<th>Notes</th>' : ''}
+<th>Source page</th><th>Target</th><th>Result</th><th>Anchor</th><th>Observed</th><th>Evidence</th>${hasActivity ? '<th>Activity and verified state</th>' : ''}${hasIndex?'<th>Index evidence</th>':''}${dataset.include_notes ? '<th>Notes</th>' : ''}
 </tr></thead><tbody>
 ${rows}
 </tbody></table>
@@ -219,7 +251,7 @@ ${receiptRows}
 </tbody></table>` : ''}
 <footer>
 AgentLinkOps report v${dataset.v}. Dataset digest <code>${escape(digest)}</code> &mdash; the same
-ledger and observations always produce this digest. The same dataset exports as JSON
+ledger and observations${hasActivity ? ' and frozen activity' : ''} always produce this digest. The same dataset exports as JSON
 (<code>agentlinkops report --json</code>) and carries the same digest.
 ${dataset.include_notes ? 'Private notes are included in this document.' : 'Private notes and references are excluded.'}
 </footer>

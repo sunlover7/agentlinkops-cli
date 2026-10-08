@@ -1,3 +1,5 @@
+import {projectPlacements} from './placement-projection.js';
+import {chronologyMain} from './chronology.js';
 import { acquireSyncLock } from './sync-lock.js';
 import {lifecycleMain} from './lifecycle.js';
 import {admissionMain} from './admission.js';
@@ -52,6 +54,8 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
                 [--mode local|hosted|external]  read-only setup plan; no account required
   agentlinkops add --source URL --target URL [--intent wanted|expected] [--scope …]
                 [--anchor TEXT] [--rel a,b] [--ref TEXT] [--tag t --tag t] [--note TEXT]
+  agentlinkops chronology pull --watch-id ID [--limit N] [--cursor TOKEN] [--all] [--out FILE]
+  agentlinkops chronology export --pages FILE [--submissions FILE] [--out FILE]
   agentlinkops index pull --watch-id ID [--limit N] [--before ID]
   agentlinkops lifecycle get|update|clear|renew|report
   agentlinkops admission list|add|update|remove|evaluate|reevaluate|receipt --project ID
@@ -63,7 +67,7 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops import FILE --target DOMAIN [--from SUPPLIER] [--map source=COL,target=COL]
                 [--exact-url] [--no-subdomains] [--generated-at ISO] [--json]
   agentlinkops adopt CRM.sqlite [--scope exact|domain] [--write]
-  agentlinkops fleet --project NAME=LEDGER [--project …] [--observations-of NAME=FILE] [--json]
+  agentlinkops fleet --project NAME=LEDGER [--project …] [--observations-of NAME=FILE] [--state-of NAME=FILE] [--json]
   agentlinkops platforms [HOST] [--observations FILE]… [--benchmark FILE]… [--seed FILE]…
                 [--for-candidates FILE] [--json]
   agentlinkops context COMMAND…               first-party search context and site profile
@@ -100,7 +104,7 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops adopt-result FILE [--intent wanted|expected]  save result to local ledger
   agentlinkops receipt add --file CLAIM.json   project.site declares public site hosts
   agentlinkops receipt history [--performance FILE.json]  claims, history and optional dated context
-  agentlinkops status [--json]
+  agentlinkops status [--all] [--json]
   agentlinkops diff [--json]
   agentlinkops report [--out FILE] [--title T] [--brand B] [--as-of ISO]
                 [--include-notes] [--include-retired] [--digest-only] [--json]
@@ -122,7 +126,7 @@ evidence · 2 usage, configuration or ledger error. Unknown is nonfailing by def
 Names: \`linktrail\` still runs this CLI, LINKTRAIL_* variables are still read, and an existing
 .linktrail/ directory is still used, each with a one-line notice, until the DP-0029 cutover.`;
 
-const parseArgs = argv => parseArguments(argv,["tag", "project", "observations-of", "observations", "benchmark", "seed"],{tag:[]});
+const parseArgs = argv => parseArguments(argv,["tag", "project", "observations-of", "state-of", "observations", "benchmark", "seed"],{tag:[]});
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -154,6 +158,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     if (command === 'lifecycle') return await lifecycleMain(args,{cwd,env,fetchImpl,out,err});
     if (command === 'admission') { const config=await loadConfig({cwd}); return await admissionMain(argv.slice(1),{client:createClient({...cloudConnection(config,env),fetchImpl}),out,err}); }
     if (command === 'disavow') return await disavowMain(args,{cwd,env,fetchImpl,out});
+    if (command === 'chronology') return await chronologyMain(args,{cwd,env,fetchImpl,out});
     if (command === 'index') return await indexMain(args,{cwd,env,fetchImpl,out});
     if (command === 'setup') return await setupPlanMain(argv, { cwd, out });
     if (command === 'tools' || command === 'describe' || command === 'schema' || command === 'call') return await commandsMain(argv, { cwd, out, err, env, fetchImpl });
@@ -306,7 +311,15 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
         if (!name || !path) throw new ConfigError(`--observations-of expects NAME=FILE, got "${value}"`);
         observationsOf[name] = path;
       }
-      const summary = await fleetSummary(pairs, { observationsOf });
+      const statesOf = {};
+      for (const value of [].concat(args['state-of'] ?? [])) {
+        const separator = String(value).indexOf('=');
+        const name = String(value).slice(0, separator), path = String(value).slice(separator + 1);
+        if (separator < 1 || !path || !pairs.some(project => project.name === name)) throw new ConfigError('--state-of expects a declared NAME=FILE');
+        if (Object.hasOwn(statesOf, name)) throw new ConfigError(`Duplicate state input for ${name}`);
+        statesOf[name] = path;
+      }
+      const summary = await fleetSummary(pairs, { observationsOf, statesOf });
       if (args.json) { out(JSON.stringify(summary, null, 1)); return 0; }
       return renderFleet(summary, out);
     }
@@ -392,6 +405,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       // so it is unchanged by a cosmetic edit to the template and changes the moment a figure does.
       const asOf = args['as-of'] === true ? null : (args['as-of'] ?? null);
       const dataset = freezeDataset(ledger.entries, observations.rows, {
+        activityState: await readState(config.paths.state),
         asOf: asOf ?? new Date().toISOString().slice(0, 10),
         title: args.title === true ? 'Backlink report' : (args.title ?? 'Backlink report'),
         includeNotes: args['include-notes'] === true,
@@ -500,24 +514,29 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     }
 
     if (command === 'status' || command === 'diff') {
-      const found = command === 'status' ? disagreements(ledger.entries, observations.rows) : transitions(observations.rows);
-      if (args.json) { out(JSON.stringify(found, null, 1)); return 0; }
+      const activityState = command === 'status' ? await readState(config.paths.state) : null;
+      const found = command === 'status' ? disagreements(ledger.entries, observations.rows, { state: activityState }) : transitions(observations.rows);
+      const activity = command === 'status' && args.all ? projectPlacements(ledger.entries, observations.rows, { state: activityState }).map(({ entry, row, ...facts }) => ({ id: entry.id, source: entry.source, target: entry.target, scope: entry.scope, ...facts })) : null;
+      if (args.json) { out(JSON.stringify(activity ? { disagreements: found, placements: activity } : found, null, 1)); return 0; }
       reportProblems(ledger.problems, 'ledger line(s)', out);
       if (command === 'diff') {
         if (!found.length) out('no state changes recorded');
         for (const change of found.slice(0, 100)) out(`  ${change.at.slice(0, 10)}  ${change.from} -> ${change.to}  ${change.id}`);
         return 0;
       }
-      const groups = { appeared: 'appeared', lost: 'LOST', suspected_missing: 'suspected missing', cannot_say: 'cannot say', never_checked: 'never checked' };
+      const groups = { appeared: 'appeared', lost: 'confirmed missing', suspected_missing: 'suspected missing', cannot_say: 'cannot say', never_checked: 'never checked' };
       for (const [kind, label] of Object.entries(groups)) {
         const rows = found.filter(item => item.kind === kind);
         if (!rows.length) continue;
         out(`\n${label} (${rows.length})`);
         for (const item of rows.slice(0, 50)) {
           out(`  ${item.entry.id}  ${item.entry.source}${item.row ? `  [${item.row.reason}]` : ''}`);
+          out(`    Latest attempt: ${item.activity?.latest_attempt?.checked_at ?? 'not retained'} (${item.activity?.latest_attempt?.reason ?? 'unknown'})`);
+          out(`    Last conclusive: ${item.activity?.last_successful_observation?.checked_at ?? 'not retained'}; last link verification: ${item.activity?.last_link_verification?.checked_at ?? 'not retained'}`);
         }
       }
       if (!found.length) out('intent and observations agree on every entry');
+      if (activity) for (const item of activity) out(`  ${item.id}: latest attempt ${item.latest_attempt?.checked_at ?? 'not retained'}; last conclusive ${item.last_successful_observation?.checked_at ?? 'not retained'}; last link verification ${item.last_link_verification?.checked_at ?? 'not retained'}`);
       return 0;
     }
 
@@ -590,7 +609,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       if (ledger.problems.length) { reportProblems(ledger.problems, 'ledger line(s)', err); return 2; }
       const state = await readState(config.paths.state);
       const selected = selectEntries(ledger.entries, { filter: args.filter === true ? null : args.filter });
-      const entries = args.all ? selected : dueEntries(selected, lastCheckedMap(state));
+      const entries = args.all ? selected : dueEntries(selected, lastCheckedMap(state, selected));
       if (!entries.length) { (args.json ? err : out)(`nothing due (${plural(selected.length, 'entry', 'entries')} in scope; pass --all to recheck)`); return 0; }
       if (!args.json) err(`checking ${plural(entries.length, 'entry', 'entries')}…`);
       const rows = await runCheck(entries, {
