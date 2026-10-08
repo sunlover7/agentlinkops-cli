@@ -1,3 +1,4 @@
+import {chronologyResponse,assuranceResponse} from './monitoring-read-contract.js';
 import {lifecycleOutput} from './lifecycle-contract.js';
 import {searchConnectionsResponse,searchRowsResponse,searchSyncResponse,searchPropertiesResponse,searchStartResponse,searchConnection,searchImportResponse} from './search-connection-contract.js';
 import {z} from 'zod';
@@ -55,6 +56,8 @@ export function restResponseContract(path,method='GET') {
   if(/^\/v1\/search-connections\/[^/]+\/disconnect$/.test(pathname)&&method==='POST')return z.object({disconnected:z.literal(true),retainedRows:z.literal(true)});
   if(/^\/v1\/search-connections\/[^/]+$/.test(pathname)&&method==='DELETE')return z.object({forgotten:z.literal(true)});
   if(method!=='GET')return objectResponse;
+  if(/^\/v1\/watches\/[^/]+\/chronology$/.test(pathname))return chronologyResponse;
+  if(/^\/v1\/projects\/[^/]+\/monitoring-assurance$/.test(pathname))return assuranceResponse;
   if(/^\/v1\/(?:watches|targets)\/[^/]+\/history$/.test(pathname))return historyResponse;
   if(/^\/v1\/watches\/[^/]+$/.test(pathname))return watchResponse;
   if(/^\/v1\/targets\/[^/]+$/.test(pathname))return targetResponse;

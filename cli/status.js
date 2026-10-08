@@ -4,32 +4,28 @@
 // expectation, closes the laptop, and three weeks later an agent opens the repository and reads
 // this. So it answers in the order a person cares about, not the order the data is stored in:
 // what appeared, what was lost, what we cannot say, and what needs a decision.
-import { latestByEntry } from './mirror.js';
+import { projectPlacements } from './placement-projection.js';
 
 /** A ledger entry whose observations disagree with its declared intent. */
-export function disagreements(entries, observations) {
-  const latest = latestByEntry(observations);
+export function disagreements(entries, observations, { state = null } = {}) {
   const out = [];
-  for (const entry of entries) {
-    const row = latest.get(entry.id);
-    if (!row) { out.push({ entry, kind: 'never_checked' }); continue; }
+  for (const projection of projectPlacements(entries, observations, { state })) {
+    const { entry, row, latest_attempt: attempt } = projection;
+    const activity = { current_state: projection.current_state, uncertain: projection.uncertain,
+      latest_attempt: attempt, last_successful_observation: projection.last_successful_observation,
+      last_link_verification: projection.last_link_verification,
+      evidence_observed_at: projection.evidence_observed_at, identity_status: projection.identity_status };
+    if (!attempt) { out.push({ entry, kind: 'never_checked', activity }); continue; }
     if (entry.intent === 'expected') {
-      const hostedState = row.source === 'cloud' ? row.result?.watchState : null;
-      const confirmed = row.state === 'confirmed_missing'
-        || (row.state === 'absent' && hostedState === 'confirmed_missing');
-      const suspected = row.state === 'suspected_missing' || row.state === 'absent'
-        || (row.state === 'unknown' && hostedState === 'suspected_missing');
-      const missing = ['absent', 'suspected_missing', 'confirmed_missing'].includes(row.state);
-      // The change mirror omits repeated checks, so raw absence cannot prove confirmation.
-      if ((confirmed || suspected) && row.complete === true) {
-        out.push({ entry, row, kind: confirmed ? 'lost' : 'suspected_missing' });
-      } else if (missing || ['unknown', 'source_unavailable'].includes(row.state)) {
-        out.push({ entry, row, kind: 'cannot_say' });
+      if (projection.uncertain || attempt.state === 'source_unavailable') {
+        out.push({ entry, row, kind: 'cannot_say', activity });
+      } else if (['suspected_missing', 'confirmed_missing'].includes(projection.current_state)) {
+        out.push({ entry, row, kind: projection.current_state === 'confirmed_missing' ? 'lost' : 'suspected_missing', activity });
       }
     }
     // Nothing is promoted automatically: whether a link that appeared is one we now EXPECT is
     // a judgement about a relationship, not about HTML. So this proposes the edit and stops.
-    if (entry.intent === 'wanted' && row.state === 'present') out.push({ entry, row, kind: 'appeared', suggest: { intent: 'expected' } });
+    if (entry.intent === 'wanted' && !projection.uncertain && projection.current_state === 'present') out.push({ entry, row, kind: 'appeared', activity, suggest: { intent: 'expected' } });
   }
   return out;
 }

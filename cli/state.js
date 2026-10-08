@@ -10,8 +10,9 @@
 // was this last confirmed" — is exactly what a small, rewritten map answers better.
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { placementIdentity, attemptSummary, isConclusive, isLinkVerification, validTime } from './placement-projection.js';
 
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 /**
  * Brings a state file forward without losing anything it already held.
@@ -58,49 +59,81 @@ export async function writeState(path, state) {
 }
 
 /** When each entry was last checked, whatever the answer was. */
-export function lastCheckedMap(state) {
-  return new Map(Object.entries(state.entries ?? {}).map(([id, record]) => [id, record.last_checked]));
+export function lastCheckedMap(state, entries = null) {
+  const identities = entries ? new Map(entries.map(entry => [entry.id, placementIdentity(entry)])) : null;
+  return new Map(Object.entries(state.entries ?? {}).filter(([id, record]) => !identities
+    || identities.get(id) && record.last_placement === identities.get(id)).map(([id, record]) => [id, record.last_checked]));
+}
+
+const methodOf = row => row.result?.evidence?.method ?? null;
+const eligible = (row, previous) => validTime(row.checked_at)
+  && (!validTime(previous?.last_checked) || Date.parse(row.checked_at) > Date.parse(previous.last_checked));
+const repeats = (row, previous) => previous
+  && previous.last_placement === placementIdentity(row)
+  && previous.last_state === row.state
+  && (previous.last_reason ?? null) === (row.reason ?? null)
+  && (previous.last_signature ?? null) === (row.result?.linkSignature ?? null)
+  && previous.last_complete === (row.complete === true)
+  && (previous.last_method ?? null) === methodOf(row)
+  && (previous.last_checker_version ?? null) === (row.checker_version ?? row.result?.evidence?.checkerVersion ?? null);
+
+function applyRow(previous, row) {
+  const identity = placementIdentity(row);
+  const samePlacement = previous?.last_placement === identity;
+  const attempt = attemptSummary(row, { retained: !repeats(row, previous) });
+  const knownPresent = isConclusive(attempt) && attempt.state === 'present';
+  const priorFirst = samePlacement && previous?.first_present_observation?.placement === identity
+    && isConclusive(previous.first_present_observation) && previous.first_present_observation.state === 'present'
+    ? previous.first_present_observation : null;
+  const firstPresent = priorFirst ?? (knownPresent ? attempt : null);
+  return {
+    ...previous,
+    last_checked: row.checked_at,
+    last_complete: row.complete === true,
+    last_placement: identity,
+    last_state: row.state,
+    last_reason: row.reason ?? null,
+    last_signature: row.result?.linkSignature ?? null,
+    last_method: methodOf(row),
+    last_checker_version: row.checker_version ?? row.result?.evidence?.checkerVersion ?? null,
+    checks: (previous?.checks ?? 0) + 1,
+    last_attempt: attempt,
+    last_successful_observation: isConclusive(attempt) ? attempt : samePlacement ? previous?.last_successful_observation ?? null : null,
+    last_link_verification: isLinkVerification(attempt) ? attempt : samePlacement ? previous?.last_link_verification ?? null : null,
+    first_present: firstPresent?.checked_at ?? null,
+    first_present_placement: firstPresent ? identity : null,
+    first_present_observation: firstPresent,
+    ...(samePlacement && previous?.first_present && !previous.first_present_observation
+      ? { legacy_first_present: previous.first_present } : {}),
+  };
 }
 
 /**
  * Splits a run's rows into the ones worth recording and the ones that repeat.
  *
- * A row is worth recording when it is the first for its entry, or when the state, the reason or
- * the link signature moved. The signature is in there deliberately: a link that is still present
- * but whose anchor or rel changed is a real event, and comparing only the state would miss it.
+ * A row is worth recording when it is the first for its placement, or when the state, reason,
+ * link signature, completeness or method moved. A link that is still present but whose anchor
+ * or rel changed is a real event, and comparing only the state would miss it.
  */
 export function selectChanged(rows, state) {
-  const changed = [], repeated = [];
+  const changed = [], repeated = [], ignored = [];
+  const entries = { ...(state.entries ?? {}) };
   for (const row of rows) {
-    const previous = state.entries?.[row.id];
-    const signature = row.result?.linkSignature ?? null;
-    const same = previous
-      && previous.last_state === row.state
-      && (previous.last_reason ?? null) === (row.reason ?? null)
-      && (previous.last_signature ?? null) === signature;
-    (same ? repeated : changed).push(row);
+    const previous = entries[row.id];
+    if (!eligible(row, previous)) { ignored.push(row); continue; }
+    (repeats(row, previous) ? repeated : changed).push(row);
+    entries[row.id] = applyRow(previous, row);
   }
-  return { changed, repeated };
+  return { changed, repeated, ignored };
 }
 
 /** Applies a run to the activity record. Every check counts, recorded or not. */
 export function applyRun(state, rows) {
   const entries = { ...(state.entries ?? {}) };
   for (const row of rows) {
-    const previous = entries[row.id] ?? { checks: 0 };
-    entries[row.id] = {
-      ...previous,
-      last_checked: row.checked_at,
-      last_complete: row.complete === true,
-      last_placement: row.result?.sourceUrl && row.result?.targetUrl ? JSON.stringify([row.result.sourceUrl, row.result.targetUrl, row.result.targetScope ?? 'exact']) : null,
-      last_state: row.state,
-      last_reason: row.reason ?? null,
-      last_signature: row.result?.linkSignature ?? null,
-      checks: (previous.checks ?? 0) + 1,
-      // The date a placement was first seen is worth keeping where nothing can compact it away.
-      first_present: previous.first_present ?? (row.state === 'present' ? row.checked_at : null),
-      first_present_placement: previous.first_present ? previous.first_present_placement ?? null : row.state === 'present' && row.result?.sourceUrl && row.result?.targetUrl ? JSON.stringify([row.result.sourceUrl, row.result.targetUrl, row.result.targetScope ?? 'exact']) : null,
-    };
+    const previous = entries[row.id];
+    if (!eligible(row, previous)) continue;
+    entries[row.id] = applyRow(previous, row);
   }
   return { ...state, v: STATE_VERSION, entries };
 }

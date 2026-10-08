@@ -1,0 +1,48 @@
+{
+  "dataset": {
+    "v": 2,
+    "title": "Backlink report",
+    "as_of": "2026-09-11",
+    "include_notes": false,
+    "rows": [
+      {
+        "id": "lk_legacy01",
+        "intent": "expected",
+        "source": "https://publisher.example/a",
+        "target": "https://customer.example/",
+        "scope": "exact",
+        "expected_anchor": null,
+        "state": "present",
+        "reason": "link_found",
+        "occurrences": 0,
+        "checked_at": "2026-09-10T00:00:00.000Z",
+        "checked_by": "local",
+        "anchor": null,
+        "rel": [],
+        "evidence": {
+          "observed_at": "2026-09-10T00:00:00.000Z",
+          "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "snapshot_key": null,
+          "origin": "local",
+          "checker_version": null,
+          "method": "static_html",
+          "hosted_observation_id": null,
+          "locator": "agentlinkops:evidence/1/link/mirror/lk_legacy01/local/2026-09-10T00%3A00%3A00.000Z"
+        },
+        "note": null,
+        "ref": null
+      }
+    ],
+    "totals": {
+      "entries": 1,
+      "present": 1
+    },
+    "coverage": {
+      "checked": 1,
+      "never_checked": 0,
+      "observed_from": "2026-09-10T00:00:00.000Z",
+      "observed_to": "2026-09-10T00:00:00.000Z"
+    }
+  },
+  "html_sha256": "e969ed266d8c0f643a05618ccc0ff26573d0355792e5273daa1e3f9b7e4db988"
+}

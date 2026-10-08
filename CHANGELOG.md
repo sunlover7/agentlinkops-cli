@@ -3,6 +3,12 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
+## 0.6.13 (unreleased)
+
+- Show the latest attempt, conclusive source check and link verification separately in status, fleet and reports. Unknown checks retain the previous link verification for the same placement.
+- Add `chronology pull` for saved placement history on compatible hosted versions and `chronology export` for frozen local pages. Exports retain denied origins, history gaps and partial paging.
+- Preserve existing frozen version-two reports and reject exports that would replace an input or existing file.
+
 ## 0.6.12 (2026-10-07)
 
 - Check every watch import result before updating sync mappings or reporting progress. Reject incomplete, duplicate or out-of-range results without resending the request.

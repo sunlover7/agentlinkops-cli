@@ -166,7 +166,7 @@ test('the ledger maps to a watch, and a corrected URL keeps its history', () => 
 
 test('status proposes a promotion and refuses to make it', async () => {
   const entries = [normalizeEntry({ id: 'lk_pitched1', intent: 'wanted', source: SOURCE, target: TARGET })];
-  const rows = [observationRow('lk_pitched1', { state: 'present', reason: 'link_found', checkedAt: '2026-09-14T09:00:00.000Z', occurrences: [{}], evidence: { complete: true } })];
+  const rows = [observationRow('lk_pitched1', { sourceUrl: SOURCE, targetUrl: TARGET, state: 'present', reason: 'link_found', checkedAt: '2026-09-14T09:00:00.000Z', occurrences: [{}], evidence: { complete: true } })];
   const found = disagreements(entries, rows);
   assert.equal(found.length, 1);
   assert.equal(found[0].kind, 'appeared');
@@ -242,7 +242,7 @@ test('check is due-driven, so running it twice does not refetch the web', () => 
 
 test('a repeated answer is activity, not a new observation', () => {
   const at = day => `2026-09-${String(day).padStart(2, '0')}T00:00:00.000Z`;
-  const present = day => observationRow('lk_stable01', { state: 'present', reason: 'link_found', checkedAt: at(day), occurrences: [{}], linkSignature: 'sig1', evidence: { complete: true } });
+  const present = day => observationRow('lk_stable01', { sourceUrl: SOURCE, targetUrl: TARGET, targetScope: 'exact', state: 'present', reason: 'link_found', checkedAt: at(day), occurrences: [{}], linkSignature: 'sig1', evidence: { complete: true } });
   let state = { v: 1, entries: {} };
 
   let split = selectChanged([present(1)], state);
@@ -259,11 +259,12 @@ test('a repeated answer is activity, not a new observation', () => {
 
   // A link still present whose anchor or rel changed IS an event. Comparing only the state
   // would file it as more of the same.
-  const changedAnchor = observationRow('lk_stable01', { state: 'present', reason: 'link_found', checkedAt: at(4), occurrences: [{}], linkSignature: 'sig2', evidence: { complete: true } });
+  const changedAnchor = observationRow('lk_stable01', { sourceUrl: SOURCE, targetUrl: TARGET, targetScope: 'exact', state: 'present', reason: 'link_found', checkedAt: at(4), occurrences: [{}], linkSignature: 'sig2', evidence: { complete: true } });
   assert.equal(selectChanged([changedAnchor], state).changed.length, 1);
 });
 
 test('init, add, fmt and check work end to end from the command line', async t => {
+  t.mock.method(globalThis, 'fetch', () => assert.fail('a matching not-due placement must not fetch'));
   const space = await workspace(t);
   let result = await run(space.dir, ['add', '--source', SOURCE, '--target', TARGET, '--intent', 'expected', '--anchor', 'guide', '--ref', 'q3/1']);
   assert.equal(result.code, 0);
@@ -286,7 +287,7 @@ test('init, add, fmt and check work end to end from the command line', async t =
 
   // A ledger with nothing due says so rather than silently doing nothing. Due-ness comes from
   // state.json, so a recorded observation alone does not make an entry not-due.
-  const row = observationRow(id, { state: 'present', reason: 'link_found', checkedAt: new Date().toISOString(), occurrences: [{}], evidence: { complete: true } });
+  const row = observationRow(id, { sourceUrl: SOURCE, targetUrl: TARGET, targetScope: 'exact', state: 'present', reason: 'link_found', checkedAt: new Date().toISOString(), occurrences: [{}], evidence: { complete: true } });
   await writeFile(space.observations, `${JSON.stringify(row)}\n`, 'utf8');
   await writeFile(join(space.dir, '.agentlinkops/state.json'), `${JSON.stringify(applyRun({ v: 1, entries: {} }, [row]), null, 1)}\n`, 'utf8');
   result = await run(space.dir, ['check']);
@@ -310,7 +311,7 @@ test('check --json keeps stdout empty when there are no observations due and pre
   const space = await workspace(t);
   const fetchMock = t.mock.method(globalThis, 'fetch', () => assert.fail('an empty check must not fetch'));
   const entry = normalizeEntry({ id: 'lk_jsonempty', intent: 'expected', source: SOURCE, target: TARGET });
-  const row = observationRow(entry.id, { state: 'present', reason: 'link_found', checkedAt: new Date().toISOString(), occurrences: [{}], evidence: { complete: true } });
+  const row = observationRow(entry.id, { sourceUrl: SOURCE, targetUrl: TARGET, targetScope: 'exact', state: 'present', reason: 'link_found', checkedAt: new Date().toISOString(), occurrences: [{}], evidence: { complete: true } });
   const scenarios = [
     { name: 'empty ledger', entries: [], args: [], count: 0 },
     { name: 'not due', entries: [entry], args: [], count: 1 },

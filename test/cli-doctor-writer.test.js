@@ -9,7 +9,7 @@ import {join} from 'node:path';
 if (typeof mock.module === 'function') mock.module('../cli/native-lock.js', {namedExports: {nativeLock: async () => ({acquire: () => true})}});
 const {doctorMain} = await import('../cli/doctor.js');
 const {acquireSyncLock} = await import('../cli/sync-lock.js');
-const {writeState} = await import('../cli/state.js');
+const {writeState, STATE_VERSION} = await import('../cli/state.js');
 const {main} = await import('../cli/main.js');
 
 async function ledger(t) {
@@ -19,7 +19,7 @@ async function ledger(t) {
   await writeFile(join(dir, 'links.jsonl'), JSON.stringify({id: 'lk_sameid01', intent: 'expected', source: 'https://publisher.example/a', target: 'https://customer.example/b'}) + '\n');
   await writeFile(join(dir, 'config.json'), JSON.stringify({cloud: {origin: 'https://api.example'}}));
   const statePath = join(dir, 'state.json');
-  const before = {v: 2, entries: {}, watches: {lk_sameid01: 'old'}, cursors: {events: 'old-source', target_events: 'old-target'}, custom: {site: cwd}};
+  const before = {v: STATE_VERSION, entries: {}, watches: {lk_sameid01: 'old'}, cursors: {events: 'old-source', target_events: 'old-target'}, custom: {site: cwd}};
   await writeState(statePath, before);
   return {cwd, dir, statePath, before};
 }
