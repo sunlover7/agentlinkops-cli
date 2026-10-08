@@ -11,14 +11,14 @@ const unavailable=(status,headers={})=>Response.json({error:{code:status===429?'
   {status,headers:{'X-Request-ID':`req-${status}`,...headers}});
 const client=(fetchImpl,options={})=>createClient({origin:ORIGIN,token:TOKEN,fetchImpl,...options});
 
-test('the REST client sends the 0.6.12 release User-Agent', async () => {
+test('the REST client sends the 0.6.13 release User-Agent', async () => {
   const requests = [];
   const result = await client(async (url, init) => {
     const request = new Request(url, init);
     requests.push(request);
     assert.equal(request.url, ORIGIN + '/v1/watches');
     assert.equal(request.method, 'GET');
-    assert.equal(request.headers.get('user-agent'), 'agentlinkops-cli/0.6.12');
+    assert.equal(request.headers.get('user-agent'), 'agentlinkops-cli/0.6.13');
     assert.equal(request.headers.get('authorization'), 'Bearer ' + TOKEN);
     return page();
   }).listWatches();
