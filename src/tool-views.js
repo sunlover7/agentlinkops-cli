@@ -3,22 +3,23 @@
 // script, the MCP router, the CLI index and the generators all read the same definitions.
 // Rules: docs/technical/AGENT-SURFACE-CONTRACT.md (DP-0036).
 
-export const TOOLSETS = ['monitoring','evidence','rank','licensed','discovery','baseline','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
+export const TOOLSETS = ['monitoring','classification','evidence','rank','licensed','discovery','baseline','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
 
 // One line per toolset: what the group is for. Printed by the site brief, the REST index and the
 // catalog snapshot so the same wording reaches every client; a toolset without a summary is a
 // gate failure in the measurement script.
 export const TOOLSET_SUMMARIES = {
   admission: 'Project rules, URL previews and retained admission decisions.',
-  disavow: 'Propose, review and export website disavow rules.',
+  disavow: 'Propose, review and export website disavow rules; check the copy Google holds (handoffs).',
   lifecycle: 'Placement costs, expiry, renewal events and currency reports.',
   digests: 'Own-address digest preferences, delivery history and exact events.',
   monitoring: 'Watch earned links and destination URLs: create, list, update, import, export, recheck.',
+  classification: 'Retained physical link context, attributed labels and quoted model suggestions.',
   evidence: 'What a check observed: histories, snapshots, change feeds, check jobs, published contacts.',
   rank: 'Synthetic DataForSEO rank schedules and dated history; hosted collection disabled.',
   licensed: 'Licensed source-search evidence and charge custody; operator admission required.',
   discovery: 'Import candidate rows, read stored runs, verify selected candidates, enroll them.',
-  baseline: 'Scoped backlink baselines; supplier admission disabled.',
+  baseline: 'Scoped backlink baselines; new live work requires admission in this deployment.',
   library: 'Read and export the coverage-stated opportunity library.',
   competitors: 'Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports.',
   reports: 'Placement chronology, service assurance and backlink reports.',
@@ -57,15 +58,22 @@ export function oneLiner(description, max = 60) {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 20)).replace(/[,;:]$/, '')}…`;
 }
 
-// entries: [{ name, description, toolset, tier, readOnly }]. Grouped, one line per command.
-export function manifestText(entries, { max = 28 } = {}) {
+// entries: [{ name, description, toolset, tier, readOnly }]. Grouped under each toolset's summary,
+// one line per command with its core and write markers. Only core commands carry a one-liner;
+// a deferred command's detail is one describe away. Per-command one-liners were cut from 28 to
+// 23 characters as commands were added until the 2,500-token budget (measure:tools) had no room
+// left; names under a toolset summary keep that budget without a further cut per command.
+export function manifestText(entries, { max = 23 } = {}) {
   const groups = new Map(TOOLSETS.map(t => [t, []]));
   for (const entry of entries) (groups.get(entry.toolset) ?? groups.set(entry.toolset, []).get(entry.toolset)).push(entry);
-  const lines = ['Commands by toolset. MCP: `exec search <words>`, `exec describe <name>`, `exec call <name> <json>`. CLI: `agentlinkops tools | describe | call`. Licensed supplier calls require operator admission.'];
+  const lines = ['Commands by toolset. exec help / agentlinkops --help. Licensed: operator admission.'];
   for (const [toolset, members] of groups) {
     if (!members.length) continue;
-    lines.push(`\n${toolset}:`);
-    for (const entry of members.sort((a, b) => a.name.localeCompare(b.name))) lines.push(`- ${entry.name}${entry.tier === 'core' ? ' (core)' : ''}${entry.readOnly ? '' : ' [write]'}: ${oneLiner(entry.description, max)}`);
+    lines.push(`\n${toolset}:${TOOLSET_SUMMARIES[toolset] ? ` ${TOOLSET_SUMMARIES[toolset]}` : ''}`);
+    for (const entry of members.sort((a, b) => a.name.localeCompare(b.name))) {
+      const core = entry.tier === 'core';
+      lines.push(`- ${entry.name}${core ? ' (core)' : ''}${entry.readOnly ? '' : ' [write]'}${core ? `: ${oneLiner(entry.description, max)}` : ''}`);
+    }
   }
   return lines.join('\n');
 }

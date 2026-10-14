@@ -3,9 +3,16 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import dns from 'node:dns/promises';
+import https from 'node:https';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { main } from '../cli/main.js';
 import { readLedger, normalizeEntry, serializeLedger, toWatchInput, ledgerIdOf, cadenceSeconds } from '../cli/ledger.js';
-import { runCheck, selectEntries, dueEntries, summarize, createPacer } from '../cli/check.js';
+import { runCheck, selectEntries, dueEntries, summarize, createPacer, portableCheckObservation } from '../cli/check.js';
+import { createNodePublicFetch, isPublicNodeAddress, resolveNodePublicDestination } from '../cli/public-http.js';
 import { observationRow, compactionPlan } from '../cli/mirror.js';
 import { selectChanged, applyRun, lastCheckedMap } from '../cli/state.js';
 import { disagreements, transitions } from '../cli/status.js';
@@ -13,6 +20,32 @@ import { verifyLink } from '../src/verifier/index.js';
 import { CASES, SOURCE, TARGET } from './fixtures/verifier-cases.js';
 
 const html = body => new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+const publicAddress = '93.184.215.14';
+const publicLookup = async () => [{ address: publicAddress, family: 4 }];
+const requestOptions = { method: 'GET', redirect: 'manual', credentials: 'omit' };
+function nodeResponse(respond, { remoteAddress = publicAddress, inspect, complete = true } = {}) {
+  return (options, callback) => {
+    inspect?.(options);
+    const request = new EventEmitter();
+    request.destroy = () => { request.destroyed = true; };
+    request.end = () => queueMicrotask(async () => {
+      if (request.destroyed) return;
+      const socket = new EventEmitter(); socket.remoteAddress = remoteAddress;
+      request.emit('socket', socket); socket.emit('connect');
+      if (request.destroyed) return;
+      try {
+        const url = `${options.protocol}//${options.hostname}${options.path}`;
+        const result = await respond(url);
+        if (request.destroyed) return;
+        const response = Readable.from([Buffer.from(await result.arrayBuffer())]);
+        Object.assign(response, { statusCode: result.status, headers: Object.fromEntries(result.headers),
+          complete: typeof complete === 'function' ? complete(url) : complete, socket });
+        callback(response);
+      } catch (error) { request.emit('error', error); }
+    });
+    return request;
+  };
+}
 
 async function workspace(t) {
   const dir = await mkdtemp(join(tmpdir(), 'linktrail-cli-'));
@@ -66,7 +99,7 @@ test('the CLI runs the EXACT cloud verifier, asserted on the shared cases', asyn
   };
   const rows = await runCheck(entries, {
     hostDelayMs: 0,
-    verify: (input, options) => verifyLink(input, { ...options, fetchImpl }),
+    fetchImpl,
   });
   assert.equal(rows.length, CASES.length);
   rows.forEach((row, index) => {
@@ -78,7 +111,178 @@ test('the CLI runs the EXACT cloud verifier, asserted on the shared cases', asyn
     // shape as the cloud" a fact rather than a promise.
     assert.equal(row.result.state, row.state);
     assert.equal(row.result.targetUrl, TARGET);
+    if (row.result.evidence.capture) assert.deepEqual(row.result.evidence.capture.transport,
+      { id: 'public_http', version: '1', qualified: true }, 'injected fixtures do not claim the Node connector');
   });
+});
+
+test('CLI public connector denies private, mapped, reserved and mixed DNS destinations before opening a socket', async () => {
+  for (const address of ['127.0.0.1', '10.0.0.1', '169.254.169.254', '100.64.0.1', '192.0.2.1',
+    '198.18.0.1', '224.0.0.1', '::1', 'fc00::1', 'fe80::1', '::ffff:127.0.0.1', '2001:db8::1',
+    '2002:7f00:1::', '64:ff9b::7f00:1', '3fff::1', '2606:4700:4700::1111%eth0']) {
+    assert.equal(isPublicNodeAddress(address), false, address);
+  }
+  for (const address of [publicAddress, '8.8.8.8', '2606:4700:4700::1111']) assert.equal(isPublicNodeAddress(address), true, address);
+  let connections = 0;
+  const fetch = createNodePublicFetch({ lookup: async () => [{ address: publicAddress, family: 4 }, { address: '127.0.0.1', family: 4 }],
+    requestImpl: () => { connections++; assert.fail('mixed DNS must not connect'); } });
+  await assert.rejects(fetch(SOURCE, requestOptions), { reason: 'dns_destination_not_public' });
+  assert.equal(connections, 0);
+  await assert.rejects(resolveNodePublicDestination('publisher.org', { lookup: async () => [{ address: publicAddress, family: 6 }] }), { reason: 'dns_destination_not_public' });
+});
+
+test('CLI connector pins repeated socket lookups, verifies the actual peer and preserves TLS/manual redirect facts', async () => {
+  let resolutions = 0;
+  const fetch = createNodePublicFetch({ lookup: async () => { resolutions++; return publicLookup(); },
+    requestImpl: nodeResponse(() => new Response('moved', { status: 302, headers: { location: 'https://other.org/', 'set-cookie': 'private=value' } }), {
+      inspect: options => {
+        assert.equal(options.agent, false); assert.equal(options.autoSelectFamily, false);
+        assert.equal(options.hostname, new URL(SOURCE).hostname); assert.equal(options.servername, options.hostname);
+        assert.equal(options.rejectUnauthorized, true); assert.equal(options.headers.Cookie, undefined);
+        assert.equal(options.headers['Accept-Encoding'], 'identity');
+        for (let i = 0; i < 2; i++) options.lookup(options.hostname, {}, (error, address, family) => {
+          assert.equal(error, null); assert.equal(address, publicAddress); assert.equal(family, 4);
+        });
+        options.lookup(options.hostname, { all: true }, (error, addresses) => {
+          assert.equal(error, null); assert.deepEqual(addresses, [{ address: publicAddress, family: 4 }]);
+        });
+      },
+    }) });
+  const response = await fetch(SOURCE, requestOptions);
+  assert.equal(response.status, 302); assert.equal(response.url, SOURCE); assert.equal(response.redirected, false);
+  assert.equal(response.headers.get('set-cookie'), null); assert.equal(await response.text(), 'moved'); assert.equal(resolutions, 1);
+  const changedPeer = createNodePublicFetch({ lookup: publicLookup, requestImpl: nodeResponse(() => html('private'), { remoteAddress: '127.0.0.1' }) });
+  await assert.rejects(changedPeer(SOURCE, requestOptions), { reason: 'socket_destination_changed' });
+});
+
+test('canonical verifier rechecks DNS on a redirected destination and on a rebinding origin', async () => {
+  let requests = 0;
+  const fetch = createNodePublicFetch({ lookup: async hostname => hostname === 'private-target.org'
+    ? [{ address: '169.254.169.254', family: 4 }] : publicLookup(),
+    requestImpl: nodeResponse(url => { requests++; return new URL(url).pathname === '/robots.txt' ? new Response(null, { status: 404 })
+      : new Response(null, { status: 302, headers: { location: 'https://private-target.org/page' } }); }) });
+  const result = await verifyLink({ sourceUrl: SOURCE, targetUrl: TARGET }, { publicFetchSafe: true, fetchImpl: fetch });
+  assert.equal(result.state, 'unknown'); assert.equal(result.reason, 'dns_destination_not_public'); assert.equal(requests, 2);
+  let lookups = 0, reboundRequests = 0;
+  const rebound = createNodePublicFetch({ lookup: async () => ++lookups === 1 ? publicLookup() : [{ address: '127.0.0.1', family: 4 }],
+    requestImpl: nodeResponse(() => { reboundRequests++; return new Response(null, { status: 404 }); }) });
+  const refused = await verifyLink({ sourceUrl: SOURCE, targetUrl: TARGET }, { publicFetchSafe: true, fetchImpl: rebound });
+  assert.equal(refused.state, 'unknown'); assert.equal(refused.reason, 'dns_destination_not_public'); assert.equal(reboundRequests, 1);
+});
+
+test('CLI transport refuses credentials, unsupported encodings and aborted DNS without a placement claim', async () => {
+  let requests = 0;
+  const fetch = createNodePublicFetch({ lookup: publicLookup, requestImpl: () => { requests++; assert.fail('invalid request must not dispatch'); } });
+  for (const init of [{ ...requestOptions, method: 'POST' }, { ...requestOptions, redirect: 'follow' },
+    { ...requestOptions, credentials: 'include' }, { ...requestOptions, headers: { Cookie: 'private=value' } }])
+    await assert.rejects(fetch(SOURCE, init), { reason: 'transport_request_invalid' });
+  assert.equal(requests, 0);
+  const controller = new AbortController();
+  const stalled = createNodePublicFetch({ lookup: () => new Promise(() => {}), requestImpl: () => assert.fail('aborted DNS must not connect') });
+  const pending = stalled(SOURCE, { ...requestOptions, signal: controller.signal }); controller.abort();
+  await assert.rejects(pending, { reason: 'timeout' });
+  const compressed = createNodePublicFetch({ lookup: publicLookup, requestImpl: nodeResponse(() => new Response('encoded', { headers: { 'content-encoding': 'gzip' } })) });
+  await assert.rejects(compressed(SOURCE, requestOptions), { reason: 'content_encoding_unsupported' });
+});
+
+test('TLS failure and incomplete or oversized Node bodies remain unknown through the canonical verifier', async () => {
+  const badTls = createNodePublicFetch({ lookup: publicLookup, requestImpl: () => {
+    const request = new EventEmitter(); request.destroy = () => {};
+    request.end = () => queueMicrotask(() => request.emit('error', Object.assign(new Error('certificate expired'), { code: 'CERT_HAS_EXPIRED' })));
+    return request;
+  } });
+  const failed = await verifyLink({ sourceUrl: SOURCE, targetUrl: TARGET }, { publicFetchSafe: true, fetchImpl: badTls });
+  assert.equal(failed.state, 'unknown'); assert.equal(failed.evidence.complete, false);
+  for (const [body, complete] of [['partial', false], ['x'.repeat(128), true]]) {
+    const fetch = createNodePublicFetch({ lookup: publicLookup, requestImpl: nodeResponse(url => new URL(url).pathname === '/robots.txt'
+      ? new Response(null, { status: 404 }) : html(body), { complete: url => new URL(url).pathname === '/robots.txt' || complete }) });
+    const result = await verifyLink({ sourceUrl: SOURCE, targetUrl: TARGET }, { publicFetchSafe: true, fetchImpl: fetch, maxBytes: 64 });
+    assert.equal(result.state, 'unknown'); assert.equal(result.evidence.complete, false);
+    assert.equal(result.occurrences.length, 0);
+  }
+});
+
+test('the default CLI path parses a pinned Node capture and projects private diagnostic prefixes', async t => {
+  t.mock.method(dns, 'lookup', publicLookup);
+  t.mock.method(https, 'request', nodeResponse(url => new URL(url).pathname === '/robots.txt'
+    ? new Response('<html>PRIVATE-PREFIX</html>', { status: 404 })
+    : html(`<html><body><a href="${TARGET}">Guide</a></body></html>`)));
+  t.mock.method(globalThis, 'fetch', () => assert.fail('CLI direct checks must use the pinned Node connector'));
+  const [row] = await runCheck([normalizeEntry({ id: 'lk_nodeproof', intent: 'wanted', source: SOURCE, target: TARGET })], { hostDelayMs: 0 });
+  assert.equal(row.state, 'present'); assert.equal(row.result.evidence.method, 'http_html');
+  assert.equal(row.result.evidence.capture.transport.id, 'local_node_http');
+  assert.equal(row.result.evidence.capture.transport.version, 'alo-local-node-v1');
+  assert.equal(row.result.evidence.capture.transport.qualified, true);
+  assert.equal(row.result.robots.bodyDiagnostic.looksLikeHtml, true); assert.equal(row.result.robots.googlebot.allowed, true);
+  assert.doesNotMatch(JSON.stringify(row), /PRIVATE-PREFIX|sampleText|workers_http|bodyBase64/);
+  const source = { robots: { bodyDiagnostic: { sampleText: 'private', sha256: 'a' } } };
+  assert.equal(portableCheckObservation(source).robots.bodyDiagnostic.sampleText, undefined);
+  assert.equal(source.robots.bodyDiagnostic.sampleText, 'private', 'the source evidence is not mutated');
+});
+
+test('both CLI local entrypoints keep the pinned Node default separate from hosted fetch injection', async t => {
+  t.mock.method(dns, 'lookup', publicLookup);
+  t.mock.method(https, 'request', nodeResponse(url => new URL(url).pathname === '/robots.txt'
+    ? new Response(null, { status: 404 })
+    : html(`<html><body><a href="${TARGET}">Guide</a></body></html>`)));
+  t.mock.method(globalThis, 'fetch', () => assert.fail('local checks must not use global fetch'));
+  const { dir, ledger } = await workspace(t);
+  await writeFile(ledger, serializeLedger([normalizeEntry({ id: 'lk_defaultapi', intent: 'expected', source: SOURCE, target: TARGET })]));
+  for (const args of [
+    ['check', '--source', SOURCE, '--target', TARGET, '--json'],
+    ['check', '--all', '--host-delay=0', '--json'],
+  ]) {
+    const out = [], err = [];
+    const code = await main(args, { cwd: dir, env: {},
+      fetchImpl: () => assert.fail('hosted API transport does not replace the local connector'),
+      out: value => out.push(String(value)), err: value => err.push(String(value)) });
+    assert.equal(code, 0, err.join('\n'));
+    const saved = JSON.parse(out.join('\n'));
+    const observation = saved.observation ?? saved.result;
+    assert.equal(observation.state, 'present');
+    assert.deepEqual(observation.evidence.capture.transport,
+      { id: 'local_node_http', version: 'alo-local-node-v1', qualified: true });
+  }
+});
+
+test('explicit local fixture injection reaches both CLI checks without claiming the Node connector', async t => {
+  let nativeAttempts = 0;
+  const refuseNative = () => { nativeAttempts++; assert.fail('explicit local fixture must not fall back to native transport'); };
+  t.mock.method(dns, 'lookup', refuseNative);
+  t.mock.method(https, 'request', refuseNative);
+  t.mock.method(globalThis, 'fetch', () => assert.fail('the fixture is an explicit local dependency'));
+  const requests = [];
+  const localFetchImpl = async (url, options) => {
+    requests.push(url);
+    assert.equal(options.method ?? 'GET', 'GET');
+    assert.equal(options.redirect, 'manual');
+    assert.equal(options.credentials, 'omit');
+    assert.equal(new Headers(options.headers).has('authorization'), false);
+    assert.equal(new Headers(options.headers).has('cookie'), false);
+    if (url === new URL('/robots.txt', SOURCE).href) return new Response(null, { status: 404 });
+    assert.equal(url, SOURCE, 'only the authored source route is allowed');
+    return html(`<html><body><a href="${TARGET}">Guide</a></body></html>`);
+  };
+  const { dir, ledger } = await workspace(t);
+  await writeFile(ledger, serializeLedger([normalizeEntry({ id: 'lk_fixtureapi', intent: 'expected', source: SOURCE, target: TARGET })]));
+  for (const args of [
+    ['check', '--source', SOURCE, '--target', TARGET, '--json'],
+    ['check', '--all', '--host-delay=0', '--json'],
+  ]) {
+    const out = [], err = [];
+    const code = await main(args, { cwd: dir, env: {}, localFetchImpl,
+      fetchImpl: () => assert.fail('hosted transport must not be used for a local fixture'),
+      out: value => out.push(String(value)), err: value => err.push(String(value)) });
+    assert.equal(code, 0, err.join('\n'));
+    const saved = JSON.parse(out.join('\n'));
+    const observation = saved.observation ?? saved.result;
+    assert.equal(observation.state, 'present');
+    assert.deepEqual(observation.evidence.capture.transport,
+      { id: 'public_http', version: '1', qualified: true });
+  }
+  assert.deepEqual(requests, [new URL('/robots.txt', SOURCE).href, SOURCE, new URL('/robots.txt', SOURCE).href, SOURCE]);
+  assert.equal(nativeAttempts, 0);
+  await assert.rejects(runCheck([], { fetchImpl: {} }), TypeError);
 });
 
 test('the page body never reaches the repository, while the occurrence evidence does', async () => {
@@ -218,6 +422,74 @@ test('the pacer waits per host, and honours a longer stated crawl delay', async 
   await pacer.beforeFetch('https://c.com/1', { crawlDelaySeconds: 30 });
   await pacer.beforeFetch('https://c.com/2');
   assert.equal(waits.at(-1), 30_000);
+});
+
+test('canonical robots-to-source ordering applies a newly learned crawl delay to the source request', async () => {
+  let clock = 0;
+  const waits = [], requests = [];
+  const pacer = createPacer({ hostDelayMs: 2000, now: () => clock, wait: async ms => { waits.push(ms); clock += ms; } });
+  const result = await verifyLink({ sourceUrl: SOURCE, targetUrl: TARGET }, {
+    publicFetchSafe: true, beforeFetch: pacer.beforeFetch,
+    fetchImpl: async url => {
+      requests.push({ url, at: clock });
+      return new URL(url).pathname === '/robots.txt'
+        ? new Response('User-agent: *\nCrawl-delay: 30')
+        : html(`<a href="${TARGET}">Guide</a>`);
+    },
+  });
+  assert.equal(result.state, 'present');
+  assert.deepEqual(waits, [30_000]);
+  assert.deepEqual(requests, [
+    { url: new URL('/robots.txt', SOURCE).href, at: 0 },
+    { url: SOURCE, at: 30_000 },
+  ]);
+});
+
+test('aborting canonical pacing stops the source request and a late injected wait cannot advance host state', async () => {
+  let clock = 0, finishWait, startedWait;
+  const controller = new AbortController(), ready = new Promise(resolve => { startedWait = resolve; });
+  const waits = [], requests = [];
+  const pacer = createPacer({ hostDelayMs: 2000, now: () => clock, wait: ms => {
+    waits.push(ms);
+    if (waits.length === 1) { startedWait(); return new Promise(resolve => { finishWait = resolve; }); }
+    clock += ms;
+  } });
+  const pending = verifyLink({ sourceUrl: SOURCE, targetUrl: TARGET }, {
+    publicFetchSafe: true, signal: controller.signal, beforeFetch: pacer.beforeFetch,
+    fetchImpl: async url => {
+      requests.push(url);
+      assert.equal(new URL(url).pathname, '/robots.txt', 'an aborted source gate must never dispatch a page');
+      return new Response('User-agent: *\nCrawl-delay: 30');
+    },
+  });
+  await ready; controller.abort();
+  const result = await pending;
+  assert.equal(result.state, 'unknown');
+  assert.equal(result.reason, 'timeout');
+  assert.deepEqual(requests, [new URL('/robots.txt', SOURCE).href]);
+  clock = 1000; finishWait();
+  await Promise.resolve(); await Promise.resolve();
+  await pacer.beforeFetch(SOURCE, { crawlDelaySeconds: 30 });
+  assert.deepEqual(waits, [30_000, 29_000], 'the canceled gate did not become a last request');
+  assert.equal(clock, 30_000);
+  await assert.rejects(pacer.beforeFetch(SOURCE, { signal: controller.signal }), { reason: 'timeout' });
+  assert.deepEqual(waits, [30_000, 29_000], 'already aborted requests create no new wait');
+});
+
+test('aborting the default pacing timer leaves no ref keeping the CLI process alive', { timeout: 10_000 }, async () => {
+  const script = `
+    import assert from 'node:assert/strict';
+    import { createPacer } from ${JSON.stringify(new URL('../cli/check.js', import.meta.url).href)};
+    const pacer = createPacer({ hostDelayMs: 60_000 });
+    await pacer.beforeFetch('https://publisher.example.com/robots.txt');
+    const controller = new AbortController();
+    const pending = pacer.beforeFetch('https://publisher.example.com/page', { signal: controller.signal });
+    controller.abort();
+    await assert.rejects(pending, { reason: 'timeout' });
+    process.stdout.write('canceled');
+  `;
+  const result = await promisify(execFile)(process.execPath, ['--input-type=module', '-e', script], { timeout: 5_000 });
+  assert.equal(result.stdout, 'canceled', 'the child exits instead of waiting for the one-minute publisher timer');
 });
 
 test('check is due-driven, so running it twice does not refetch the web', () => {
@@ -361,9 +633,10 @@ test('human and JSON checks honor only the explicit unknown failure flag without
   const space = await workspace(t);
   const entry = normalizeEntry({ id: 'lk_unknownflag', intent: 'expected', source: SOURCE, target: TARGET });
   await writeFile(space.ledger, serializeLedger([entry]));
-  const fetchMock = t.mock.method(globalThis, 'fetch', async url => new URL(url).pathname === '/robots.txt'
+  t.mock.method(dns, 'lookup', publicLookup);
+  const fetchMock = t.mock.method(https, 'request', nodeResponse(async url => new URL(url).pathname === '/robots.txt'
     ? new Response('', { status: 404 })
-    : new Response('', { status: 403, headers: { 'content-type': 'text/html' } }));
+    : new Response('', { status: 403, headers: { 'content-type': 'text/html' } })));
   for (const json of [false, true]) for (const failOnUnknown of [false, true]) {
     const beforeRequests = fetchMock.mock.callCount();
     const result = await run(space.dir, ['check', '--all', '--host-delay', '0', '--concurrency', '1',

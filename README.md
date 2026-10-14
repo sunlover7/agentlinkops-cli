@@ -58,8 +58,8 @@ the installed version's help before selecting guidance.
 
 The skill is a short door: the first time your agent uses AgentLinkOps in a session it reads
 the full agent reference, which `agentlinkops skill` prints and
-https://agentlinkops.com/SKILL.md serves. Hosted monitoring is an invitation-only pilot; the
-local commands below need no account. The package is `agentlinkops` on npm, published by the
+https://agentlinkops.com/SKILL.md serves. Hosted monitoring is a private pilot, and access opens
+in stages; the local commands below need no account. The package is `agentlinkops` on npm, published by the
 `agentlinkops` account; the source is https://github.com/sunlover7/agentlinkops-cli.
 
 ## Install the CLI on its own
@@ -168,13 +168,14 @@ agentlinkops sync --dry-run
 agentlinkops sync
 ```
 
-Hosted access is an invitation-only pilot. The hosted checks, evidence store and MCP server are a
-separate service and are not part of this package.
+Hosted access opens in stages: anyone can create an account at https://app.agentlinkops.com/sign-up,
+and an account outside the pilot is told it is waiting for access. The hosted checks, evidence store
+and MCP server are a separate service and are not part of this package.
 
 ## Citation watches
 
 An AI citation is a placement: a reference to your asset on a surface you do not control,
-re-decided by the model on every ask. So the CLI watches it the way it watches a link — a prompt
+re-decided by the model on every ask. So the CLI watches it the way it watches a link: a prompt
 panel, run against engine APIs on cadence, with dated evidence and honest statistics. A citation
 is never reported as "removed": each epoch states the citation rate with a Wilson interval and
 its sample size, classified against the previous epoch as declined, grown or

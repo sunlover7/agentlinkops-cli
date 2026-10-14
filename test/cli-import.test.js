@@ -104,6 +104,159 @@ test('an aggregate export is refused rather than turned into invented URLs', asy
   assert.match(result.error, /count per site, not a list of pages/u);
 });
 
+test('GSC Latest links source headers use the selected target without a manual mapping', async t => {
+  const source = 'https://publisher.example.com/article';
+  const now = '2026-10-07T12:00:00.000Z';
+  const options = { supplier: 'google_search_console', target: 'example.com', now };
+  const canonical = await file(t, 'linking-page.csv',
+    `Linking page,Last crawled\n${source},2026-10-01\n`);
+  const expected = await readImport(canonical, options);
+  for (const header of ['Links', 'Source URL']) {
+    const path = await file(t, `${normalizeHeader(header)}.csv`,
+      `${header},Last crawled\n${source},2026-10-01\n`);
+    const result = await readImport(path, options);
+    assert.equal(result.error, undefined);
+    assert.deepEqual(result.counts, { read: 1, accepted: 1, rejected: 0, duplicates: 0 });
+    assert.equal(result.mapping.source, header);
+    assert.equal(result.mapping.target, undefined, 'the selected domain supplies scope, not an invented exact page');
+    assert.equal(result.mapping.last_seen, 'Last crawled');
+    assert.deepEqual(result.accepted, expected.accepted, 'the export header does not change placement identity or supplier provenance');
+    assert.equal(result.accepted[0].target_url, 'https://example.com/');
+    assert.equal(result.accepted[0].provider_metrics.imported.target_basis, 'user_supplied_target_expectation');
+    assert.equal(result.accepted[0].provider_last_seen, '2026-10-01T00:00:00.000Z');
+    assert.equal(result.accepted[0].verification_status, 'not_checked');
+    const refused = await readImport(path, { supplier: 'google_search_console' });
+    assert.match(refused.error, /could not find the target column/u);
+  }
+});
+
+test('GSC source-only aliases preserve explicit destinations and leave generic provenance to the caller', async t => {
+  const path = await file(t, 'gsc-source-url.csv',
+    'Source URL,Target page,Last crawled date\nhttps://publisher.example.com/article,https://example.com/guide,2026-10-01\n');
+  const result = await readImport(path, { supplier: 'google_search_console', target: 'example.com' });
+  assert.equal(result.error, undefined);
+  assert.equal(result.accepted[0].target_url, 'https://example.com/guide');
+  assert.equal(result.accepted[0].provider_last_seen, '2026-10-01T00:00:00.000Z');
+  assert.equal(result.accepted[0].provider_metrics.imported.supplier, 'google_search_console');
+  assert.equal(result.accepted[0].provider_metrics.imported.supplier_metrics, null,
+    'an explicit supplier destination is not relabeled as a user-supplied expectation');
+  const generic = await readImport(path, { target: 'example.com' });
+  assert.match(generic.error, /could not find the source column/u);
+  for (const contents of [
+    'Links,Site,Incoming links\nhttps://publisher.example.com/article,publisher.example.com,12\n',
+    'Source URL,Top linked pages,Incoming links\nhttps://publisher.example.com/article,https://example.com/,12\n',
+  ]) {
+    const aggregate = await file(t, `aggregate-${contents.startsWith('Links') ? 'site' : 'target'}.csv`, contents);
+    const refused = await readImport(aggregate, { supplier: 'google_search_console', target: 'example.com' });
+    assert.match(refused.error, /count per (site|page)/u, 'a recognized source header never bypasses aggregate-export refusal');
+  }
+});
+
+test('only source-only GSC rows with a supplied target receive destination expectation provenance', async t => {
+  const source = 'https://publisher.example.com/article';
+  const path = await file(t, 'source-only.csv', `Linking page,Traffic\n${source},42\n`);
+  for (const options of [
+    { target: 'example.com' },
+    { target: 'example.com', includeSubdomains: false },
+    { target: 'https://example.com/guide', targetKind: 'exact_url' },
+  ]) {
+    const result = await readImport(path, { supplier: 'google_search_console', ...options });
+    assert.deepEqual(result.counts, { read: 1, accepted: 1, rejected: 0, duplicates: 0 });
+    assert.deepEqual(result.accepted[0].provider_metrics.imported.supplier_metrics, { Traffic: 42 });
+    assert.equal(result.rows[0].target_basis, 'user_supplied_target_expectation');
+    assert.equal(result.accepted[0].provider_metrics.imported.target_basis, 'user_supplied_target_expectation');
+    assert.equal(result.accepted[0].target_url, options.targetKind === 'exact_url'
+      ? options.target : 'https://example.com/');
+    assert.equal(result.accepted[0].verification_status, 'not_checked');
+  }
+  for (const supplier of ['ahrefs', 'csv']) {
+    const result = await readImport(path, { supplier, map: { source: 'Linking page' }, target: 'example.com' });
+    assert.equal(result.counts.accepted, 1);
+    assert.deepEqual(result.accepted[0].provider_metrics.imported.supplier_metrics, { Traffic: 42 },
+      `${supplier} retains its existing source-only provenance`);
+    assert.equal(result.rows[0].target_basis, undefined);
+    assert.equal(result.accepted[0].provider_metrics.imported.target_basis, undefined);
+  }
+  const explicit = await file(t, 'explicit-root.csv',
+    `Linking page,Target page,Traffic\n${source},https://example.com/,42\n`);
+  const result = await readImport(explicit, { supplier: 'google_search_console', target: 'example.com' });
+  assert.equal(result.counts.accepted, 1);
+  assert.deepEqual(result.accepted[0].provider_metrics.imported.supplier_metrics, { Traffic: 42 },
+    'even a root destination and supplier metrics remain untouched');
+  assert.equal(result.rows[0].target_basis, undefined);
+  assert.equal(result.accepted[0].provider_metrics.imported.target_basis, undefined);
+  const emptyDestination = await file(t, 'empty-destination.csv', `Linking page,Target page\n${source},\n`);
+  const rejected = await readImport(emptyDestination, { supplier: 'google_search_console', target: 'example.com' });
+  assert.deepEqual(rejected.counts, { read: 1, accepted: 0, rejected: 1, duplicates: 0 });
+  assert.match(rejected.rejected[0].reason, /target_url: empty/u);
+  assert.equal(rejected.rows[0].supplier_metrics, null,
+    'an empty explicit destination does not become a fallback expectation');
+});
+
+test('explicit GSC root destinations keep typed provenance separate from arbitrary supplier metrics', async t => {
+  const contents = 'Linking page,Target page,agentlinkops_destination_basis,target_basis\n'
+    + 'https://publisher.example.com/article,https://example.com/,user_supplied_target_expectation,user_supplied_target_expectation\n';
+  const supplierMetrics = {
+    agentlinkops_destination_basis: 'user_supplied_target_expectation', target_basis: 'user_supplied_target_expectation',
+  };
+  const path = await file(t, 'gsc-explicit-root-supplier-metrics.csv', contents);
+  for (const options of [
+    { target: 'example.com' },
+    { target: 'https://example.com/', targetKind: 'exact_url' },
+  ]) {
+    const result = await readImport(path, { supplier: 'google_search_console', ...options });
+    assert.equal(result.counts.accepted, 1);
+    assert.equal(result.accepted[0].target_url, 'https://example.com/');
+    assert.deepEqual(result.accepted[0].provider_metrics.imported.supplier_metrics, supplierMetrics);
+    assert.equal(result.rows[0].target_basis, undefined);
+    assert.equal(result.accepted[0].provider_metrics.imported.target_basis, undefined,
+      'supplier text cannot request broader verification scope');
+  }
+  assert.equal(await readFile(path, 'utf8'), contents, 'preview leaves the original supplier file unchanged');
+  for (const supplier of ['csv', 'ahrefs']) {
+    const result = await readImport(path, {
+      supplier, target: 'example.com', map: { source: 'Linking page', target: 'Target page' },
+    });
+    assert.equal(result.counts.accepted, 1);
+    assert.deepEqual(result.accepted[0].provider_metrics.imported.supplier_metrics, supplierMetrics,
+      `${supplier} retains the supplier's metric without GSC provenance semantics`);
+  }
+});
+
+test('typed GSC target provenance preserves all 32 supplier metric slots and the existing wide-export cap', async t => {
+  const source = 'https://publisher.example.com/article';
+  const metricColumns = [...Array.from({ length: 31 }, (_, index) => `metric_${index}`), 'agentlinkops_destination_basis'];
+  const metricValues = [...Array.from({ length: 31 }, (_, index) => String(index)), 'supplier_observed_destination'];
+  const expectedMetrics = {
+    ...Object.fromEntries(metricColumns.slice(0, 31).map((name, index) => [name, index])),
+    agentlinkops_destination_basis: 'supplier_observed_destination',
+  };
+  const bounded = await file(t, 'gsc-32-metrics.csv',
+    `Links,${metricColumns.join(',')}\n${source},${metricValues.join(',')}\n`);
+  const result = await readImport(bounded, { supplier: 'google_search_console', target: 'example.com' });
+  assert.equal(result.counts.accepted, 1);
+  const metrics = result.accepted[0].provider_metrics.imported.supplier_metrics;
+  assert.equal(Object.keys(metrics).length, 32);
+  assert.deepEqual(metrics, expectedMetrics, 'typed destination provenance never displaces a supplier metric');
+  assert.equal(result.accepted[0].provider_metrics.imported.target_basis, 'user_supplied_target_expectation');
+
+  const wideContents = `Links,${metricColumns.join(',')},extra_metric\n${source},${metricValues.join(',')},999\n`;
+  const wide = await file(t, 'gsc-33-metrics.csv', wideContents);
+  const capped = await readImport(wide, { supplier: 'google_search_console', target: 'example.com' });
+  assert.equal(capped.counts.accepted, 1);
+  assert.deepEqual(capped.accepted[0].provider_metrics.imported.supplier_metrics, expectedMetrics);
+  assert.equal(capped.accepted[0].provider_metrics.imported.target_basis, 'user_supplied_target_expectation');
+  assert.equal(await readFile(wide, 'utf8'), wideContents);
+
+  const explicit = await file(t, 'explicit-32-metrics.csv',
+    `Links,Target page,${metricColumns.join(',')}\n${source},https://example.com/guide,${metricValues.join(',')}\n`);
+  const unchanged = await readImport(explicit, { supplier: 'google_search_console', target: 'example.com' });
+  assert.equal(unchanged.counts.accepted, 1);
+  assert.deepEqual(unchanged.accepted[0].provider_metrics.imported.supplier_metrics, expectedMetrics);
+  assert.equal(unchanged.rows[0].target_basis, undefined);
+  assert.equal(unchanged.accepted[0].provider_metrics.imported.target_basis, undefined);
+});
+
 test('a nofollow column becomes rel, and a column we cannot read asserts nothing', () => {
   const header = ['Source', 'Target', 'Nofollow'];
   const { mapping, unclaimed } = resolveMapping(header, { supplier: 'csv', overrides: { source: 'Source', target: 'Target', nofollow: 'Nofollow' } });

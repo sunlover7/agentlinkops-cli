@@ -12,23 +12,47 @@
 import { verifyLink } from '../src/verifier/index.js';
 import { observationRow } from './mirror.js';
 import { cadenceSeconds, DEFAULT_CADENCE } from './ledger.js';
+import { createNodePublicFetch } from './public-http.js';
+import { setTimeout as waitTimer } from 'node:timers/promises';
+import { VerificationError, withAbort } from '../src/page-acquisition/bytes.js';
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = async (ms, signal) => {
+  // Node's timer limit must not turn a very long publisher floor into 1 ms.
+  for (let remaining = ms; remaining > 0;) {
+    const duration = Math.min(remaining, 2_147_483_647);
+    try { await waitTimer(duration, undefined, { signal }); }
+    catch (error) { if (signal?.aborted) throw new VerificationError('timeout'); throw error; }
+    remaining -= duration;
+  }
+};
 const hostOf = url => { try { return new URL(url).hostname; } catch { return null; } };
+
+/** Private diagnostic prefixes are publisher bytes, even when HTML opt-out is set. */
+export function portableCheckObservation(result) {
+  const observed = structuredClone(result);
+  const diagnostics = [observed.robots, ...(observed.robotsHistory ?? []), observed.sourceResponse];
+  for (const item of diagnostics) if (item?.bodyDiagnostic) delete item.bodyDiagnostic.sampleText;
+  return observed;
+}
 
 /** A courtesy floor per host, honouring a publisher's own stated delay when it is longer. */
 export function createPacer({ hostDelayMs = 2000, now = () => Date.now(), wait = sleep } = {}) {
-  const nextAllowed = new Map();
+  const lastRequest = new Map();
   return {
     async beforeFetch(url, context = {}) {
+      if (context.signal?.aborted) throw new VerificationError('timeout');
       const host = hostOf(url);
       if (!host) return;
-      const stated = Number(context.crawlDelaySeconds ?? 0) * 1000;
-      const floor = Math.max(hostDelayMs, Number.isFinite(stated) ? stated : 0);
-      const allowed = nextAllowed.get(host) ?? 0;
+      const prior = lastRequest.get(host);
+      const stated = context.crawlDelaySeconds == null ? prior?.floor ?? 0 : Number(context.crawlDelaySeconds) * 1000;
+      const floor = Math.max(hostDelayMs, Number.isFinite(stated) ? stated : prior?.floor ?? 0);
+      // Robots was just fetched before its delay became known. Apply the new
+      // floor to that preceding request, not only to the following one.
+      const allowed = prior ? prior.at + Math.max(prior.floor, floor) : 0;
       const delay = allowed - now();
-      if (delay > 0) await wait(delay);
-      nextAllowed.set(host, now() + floor);
+      if (delay > 0) await withAbort(wait(delay, context.signal), context.signal);
+      if (context.signal?.aborted) throw new VerificationError('timeout');
+      lastRequest.set(host, { at: now(), floor });
     },
   };
 }
@@ -65,9 +89,14 @@ export function dueEntries(entries, lastChecked, { now = Date.now() } = {}) {
  */
 export async function runCheck(entries, {
   concurrency = 6, timeoutMs = 20_000, hostDelayMs = 2000,
-  verify = verifyLink, pacer = null, onResult = null,
+  verify = verifyLink, pacer = null, onResult = null, fetchImpl = null,
 } = {}) {
+  if (fetchImpl != null && typeof fetchImpl !== 'function') throw new TypeError('A local check transport must be a function.');
   const paced = pacer ?? createPacer({ hostDelayMs });
+  // A trusted in-process caller may supply a fixture transport. Normal CLI
+  // commands always use the pinned Node connector, independently of global fetch.
+  const nativeTransport = fetchImpl == null;
+  const localFetch = fetchImpl ?? createNodePublicFetch();
   const byHost = new Map();
   for (const entry of entries) {
     const host = hostOf(entry.source) ?? entry.id;
@@ -84,8 +113,9 @@ export async function runCheck(entries, {
             expectedAnchor: entry.expect?.anchor, expectedRel: entry.expect?.rel },
           // `includeHtml: false` is a contract commitment, not a size optimisation: the bytes
           // must not reach the repository.
-          { publicFetchSafe: true, timeoutMs, includeHtml: false, beforeFetch: paced.beforeFetch });
-        const row = observationRow(entry.id, result);
+          { publicFetchSafe: true, fetchImpl: localFetch, timeoutMs, includeHtml: false, beforeFetch: paced.beforeFetch,
+            ...(verify === verifyLink && nativeTransport ? { captureTransport: { id: 'local_node_http', version: 'alo-local-node-v1' } } : {}) });
+        const row = observationRow(entry.id, portableCheckObservation(result));
         rows.set(entry.id, row);
         onResult?.(entry, row);
       }

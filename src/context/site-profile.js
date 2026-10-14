@@ -29,7 +29,8 @@
 import { SEED_LIMITS, parseSitemap, sitemapDirectives, withinSitemapScope } from '../corpus/seeds.js';
 import { createAcquisition } from '../corpus/acquire.js';
 import { validatePublicUrl } from '../verifier/url.js';
-import { gunzipSync } from 'node:zlib';
+import { createDocumentTransport } from '../page-acquisition/documents.js';
+import { extractPageMetadata } from '../page-extraction/metadata.js';
 import { readJsonl, appendJsonl, sha256Hex } from './util.js';
 import { readManual } from './gsc.js';
 
@@ -52,110 +53,16 @@ export class ProfileError extends Error {
 // decompression (the acquisition layer's job per seeds.js), and per-host courtesy pacing.
 // ---------------------------------------------------------------------------
 
-/**
- * Reads a body to raw bytes under the same bound the verifier's reader enforces, WITHOUT the
- * UTF-8 decode: a gzipped sitemap is binary on the wire, and the decode must wait until after
- * the gunzip decision. Content-length is pre-checked, the stream is capped, the reader cancelled.
- */
-async function readBoundedBytes(response, maxBytes, signal) {
-  const length = response.headers.get('content-length');
-  const encoded = response.headers.get('content-encoding');
-  if (!encoded && length && Number(length) > maxBytes) {
-    response.body?.cancel().catch(() => {});
-    throw new ProfileError('body_too_large');
-  }
-  const reader = response.body?.getReader();
-  if (!reader) return { data: new Uint8Array(0), bytes: 0 };
-  const chunks = [];
-  let bytes = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (bytes > maxBytes) throw new ProfileError('body_too_large');
-      chunks.push(value);
-    }
-    const combined = new Uint8Array(bytes);
-    let offset = 0;
-    for (const chunk of chunks) { combined.set(chunk, offset); offset += chunk.byteLength; }
-    return { data: combined, bytes };
-  } finally {
-    reader.cancel().catch(() => {});
-    reader.releaseLock();
-  }
-}
-
-export function createSiteTransport({ fetchImpl = globalThis.fetch, timeoutMs = 20_000, maxBytes = SEED_LIMITS.documentBytes, maxRedirects = 5, hostDelayMs = PROFILE_LIMITS.hostDelayMs, now = () => Date.now(), wait = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
-  const nextAllowed = new Map();
-  async function pace(host) {
-    const allowed = nextAllowed.get(host) ?? 0;
-    const delay = allowed - now();
-    if (delay > 0) await wait(delay);
-    nextAllowed.set(host, now() + hostDelayMs);
-  }
-
-  async function fetchText(rawUrl, { accept = 'text/plain,application/xml,text/xml' } = {}) {
-    const checked = validatePublicUrl(rawUrl);
-    if (!checked.valid) return { ok: false, url: rawUrl, reason: `unsafe_url:${checked.reason}` };
-    let url = checked.url;
-    const seen = new Set();
-    for (let redirects = 0; redirects <= maxRedirects; redirects++) {
-      if (seen.has(url)) return { ok: false, url, reason: 'redirect_loop' };
-      seen.add(url);
-      await pace(new URL(url).hostname);
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      let response;
-      try {
-        response = await fetchImpl(url, { method: 'GET', redirect: 'manual', credentials: 'omit', signal: controller.signal, headers: { 'User-Agent': 'LinktrailBot/0.1', Accept: accept } });
-      } catch { return { ok: false, url, reason: 'timeout_or_network_error' }; }
-      finally { clearTimeout(timer); }
-      if ([301, 302, 303, 307, 308].includes(response.status)) {
-        response.body?.cancel().catch(() => {});
-        const location = response.headers.get('location');
-        const next = location ? validatePublicUrl(new URL(location, url).href) : null;
-        if (!next?.valid) return { ok: false, url, reason: 'unsafe_or_missing_redirect' };
-        url = next.url;
-        continue;
-      }
-      if (response.status === 404 || response.status === 410) { response.body?.cancel().catch(() => {}); return { ok: false, url, status: response.status, reason: 'not_found' }; }
-      if (!response.ok) { response.body?.cancel().catch(() => {}); return { ok: false, url, status: response.status, reason: `http_${response.status}` }; }
-      let body;
-      try { body = await readBoundedBytes(response, maxBytes, controller.signal); }
-      catch (error) { return { ok: false, url, status: response.status, reason: error?.reason ?? 'read_failed' }; }
-      let data = body.data, gzipped = false;
-      if (data?.length >= 2 && data[0] === 0x1f && data[1] === 0x8b) {
-        gzipped = true;
-        try { data = gunzipSync(data); } catch { return { ok: false, url, status: response.status, reason: 'sitemap_gunzip_failed' }; }
-        if (data.byteLength > maxBytes) return { ok: false, url, status: response.status, reason: 'sitemap_too_large' };
-      }
-      let text;
-      try { text = new TextDecoder('utf-8', { fatal: true }).decode(data); }
-      catch { return { ok: false, url, status: response.status, reason: 'unsupported_or_invalid_encoding' }; }
-      return { ok: true, url, final_url: url, status: response.status, text, bytes: body.bytes, gzipped };
-    }
-    return { ok: false, url, reason: 'redirect_limit' };
-  }
-
-  return { fetchText };
+/** Compatibility entrypoint; byte limits and abortable document reads live in one core. */
+export function createSiteTransport(options = {}) {
+  return createDocumentTransport({ maxBytes: SEED_LIMITS.documentBytes,
+    hostDelayMs: PROFILE_LIMITS.hostDelayMs, ...options });
 }
 
 // ---------------------------------------------------------------------------
 // Derived page fields. No raw HTML is stored: titles, headings, counts, a byte hash and the
 // fetch date, matching the verifier's rule that evidence HTML never lives in a payload.
 // ---------------------------------------------------------------------------
-
-const firstMatch = (pattern, html, group = 1) => pattern.exec(html)?.[group]?.replace(/\s+/gu, ' ').trim() ?? null;
-
-function boundedMatches(pattern, html, limit) {
-  const found = [];
-  for (const match of html.matchAll(pattern)) {
-    found.push(match[1].replace(/\s+/gu, ' ').trim());
-    if (found.length >= limit) break;
-  }
-  return found;
-}
 
 /** Asset candidates are NOMINATIONS for judgment, never findings: path conventions the publisher chose plus names the manual declared. */
 const ASSET_PATH_PATTERNS = Object.freeze([
@@ -164,19 +71,8 @@ const ASSET_PATH_PATTERNS = Object.freeze([
   [/\.(pdf|xlsx?|csv)$/iu, 'downloadable_file'],
 ]);
 
-export function derivePageFields(html) {
-  if (typeof html !== 'string' || !html) return { title: null, h1s: [], meta_description: null, canonical: null, link_counts: null, asset_candidate_reasons: null };
-  const links = [...html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>/giu)];
-  return {
-    title: firstMatch(/<title[^>]*>([\s\S]*?)<\/title>/iu, html),
-    h1s: boundedMatches(/<h1\b[^>]*>([\s\S]*?)<\/h1>/giu, html, 5),
-    meta_description: (firstMatch(/<meta\b[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([^"']*)["']/iu, html)
-      ?? firstMatch(/<meta\b[^>]*content\s*=\s*["']([^"']*)["'][^>]*name\s*=\s*["']description["']/iu, html))?.slice(0, 500) ?? null,
-    canonical: firstMatch(/<link\b[^>]*rel\s*=\s*["']canonical["'][^>]*href\s*=\s*["']([^"']+)["']/iu, html)
-      ?? firstMatch(/<link\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*rel\s*=\s*["']canonical["']/iu, html),
-    link_counts: { total: links.length },
-    asset_candidate_reasons: [], // filled by the caller, who knows the URL and the manual assets
-  };
+export function derivePageFields(html, { baseUrl } = {}) {
+  return extractPageMetadata(html, { baseUrl });
 }
 
 function assetCandidateReasons(url, derived, manualAssets) {
@@ -290,6 +186,7 @@ function classifySelection(url, manualTargets, homepage, sitemapUrls) {
  */
 export async function buildSiteProfile({
   site = null, paths, manual = null, transport = null, acquisition = null,
+  recovery = null,
   extraPages = [], now = () => new Date().toISOString(), limits = {},
 }) {
   const cap = { ...PROFILE_LIMITS, ...limits };
@@ -312,7 +209,7 @@ export async function buildSiteProfile({
   //    refused rather than guessing at /sitemap.xml, and the page lane proceeds under the
   //    verifier's own current robots posture.
   const robotsUrl = `${origin}/robots.txt`;
-  const robotsFetch = await docFetch.fetchText(robotsUrl);
+  const robotsFetch = await docFetch.fetchText(robotsUrl, { purpose: 'robots' });
   const robotsText = robotsFetch.ok ? robotsFetch.text : '';
   const directives = robotsFetch.ok ? sitemapDirectives(robotsText, { baseUrl: robotsUrl }) : [];
   const robotsFact = await siteFactRow('site.robots', robotsUrl, {
@@ -383,24 +280,39 @@ export async function buildSiteProfile({
   const selectedFinal = selected.slice(0, cap.selectedPages);
 
   // 4. Page fetches on the verifier's public fetch boundary, with the CLI's courtesy pacing.
-  const pageAcquisition = acquisition ?? createAcquisition({ publicFetchSafe: true });
+  // This local producer owns no Worker job or native reservation. Explicit caller
+  // adapters may recover a page; omitted privileged routes remain unsupported.
+  const pageAcquisition = acquisition ?? createAcquisition({ publicFetchSafe: true,purpose:'research',...(recovery?{recovery}:{}) });
   const pacer = createPacer({ hostDelayMs: cap.hostDelayMs });
   const pageRows = [];
   for (const url of selectedFinal) {
     const fetchAt = now();
-    const result = await pageAcquisition.fetchPage(url, { kind: 'direct', beforeFetch: pacer.beforeFetch });
-    const fetched = result.outcome === 'fetched';
-    const derived = fetched ? derivePageFields(result.html) : { title: null, h1s: [], meta_description: null, canonical: null, link_counts: null };
-    derived.asset_candidate_reasons = fetched ? assetCandidateReasons(url, derived, manualInputs.assets) : null; // unknown, never "no assets"
+    const result = await pageAcquisition.fetchPage(url, { kind: 'direct',purpose:'research', beforeFetch: pacer.beforeFetch,...(recovery?{recovery}:{}) });
+    const acquired = result.outcome === 'fetched';
+    let outcome = result.outcome, reason = result.reason ?? null;
+    let derived = { title: null, h1s: [], meta_description: null, canonical: null, link_counts: null };
+    if (acquired) {
+      try {
+        if (result.body_truncated === true) throw new ProfileError('body_truncated');
+        derived = derivePageFields(result.html, { baseUrl: result.final_url ?? url });
+      }
+      catch (error) {
+        // A refused/incomplete parse is an explicit unknown, never an empty page or "no assets".
+        outcome = 'unavailable'; reason = error?.reason ?? 'unreadable_document';
+      }
+    }
+    const fetched = outcome === 'fetched';
+    derived.asset_candidate_reasons = fetched ? assetCandidateReasons(url, derived, manualInputs.assets) : null;
     const fact = await siteFactRow('site.page', url, {
-      outcome: result.outcome, reason: result.reason ?? null, http_status: result.http_status ?? null,
+      outcome, reason, http_status: result.http_status ?? null,
       final_url: result.final_url ?? url, robots: result.robots?.reason ?? null,
       title: derived.title, h1s: derived.h1s, meta_description: derived.meta_description,
       canonical: derived.canonical, link_counts: derived.link_counts,
       asset_candidate_reasons: derived.asset_candidate_reasons,
       in_sitemap: sitemapUrls.includes(url),
       selection_reasons: classifySelection(url, manualInputs.target_pages ?? [], homepage, sitemapUrls),
-      bytes: result.bytes ?? null, content_sha256: fetched ? await sha256Hex(result.html ?? '') : null,
+      bytes: result.bytes ?? null, content_sha256: acquired ? await sha256Hex(result.html ?? '') : null,
+      ...(result.acquisition?{acquisition:result.acquisition}:{}),
       fetched_at: fetchAt,
     });
     facts.push(fact); pageRows.push(fact);
@@ -417,7 +329,8 @@ export async function buildSiteProfile({
       capped: sitemapCapped, directives_seen: directives.length,
       failures: sitemapFailures, skipped: sitemapSkipped,
     },
-    pages: pageRows.map(row => ({ url: row.url, outcome: row.outcome, reason: row.reason, title: row.title, in_sitemap: row.in_sitemap, selection_reasons: row.selection_reasons, asset_candidate_reasons: row.asset_candidate_reasons })),
+    pages: pageRows.map(row => ({ url: row.url, outcome: row.outcome, reason: row.reason, title: row.title, in_sitemap: row.in_sitemap, selection_reasons: row.selection_reasons, asset_candidate_reasons: row.asset_candidate_reasons,
+      ...(row.acquisition?{acquisition:row.acquisition}:{}) })),
     limits: { sitemap_documents: cap.sitemapDocuments, selected_pages: cap.selectedPages, pages_capped: pagesCapped, pages_selected: pageRows.length },
     rows_written: facts.length,
     notes: [

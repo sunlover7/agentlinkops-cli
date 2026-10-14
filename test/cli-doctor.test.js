@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { loadConfig } from '../cli/config.js';
 import { doctorMain, verifierSelfTest, probeCloud, probeToken } from '../cli/doctor.js';
 import { main } from '../cli/main.js';
+import { withStoredKeys } from '../cli/key-store.js';
 
 const TOKEN = `lt_${'a1b2c3d4'.repeat(8)}`;
 const entry = { id: 'lk_doctor01', intent: 'expected', source: 'https://example.com/post', target: 'https://example.com/guide' };
@@ -176,6 +177,56 @@ test('a local-only repository with a valid ledger passes with skips, exit 0', as
   assert.match(text, /all checks passed \((3|4) ok, (4|5) skipped\)/);
 });
 
+test('MCP-only cloud metadata fails CLI connection diagnostics without making requests or changing config', async t => {
+  for (const env of [{}, { AGENTLINKOPS_TOKEN: TOKEN }]) {
+    const config = { cloud: {
+      service: 'https://app.agentlinkops.com/mcp', workspace_id: 'ws_1', project_id: 'prj_1',
+      project_name: 'private-project-name', mapping: 'private-mapping-path',
+      join_field: 'ref', scope_note: 'private-scope-note', note: 'private-note', connected_at: '2026-09-17T12:00:00.000Z',
+    } };
+    const { root } = await setup(t, { config });
+    const configPath = join(root, '.linktrail', 'config.json');
+    const before = await readFile(configPath, 'utf8');
+    let requests = 0;
+    const { code, text } = await run(root, { env, fetchImpl: async () => { requests++; throw new Error('unexpected network'); } });
+    assert.equal(code, 1);
+    assert.match(text, /fail\s+connection\s+—\s+saved cloud metadata is present, but the CLI API connection is not configured/u);
+    assert.match(text, /AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY/u);
+    assert.match(text, /`agentlinkops connect` to verify the workspace and project/u);
+    assert.match(text, /MCP clients keep their own OAuth credentials/u);
+    assert.match(text, /skip\s+cloud\s+—\s+CLI API origin is missing; MCP access is separate/u);
+    assert.doesNotMatch(text, /local-only repository|all checks passed/u);
+    for (const secret of [TOKEN, config.cloud.project_name, config.cloud.mapping, config.cloud.scope_note, config.cloud.note]) {
+      assert.equal(text.includes(secret), false);
+    }
+    assert.equal(requests, 0, 'MCP metadata is not used as an API origin');
+    assert.equal(await readFile(configPath, 'utf8'), before, 'doctor never repairs or replaces a saved connection');
+    await assert.rejects(readFile(join(root, '.linktrail', 'state.json')), { code: 'ENOENT' }, 'unperformed probes are not recorded');
+  }
+});
+
+test('empty cloud metadata remains a valid local-only repository', async t => {
+  const { root } = await setup(t, { config: { cloud: {} } });
+  const { code, text } = await run(root, { fetchImpl: async () => assert.fail('local-only doctor must not request a provider') });
+  assert.equal(code, 0);
+  assert.match(text, /skip\s+cloud\s+—\s+no cloud configured \(local-only repository\)/u);
+  assert.doesNotMatch(text, /fail\s+connection/u);
+});
+
+test('supported workspace_id metadata is honored when a CLI API origin and credential are supplied', async t => {
+  const { root } = await setup(t, { config: { cloud: {
+    service: 'https://api.example.com/mcp', workspace_id: 'ws_1', project_id: 'prj_1',
+  } } });
+  const remote = cloud();
+  const { code, text } = await run(root, { env: { AGENTLINKOPS_API_URL: 'https://api.example.com', AGENTLINKOPS_TOKEN: TOKEN }, fetchImpl: remote.fetchImpl });
+  assert.equal(code, 0);
+  assert.match(text, /ok\s+token\s+—\s+.*the cloud accepted it/u);
+  const listed = remote.calls.find(call => call.url.pathname === '/v1/watches');
+  assert.ok(listed);
+  assert.equal(listed.init.headers['X-Workspace-ID'], 'ws_1');
+  assert.equal(text.includes(TOKEN), false);
+});
+
 test('the command runs through main and refuses flags', async t => {
   const { root } = await setup(t);
   const lines = [];
@@ -232,4 +283,15 @@ test('top-level help exposes installer removal selections and recovery with expl
     const options = [...usage.matchAll(/\[([^\]]+)\]/gu)].map(match => match[1]);
     assert.deepEqual(options.sort(), expectedOptions.sort(), `${command} preserves its complete optional selection, scope and explicit-apply contract`);
   }
+});
+
+test('doctor names a key saved by connect as saved, not as an environment variable', async t => {
+  const cwd = await mkdtemp(join(tmpdir(), 'agentlinkops-doctor-saved-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const key = `lt_${'ab'.repeat(32)}`, lines = [];
+  const env = withStoredKeys({}, { where: 'your macOS Keychain', readSync: origin => (origin === 'https://app.agentlinkops.com' ? key : null) });
+  const fetchImpl = async url => new URL(url).pathname === '/healthz' ? Response.json({ status: 'ok' }) : Response.json({ items: [], next_cursor: null });
+  await doctorMain([], { cwd, env, out: line => lines.push(line), err: () => {}, fetchImpl, timeoutMs: 1000 });
+  assert.match(lines.find(line => /^\S+\s+token\s/.test(line)) ?? '', /^ok\s+token\s+— set in your macOS Keychain, saved by agentlinkops connect; the cloud accepted it/);
+  assert.ok(!lines.join('\n').includes(key));
 });

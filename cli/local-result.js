@@ -15,11 +15,26 @@ export const LOCAL_RESULT_SCHEMA = 'agentlinkops.local-check.v1';
 
 const timestamp = z.string().refine(value => Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value);
 const strings = z.array(z.string());
+const digest = z.string().regex(/^[a-f0-9]{64}$/u);
+const capturePin = z.string().min(1).max(128).regex(/^[^\x00-\x20\x7f]+$/u);
+const bodyDiagnosticSchema = z.strictObject({ version: z.literal(1), bytes: z.number().int().min(0).max(64 * 1024),
+  complete: z.boolean(), truncated: z.boolean(), sha256: digest, looksLikeHtml: z.boolean() });
+const googlebotSchema = z.strictObject({ productToken: z.literal('Googlebot'), allowed: z.boolean().nullable(),
+  reason: z.string().nullable(), matchedRule: z.string().nullable(), crawlDelaySeconds: z.number().finite().min(0).nullable() });
+const captureSchema = z.strictObject({ version: z.literal(1), representation: z.literal('raw_html'),
+  requestedUrl: z.string(), finalUrl: z.string(), httpStatus: z.number().int().min(100).max(599), acquiredAt: timestamp,
+  body: z.strictObject({ complete: z.literal(true), truncated: z.literal(false), bytes: z.number().int().min(0).max(2 * 1024 * 1024),
+    sha256: digest, decodedSha256: digest, charset: z.string().max(64).nullable().optional() }),
+  transport: z.strictObject({ id: capturePin, version: capturePin, qualified: z.literal(true) }),
+  coverage: z.strictObject({ mainDocument: z.literal(true), iframes: z.literal(false), shadowRoots: z.literal(false) }) });
 const redirectSchema = z.strictObject({ from: z.string(), to: z.string(), status: z.number().int() });
 const robotsSchema = z.strictObject({ allowed: z.boolean().nullable(), reason: z.string().nullable(),
   matchedRule: z.string().nullable(), crawlDelaySeconds: z.number().nullable(), fetched: z.string().nullable(),
   sourceUrl: z.string().optional(), robotsUrl: z.string().optional(), httpStatus: z.number().int().nullable().optional(),
-  productToken: z.string().optional(), redirects: z.array(redirectSchema).max(5).optional(), retryAfterSeconds: z.number().optional() });
+  productToken: z.string().optional(), redirects: z.array(redirectSchema).max(5).optional(), retryAfterSeconds: z.number().finite().min(0).max(86400).optional(),
+  googlebot: googlebotSchema.optional(), decisionReason: z.string().nullable().optional(),
+  policy: z.literal('customer_supplied_monitor').optional(), fetchAuthorized: z.boolean().optional(), overrideUsed: z.literal(false).optional(),
+  bodyDiagnostic: bodyDiagnosticSchema.optional() });
 const readinessSchema = z.strictObject({ requiresRender: z.boolean(), reason: z.string().nullable(), possibleLoginWall: z.boolean(),
   hasVisiblePassword: z.boolean().optional(), targetInScript: z.boolean().optional(), emptyAppRoot: z.boolean().optional(), emptyProfileRoot: z.boolean().optional() });
 const occurrenceSchema = z.strictObject({ href: z.string(), targetUrl: z.string(), anchor: z.string(), rel: strings,
@@ -28,15 +43,18 @@ const observationSchema = z.strictObject({
   state: z.enum(['present','absent','unknown','source_unavailable']), reason: z.string(), sourceUrl: z.string(), finalUrl: z.string(), targetUrl: z.string(),
   targetScope: z.enum(['exact','domain','subdomain','path']), httpStatus: z.number().int().nullable(), checkedAt: timestamp,
   occurrences: z.array(occurrenceSchema).max(1000),
-  directives: z.strictObject({ meta: z.array(z.strictObject({ name: z.string(), content: z.string() })), xRobotsTag: strings, noindex: z.boolean(), nofollow: z.boolean(), indexingStatus: z.string() }),
+  directives: z.strictObject({ meta: z.array(z.strictObject({ name: z.string(), content: z.string() })), xRobotsTag: strings, noindex: z.boolean(), nofollow: z.boolean(), indexingStatus: z.string(),
+    googlebot: z.strictObject({ noindex: z.boolean(), nofollow: z.boolean() }).optional() }),
   redirects: z.array(redirectSchema),
   evidence: z.strictObject({ method: z.string(), checkerVersion: z.string(), complete: z.boolean(), fetchedAt: timestamp.nullable(),
     bytes: z.number().optional(), contentType: z.string().nullable().optional(), etag: z.string().nullable().optional(), lastModified: z.string().nullable().optional(),
-    baseUrl: z.string().optional(), rendered: z.boolean().optional(), sha256: z.string().optional(), parseErrors: strings.optional(),
-    readiness: readinessSchema.optional(), renderEligibility: z.enum(['required', 'comparison']).optional() }),
+    baseUrl: z.string().optional(), rendered: z.literal(false).optional(), sha256: digest.optional(), decodedSha256: digest.optional(),
+    capture: captureSchema.nullable().optional(), parseErrors: strings.optional(),
+    readiness: readinessSchema.optional(), renderEligibility: z.enum(['required', 'comparison']).optional(),
+    renderAttempt: z.strictObject({ attempted: z.literal(false), reason: z.literal('render_not_configured') }).optional() }),
   robots: robotsSchema.optional(), robotsHistory: z.array(robotsSchema).max(6).optional(),
   sourceResponse: z.strictObject({ url: z.string(), httpStatus: z.number().int(), contentType: z.string().max(128).nullable(),
-    retryAfterSeconds: z.number().nullable(), challenge: z.boolean() }).optional(),
+    retryAfterSeconds: z.number().nullable(), challenge: z.boolean(), bodyDiagnostic: bodyDiagnosticSchema.optional() }).optional(),
   expectations: z.strictObject({ expectedAnchor: z.string().nullable(), expectedRel: strings.nullable(), anchorMatches: z.boolean().nullable(), relMatches: z.boolean().nullable(), satisfied: z.boolean() }).optional(),
   linkSignature: z.string().optional(), warnings: strings.optional(), retryAfterSeconds: z.number().optional(),
 });
@@ -88,11 +106,28 @@ export function validateLocalResult(result) {
   const rejectBytes = value => {
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value)) {
-      if (['html','body','headers'].includes(key.toLowerCase())) throw new Error('portable observations cannot contain raw HTML/body/headers');
+      if (['html','body','headers'].includes(key.toLowerCase())
+        && !(key === 'body' && value === observation.evidence?.capture)) throw new Error('portable observations cannot contain raw HTML/body/headers');
       rejectBytes(child);
     }
   };
   rejectBytes(observation);
+  const capture = observation.evidence.capture;
+  if (capture) {
+    if (capture.requestedUrl !== input.source || capture.finalUrl !== observation.finalUrl
+      || !validatePublicUrl(capture.finalUrl).valid || capture.httpStatus !== observation.httpStatus
+      || capture.acquiredAt !== observation.evidence.fetchedAt
+      || capture.body.bytes !== observation.evidence.bytes || capture.body.sha256 !== observation.evidence.sha256
+      || capture.body.decodedSha256 !== observation.evidence.decodedSha256
+      || observation.evidence.method !== 'http_html') throw new Error('portable capture does not match its observation');
+    if (capture.body.charset != null) {
+      try { new TextDecoder(capture.body.charset, { fatal: true }); }
+      catch { throw new Error('invalid portable capture charset'); }
+    }
+  }
+  if (observation.evidence.renderAttempt && (observation.state !== 'unknown' || observation.evidence.complete !== false
+    || !['possible_render_required', 'navigation_requires_browser'].includes(observation.reason)
+    || observation.evidence.renderEligibility !== 'required')) throw new Error('invalid portable refused-render observation');
   if (observation.occurrences.some(item => !item || typeof item.targetUrl !== 'string' || !Array.isArray(item.rel)
     || !matchesTarget(item.targetUrl, input.target, input.scope))) throw new Error('invalid portable occurrence');
   if (observation.state === 'present' && (!observation.evidence.complete || !observation.occurrences.length)) throw new Error('present requires complete matching occurrences');

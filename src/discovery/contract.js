@@ -17,6 +17,7 @@ export const DISCOVERY_DATA_MODES = Object.freeze(['synthetic', 'owned_corpus', 
 export const IMPORT_SUPPLIERS = Object.freeze([
   'ahrefs', 'google_search_console', 'bing_webmaster_tools', 'semrush', 'majestic', 'moz', 'dataforseo', 'linkody', 'csv',
 ]);
+export const ImportTargetBasis = z.enum(['supplier_observed', 'user_supplied_target_expectation']);
 
 // A data mode belongs to exactly one source, except fixtures, which any source may model.
 const SOURCE_DATA_MODES = Object.freeze({ linktrail_corpus: 'owned_corpus', dataforseo: 'provider_index', imported: 'imported' });
@@ -92,12 +93,16 @@ export const DiscoveryCandidate = z.strictObject({
   provider_metrics: z.union([
     z.strictObject({ dataforseo: z.strictObject({
       rank: count.max(1000).nullable(), page_from_rank: count.max(1000).nullable(),
+      domain_from: z.string().min(1).max(253).optional(),
       domain_from_rank: count.max(1000).nullable(), backlink_spam_score: count.max(100).nullable(),
       rank_scale: z.literal('one_thousand'),
     }) }),
     z.strictObject({ imported: z.strictObject({
       supplier: z.enum(IMPORT_SUPPLIERS),
       supplier_row_id: nullableText(256),
+      // Caller-authored destination provenance stays separate from opaque supplier columns.
+      // Older imports omit it and keep their exact destination behavior.
+      target_basis: ImportTargetBasis.optional(),
       // What the EXPORT says about its own age, which is often nothing. `provider_retrieved_at`
       // on the row above is when WE read the file; these are different facts and conflating
       // them would let an import of a two-year-old export read as fresh data.
@@ -108,6 +113,9 @@ export const DiscoveryCandidate = z.strictObject({
       // the scale is the supplier's name itself.
       supplier_metrics: z.record(z.string().min(1).max(64), z.union([z.number(), z.string().max(256), z.null()]))
         .refine(value => Object.keys(value).length <= 32, 'At most 32 supplier metrics.').nullable(),
+    }).superRefine((imported, ctx) => {
+      if (imported.target_basis === 'user_supplied_target_expectation' && imported.supplier !== 'google_search_console')
+        ctx.addIssue({ code: 'custom', message: 'A target expectation is supported only for Google Search Console imports.', path: ['target_basis'] });
     }) }),
     z.strictObject({ linktrail_corpus: z.strictObject({
       // Real crawl facts. Outlink counts qualify a page; they are not an authority metric.

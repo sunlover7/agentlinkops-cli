@@ -1,4 +1,5 @@
 const CONFIRMATION_MS = 30 * 60 * 1000;
+import {recoverySummary} from '../page-acquisition/recovery.js';
 
 const timeOf = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -6,9 +7,13 @@ const timeOf = (value) => {
   return Number.isFinite(time) ? time : null;
 };
 
+// Retain a compact access history without private transport receipts or captures.
+const acquisitionSummary=recoverySummary;
+
 function summary(observation) {
   if (!observation) return null;
   const { evidence } = observation;
+  const acquisition = acquisitionSummary(evidence?.acquisition);
   const all = observation.occurrences ?? [];
   // State/event snapshots are small references to full observations in D1/R2.
   // linkSignature covers ALL occurrences, preserving change detection beyond excerpts.
@@ -31,7 +36,8 @@ function summary(observation) {
     directives: observation.directives ? { noindex: observation.directives.noindex, nofollow: observation.directives.nofollow, indexingStatus: observation.directives.indexingStatus } : undefined,
     evidence: evidence ? {
       complete: evidence.complete, method: evidence.method, checkerVersion: evidence.checkerVersion,
-      sha256: evidence.sha256, bytes: evidence.bytes, fetchedAt: evidence.fetchedAt,
+      sha256: evidence.sha256, decodedSha256: evidence.decodedSha256, bytes: evidence.bytes, fetchedAt: evidence.fetchedAt,
+      ...(acquisition?{acquisition}:{}),
     } : undefined,
   };
 }
@@ -49,12 +55,17 @@ function fingerprint(observation) {
 /** Pure state reducer. Persist its result atomically with the observation + outbox. */
 export function transitionState(previous, observation, now = Date.now()) {
   const prior = previous ?? {};
+  // Keep a historical confirmed fact separate from the latest check's ability
+  // to verify it. Older saved states predate this explicit historical field.
+  const confirmedState = prior.confirmedState ?? (prior.state === 'present' || prior.state === 'confirmed_missing'
+    || prior.state === 'source_unavailable' && prior.sourceUnavailableConfirmed === true ? prior.state : null);
   const checkedMs = timeOf(observation.checkedAt) ?? timeOf(typeof now === 'function' ? now() : now);
   if (checkedMs === null) throw new TypeError('A valid observation timestamp is required');
   const checkedAt = new Date(checkedMs).toISOString();
   const latestMs = prior.latestAttempt ? timeOf(prior.latestAttempt.checkedAt) : null;
   const base = {
     state: prior.state ?? 'unknown',
+    confirmedState,
     latestAttempt: prior.latestAttempt ?? null,
     lastSuccessfulObservation: prior.lastSuccessfulObservation ?? null,
     firstAbsentAt: prior.firstAbsentAt ?? null,
@@ -72,6 +83,7 @@ export function transitionState(previous, observation, now = Date.now()) {
   if (latestMs !== null && checkedMs <= latestMs) return { ...base, nextCheckAt: prior.nextCheckAt ?? null, ignored: true };
   base.latestAttempt = summary({ ...observation, checkedAt });
   if (observation.state === 'unknown' || observation.evidence?.complete !== true) {
+    base.state = 'unknown';
     base.uncertain = true;
     // A scheduler decides retry/backoff after an unknown; no past due timestamp loop. The one
     // thing carried is a floor the publisher stated in a Retry-After — "not before", never "then",
@@ -86,6 +98,7 @@ export function transitionState(previous, observation, now = Date.now()) {
   base.uncertain = false;
   if (observation.state === 'present') {
     base.state = 'present';
+    base.confirmedState = 'present';
     base.wasEverPresent = true;
     base.firstAbsentAt = null;
     base.absentCount = 0;
@@ -94,7 +107,7 @@ export function transitionState(previous, observation, now = Date.now()) {
     base.sourceUnavailableConfirmed = false;
     let type;
     if (!prior.wasEverPresent && prior.lastSuccessfulObservation?.state !== 'present') type = 'placement_acquired';
-    else if (prior.state === 'confirmed_missing' || prior.sourceUnavailableConfirmed) type = 'placement_recovered';
+    else if (confirmedState === 'confirmed_missing' || prior.sourceUnavailableConfirmed) type = 'placement_recovered';
     else if (prior.lastSuccessfulObservation?.state === 'present' && fingerprint(prior.lastSuccessfulObservation) !== fingerprint(observation)) type = 'placement_changed';
     if (type) base.event = { type, before: summary(prior.lastSuccessfulObservation), after: base.latestAttempt };
     return base;
@@ -108,8 +121,9 @@ export function transitionState(previous, observation, now = Date.now()) {
     base.sourceUnavailableConfirmed = false;
     const confirmed = first !== null && checkedMs - first >= CONFIRMATION_MS && base.absentCount >= 2;
     base.state = confirmed ? 'confirmed_missing' : 'suspected_missing';
+    if (confirmed) base.confirmedState = 'confirmed_missing';
     if (!confirmed) base.nextCheckAt = new Date((first ?? checkedMs) + CONFIRMATION_MS).toISOString();
-    if (confirmed && prior.state !== 'confirmed_missing' && base.wasEverPresent) {
+    if (confirmed && confirmedState !== 'confirmed_missing' && base.wasEverPresent) {
       base.event = { type: 'placement_lost', before: summary(prior.lastSuccessfulObservation), after: base.latestAttempt };
     }
     return base;
@@ -121,6 +135,7 @@ export function transitionState(previous, observation, now = Date.now()) {
   base.absentCount = 0;
   base.state = 'source_unavailable';
   base.sourceUnavailableConfirmed = first !== null && checkedMs - first >= CONFIRMATION_MS && base.unavailableCount >= 2;
+  if (base.sourceUnavailableConfirmed) base.confirmedState = 'source_unavailable';
   if (!base.sourceUnavailableConfirmed) base.nextCheckAt = new Date((first ?? checkedMs) + CONFIRMATION_MS).toISOString();
   if (base.sourceUnavailableConfirmed && !prior.sourceUnavailableConfirmed) {
     base.event = { type: 'source_unavailable', before: summary(prior.lastSuccessfulObservation), after: base.latestAttempt };

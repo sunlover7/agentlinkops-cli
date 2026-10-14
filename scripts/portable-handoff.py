@@ -24,8 +24,8 @@ def digest(value):
 
 
 def prepare(report, mapping):
-    if not isinstance(report, dict) or not isinstance(mapping, dict) or type(report.get('v')) is not int or report['v'] != 2:
-        raise ValueError('supported frozen report v2 and mapping objects required')
+    if not isinstance(report, dict) or not isinstance(mapping, dict) or type(report.get('v')) is not int or report['v'] not in (2, 3):
+        raise ValueError('supported frozen report v2 or v3 and mapping objects required')
     if set(mapping) != {'version', 'workspace_id', 'project_id', 'site', 'destination', 'records', 'source_report_sha256'} or type(mapping['version']) is not int or mapping['version'] != 1:
         raise ValueError('explicit versioned workspace/project/site/destination mapping required')
     if any(not isinstance(mapping[k], str) or not mapping[k] or len(mapping[k]) > 2048 for k in ('workspace_id', 'project_id', 'site', 'destination')):
@@ -62,12 +62,25 @@ def prepare(report, mapping):
         if record['reply'] not in ('unknown', 'none', 'replied') or record['suppression'] not in ('unknown', 'suppressed', 'clear'):
             raise ValueError('unknown/replied/suppressed facts must remain explicit')
         # Keep the original observation payload and dates. Unknown never becomes lost.
-        rows.append({'local_id': local_id, 'external_id': record['external_id'],
+        row = {'local_id': local_id, 'external_id': record['external_id'],
                      'source': entry.get('source'), 'target': entry.get('target'),
                      'state': entry['state'], 'reason': entry['reason'], 'checked_at': entry['checked_at'], 'evidence': entry['evidence'],
                      'checked_by': entry.get('checked_by'), 'occurrences': entry.get('occurrences'),
                      'reply': record['reply'], 'suppression': record['suppression'],
-                     'send_eligible': False})
+                     'send_eligible': False}
+        if report['v'] == 3:
+            # Activity and retained receipts are different facts. Preserve both;
+            # a later unknown attempt must not disappear behind an older receipt.
+            activity = entry.get('activity')
+            activity_fields = {'available', 'identity_status', 'latest_attempt',
+                               'last_successful_observation', 'last_link_verification', 'first_present'}
+            if entry.get('current_state') not in ('present', 'unknown', 'source_unavailable',
+                                                'suspected_missing', 'confirmed_missing', 'unchecked') \
+                    or type(entry.get('uncertain')) is not bool or not isinstance(activity, dict) \
+                    or not activity_fields.issubset(activity):
+                raise ValueError('incomplete frozen report v3 activity row')
+            row.update(current_state=entry['current_state'], uncertain=entry['uncertain'], activity=activity)
+        rows.append(row)
     if set(mapping['records']) != seen:
         raise ValueError('mapping contains records outside this frozen report')
     payload = {'version': 1, 'mode': 'draft_only', 'workspace_id': mapping['workspace_id'],

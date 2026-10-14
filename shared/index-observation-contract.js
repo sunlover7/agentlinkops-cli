@@ -1,10 +1,11 @@
+import {browsePageInput,browsePageOutput,browseCursor} from './table-page-contract.js';
 import {z} from 'zod';
 const id=z.string().min(1).max(256),digest=z.string().regex(/^[a-f0-9]{64}$/),time=z.string();
 export const indexConfigureInput=z.object({projectId:id,enabled:z.boolean(),dailyLimit:z.number().int().min(1).max(2000).optional(),retentionDays:z.number().int().min(1).max(90).optional(),cadenceSeconds:z.number().int().min(3600).max(2592000).optional()}).strict();
 export const indexInspectInput=z.object({connectionId:id,watchId:id,idempotencyKey:z.string().regex(/^[\x21-\x7e]{1,128}$/)}).strict();
-export const indexHistoryInput=z.object({projectId:id,watchId:id,limit:z.number().int().min(1).max(100).optional(),beforeId:digest.optional()}).strict();
+export const indexHistoryInput=z.object({...browsePageInput,cursor:browseCursor.optional(),projectId:id,watchId:id,limit:z.number().int().min(1).max(100).optional(),beforeId:digest.optional()}).strict();
 export const indexReceiptInput=z.object({projectId:id,watchId:id,receiptId:digest}).strict();
-export const indexEventsInput=z.object({projectId:id,watchId:id,limit:z.number().int().min(1).max(100).optional(),beforeId:digest.optional()}).strict();
+export const indexEventsInput=z.object({...browsePageInput,cursor:browseCursor.optional(),projectId:id,watchId:id,limit:z.number().int().min(1).max(100).optional(),beforeId:digest.optional()}).strict();
 export const indexSettingsInput=z.object({projectId:id}).strict();
 export const indexSettingsResponse=z.object({projectId:id,enabled:z.boolean(),dailyLimit:z.number().int().positive(),retentionDays:z.number().int().positive(),cadenceSeconds:z.number().int().positive(),schedulingAvailable:z.boolean()}).passthrough();
 export const indexObservation=z.looseObject({id:digest,observationId:id,checkedAt:time,recordedAt:time,expiresAt:time,evidenceSha256:digest,eventId:digest.nullable(),ignored:z.string().nullable(),version:z.literal(1),url:z.url(),lane:z.enum(['gsc','licensed_site']),backend:z.string(),source_key:z.string(),tier:z.enum(['indexed','not_indexed','likely_indexed','not_found_in_site_query','unknown']),confidence:z.enum(['google_index_snapshot','search_result_sample','unknown']),reason:z.string(),live_page_test:z.literal(false),submission_requested:z.literal(false)});
@@ -12,5 +13,5 @@ export const indexReceiptResponse=z.object({observation:indexObservation,rawResp
 export const indexInspectResponse=indexReceiptResponse.extend({replayed:z.boolean(),providerError:z.enum(['PROVIDER_PERMISSION_LOST','PROVIDER_RATE_LIMITED','PROVIDER_UNAVAILABLE','PROVIDER_RESPONSE_INVALID']).nullable().optional()});
 export const indexAttemptSummary=z.object({observedAt:time,latestAttempt:z.object({id:digest,admittedAt:time,status:z.enum(['in_progress','unsettled','completed']),receiptId:digest.nullable(),leaseExpiresAt:time.nullable()}).nullable(),unsettledCount:z.number().int().nonnegative()});
 export const indexWebsiteQuota=z.object({windowStart:time,observedAt:time,admitted:z.number().int().nonnegative(),limit:z.number().int().positive(),remaining:z.number().int().nonnegative()});
-export const indexHistoryResponse=z.object({observations:z.array(indexObservation),nextCursor:digest.nullable(),attemptSummary:indexAttemptSummary.optional(),websiteQuota:indexWebsiteQuota.optional()}).passthrough();
-export const indexEventsResponse=z.object({events:z.array(z.looseObject({id:digest,receiptId:digest,type:z.enum(['index.deindexed','index.reindexed']),createdAt:time,url:z.url(),source_key:z.string(),before:z.enum(['indexed','not_indexed']),after:z.enum(['indexed','not_indexed']),observation_ids:z.array(id)})),nextCursor:digest.nullable().optional(),hasMore:z.boolean().optional()}).passthrough();
+export const indexHistoryResponse=z.object({observations:z.array(indexObservation),nextCursor:browseCursor.nullable(),attemptSummary:indexAttemptSummary.optional(),websiteQuota:indexWebsiteQuota.optional()}).passthrough();
+export const indexEventsResponse=z.object({events:z.array(z.looseObject({id:digest,receiptId:digest,type:z.enum(['index.deindexed','index.reindexed']),createdAt:time,url:z.url(),source_key:z.string(),before:z.enum(['indexed','not_indexed']),after:z.enum(['indexed','not_indexed']),observation_ids:z.array(id)})),nextCursor:browseCursor.nullable().optional(),hasMore:z.boolean().optional()}).passthrough();

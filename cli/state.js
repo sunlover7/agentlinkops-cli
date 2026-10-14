@@ -14,6 +14,17 @@ import { placementIdentity, attemptSummary, isConclusive, isLinkVerification, va
 
 export const STATE_VERSION = 3;
 
+// A newer activity format may carry semantics this reducer cannot preserve.
+// Refuse before loading, reducing or replacing it; unknown fields in supported
+// versions still round-trip through the existing migration rules.
+function assertSupportedStateVersion(raw) {
+  const version = Number.isInteger(raw?.v) ? raw.v : 1;
+  if (version <= STATE_VERSION) return;
+  const error = new Error(`Activity state format ${version} is unsupported; this CLI supports up to ${STATE_VERSION}. Keep the original state and history; use a compatible CLI.`);
+  error.code = 'UNSUPPORTED_STATE_VERSION';
+  throw error;
+}
+
 /**
  * Brings a state file forward without losing anything it already held.
  *
@@ -25,6 +36,7 @@ export const STATE_VERSION = 3;
  * cursor. Seeding it would skip every target event ever emitted, and the feed would look quiet.
  */
 export function upgradeState(raw) {
+  assertSupportedStateVersion(raw);
   const state = { ...(raw ?? {}) };
   const version = Number.isInteger(state.v) ? state.v : 1;
   const cursors = { ...(state.cursors ?? {}) };
@@ -50,6 +62,7 @@ export async function readState(path) {
 }
 
 export async function writeState(path, state) {
+  assertSupportedStateVersion(state);
   await mkdir(dirname(path), { recursive: true });
   const temporary = join(dirname(path), `.${crypto.randomUUID()}.state.tmp`);
   // Sorted keys so a run that changes one entry produces a one-line diff.
@@ -129,6 +142,7 @@ export function selectChanged(rows, state) {
 
 /** Applies a run to the activity record. Every check counts, recorded or not. */
 export function applyRun(state, rows) {
+  assertSupportedStateVersion(state);
   const entries = { ...(state.entries ?? {}) };
   for (const row of rows) {
     const previous = entries[row.id];

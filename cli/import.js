@@ -54,6 +54,7 @@ export async function readImport(path, {
 
   const resolved = resolveMapping(table.header, { supplier, overrides: map, targetProvided: Boolean(target) });
   if (resolved.error) return { error: resolved.error, header: table.header };
+  const targetExpectation = supplier === 'google_search_console' && !resolved.mapping.target && Boolean(target);
 
   const unreadable = table.records.filter(record => record.error).map(record => ({ row: record.line, reason: record.error }));
   const readable = table.records.filter(record => record.values);
@@ -63,7 +64,12 @@ export async function readImport(path, {
   // means. Nothing is inferred — without --target the resolver above refuses the file.
   if (!resolved.mapping.target) {
     const targetUrl = targetKind === 'domain' ? `https://${target}/` : target;
-    for (const row of rows) row.target_url = targetUrl;
+    for (const row of rows) {
+      row.target_url = targetUrl;
+      // This is the caller's target expectation, not a destination observed by Google.
+      // The verifier can use the saved run scope without asserting an exact root-page link.
+      if (targetExpectation) row.target_basis = 'user_supplied_target_expectation';
+    }
   }
 
   const targetUrl = targetKind === 'domain' ? `https://${target}/` : target;

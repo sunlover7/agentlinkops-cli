@@ -1,15 +1,22 @@
+import {classificationMetadataResponse,classificationMetadataWriteResponse,classificationMetadataOccurrenceResponse,classificationResponse,classificationHistoryResponse,classificationQuoteResponse,classificationJobResponse} from './classification-contract.js';
 import {chronologyResponse,assuranceResponse} from './monitoring-read-contract.js';
 import {lifecycleOutput} from './lifecycle-contract.js';
 import {searchConnectionsResponse,searchRowsResponse,searchSyncResponse,searchPropertiesResponse,searchStartResponse,searchConnection,searchImportResponse} from './search-connection-contract.js';
+import {linkSummaryResponse} from './link-summary-contract.js';
+import {linkCategoryFields,linkLabelledWatchResponse,linkLabelledWatchesResponse} from './link-category-contract.js';
+export {linkSummaryResponse};
 import {z} from 'zod';
 export const objectResponse=z.looseObject({});
 export const pageResponse=z.looseObject({items:z.array(objectResponse),next_cursor:z.string().nullable().optional()});
-export const watchResponse=z.looseObject({id:z.string(),source_url:z.string(),target_url:z.string(),state:z.string(),observation_state:objectResponse});
+// Category fields share the documented contract while remaining additive for older
+// deployments. List rows may be concise; detailed watch requirements stay separate.
+export const watchPageResponse=pageResponse.extend({items:z.array(z.looseObject(linkCategoryFields))});
+export const watchResponse=z.looseObject({...linkCategoryFields,id:z.string(),source_url:z.string(),target_url:z.string(),state:z.string(),observation_state:objectResponse});
 export const targetResponse=z.looseObject({id:z.string(),url:z.string(),state:z.string(),observation_state:objectResponse});
 export const historyResponse=z.looseObject({items:z.array(z.looseObject({id:z.string(),state:z.string(),checked_at:z.string(),result:objectResponse})),next_cursor:z.string().nullable().optional()});
 export const jobResponse=z.looseObject({id:z.string(),state:z.enum(['queued','running','succeeded','failed','cancelled'])});
 export const observationEvent=z.looseObject({id:z.string(),data:objectResponse});
-export const eventFeedResponse=z.looseObject({events:z.array(observationEvent),next_cursor:z.string(),has_more:z.boolean()});
+export const eventFeedResponse=z.looseObject({events:z.array(observationEvent),next_cursor:z.string().nullable(),has_more:z.boolean()});
 export const linkChangeReportResponse=z.looseObject({schema_version:z.literal(1),workspace_id:z.string(),project_id:z.string(),coverage_scope:z.literal('retained_event_feed'),
   from:z.string(),as_of:z.string(),through_sequence:z.number().int().nonnegative(),count:z.number().int().nonnegative(),
   limit:z.literal(500),truncated:z.boolean(),complete:z.boolean(),retention_limited:z.boolean(),scan_limit:z.literal(10000),scan_limited:z.boolean(),
@@ -42,11 +49,19 @@ export const candidateMonitoringResponse=z.looseObject({
 });
 /** Network boundary shared by the console and command adapters. Unknown fields survive evolution. */
 export function restResponseContract(path,method='GET') {
+  if(/^\/v1\/projects\/[^/]+\/classification-metadata(?:\/(definitions|settings|occurrences))?(?:\?|$)/.test(path))return method==='GET'?(path.split('?')[0].endsWith('/occurrences')?classificationMetadataOccurrenceResponse:classificationMetadataResponse):classificationMetadataWriteResponse;
+  if(/^\/v1\/watches\/[^/]+\/classification\/history(?:\?|$)/.test(path))return classificationHistoryResponse;
+  if(/^\/v1\/watches\/[^/]+\/classification\/quote(?:\?|$)/.test(path))return classificationQuoteResponse;
+  if(/^\/v1\/watches\/[^/]+\/classification\/(?:classify|jobs\/[^/?]+(?:\/reconcile)?)(?:\?|$)/.test(path))return classificationJobResponse;
+  if(/^\/v1\/watches\/[^/]+\/classification(?:\/prepare)?(?:\?|$)/.test(path))return classificationResponse;
   const pathname=path.split('?')[0];
+  if(method==='PUT' && /^\/v1\/watches\/[^/]+\/type$/.test(pathname))return linkLabelledWatchResponse;
+  if(method==='POST' && pathname==='/v1/watches/bulk-labels')return linkLabelledWatchesResponse;
+  if(['POST','DELETE'].includes(method) && /^\/v1\/watches\/[^/]+\/tags(?:\/[^/]+)?$/.test(pathname))return linkLabelledWatchesResponse;
   if(method==='POST' && /^\/v1\/discovery\/runs\/[^/]+\/verification-batches$/.test(pathname))return candidateVerificationBatchResponse;
   if(method==='GET' && /^\/v1\/discovery\/verification-batches\/[^/]+$/.test(pathname))return candidateVerificationBatchResponse;
   if(method==='POST' && /^\/v1\/discovery\/verifications\/[^/]+\/monitor$/.test(pathname))return candidateMonitoringResponse;
-  if(pathname==='/v1/search-connections'&&method==='GET')return searchConnectionsResponse;
+  if(pathname==='/v1/search-connections'&&method==='GET')return /[?&]all=1(?:&|$)/.test(path)?z.looseObject({websites:z.array(z.looseObject({project:z.looseObject({id:z.string()})}))}):searchConnectionsResponse;
   if(pathname==='/v1/search-connections/start'&&method==='POST')return searchStartResponse;
   if(/^\/v1\/search-connections\/[^/]+\/rows$/.test(pathname)&&method==='GET')return searchRowsResponse;
   if(/^\/v1\/search-connections\/[^/]+\/properties$/.test(pathname)&&method==='GET')return searchPropertiesResponse;
@@ -61,9 +76,11 @@ export function restResponseContract(path,method='GET') {
   if(/^\/v1\/(?:watches|targets)\/[^/]+\/history$/.test(pathname))return historyResponse;
   if(/^\/v1\/watches\/[^/]+$/.test(pathname))return watchResponse;
   if(/^\/v1\/targets\/[^/]+$/.test(pathname))return targetResponse;
-  if(['/v1/watches','/v1/targets','/v1/projects','/v1/exports/watches'].includes(pathname))return pageResponse;
+  if(['/v1/watches','/v1/exports/watches'].includes(pathname))return watchPageResponse;
+  if(['/v1/targets','/v1/projects'].includes(pathname))return pageResponse;
   if(pathname==='/v1/usage')return usageResponse;
   if(pathname==='/v1/reports/link-changes')return linkChangeReportResponse;
+  if(pathname==='/v1/reports/summary')return linkSummaryResponse;
   if(['/v1/events','/v1/target-events'].includes(pathname))return eventFeedResponse;
   if(/^\/v1\/(?:jobs|target-jobs)\/[^/]+$/.test(pathname))return jobResponse;
   return objectResponse;

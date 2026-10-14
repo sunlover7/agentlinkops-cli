@@ -69,7 +69,7 @@ export const SUPPLIERS = Object.freeze({
   },
   google_search_console: {
     label: 'Google Search Console linking pages export',
-    source: alias('Linking page', 'Linking Page', 'Source page'),
+    source: alias('Linking page', 'Linking Page', 'Source page', 'Links', 'Source URL'),
     target: alias('Target page', 'Target Page', 'Linked page'),
     last_seen: alias('Last crawled', 'Last crawled date'),
     // GSC's headline exports are COUNTS PER SITE, not placements. Importing one would mean

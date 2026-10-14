@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {browsePageOutput} from './table-page-contract.js';
 const text=z.string(),nullable=text.nullable();
 export const searchConnection=z.looseObject({
  id:text,project_id:text,provider:z.enum(['google','bing']),status:text,property:nullable,
@@ -11,7 +12,7 @@ export const searchProviderRow=z.discriminatedUnion('kind',[
  z.looseObject({...rowMeta,kind:z.literal('search_performance'),page:text,query:text,clicks:z.number().nonnegative(),impressions:z.number().nonnegative(),ctr:z.number().nonnegative(),position:z.number().nonnegative(),startDate:text,endDate:text}),
  z.looseObject({...rowMeta,kind:z.literal('backlinks'),source_url:text,target_url:text,anchor:nullable,supplier:z.literal('bing_webmaster_tools'),verification_status:z.literal('unverified')}),
 ]);
-export const searchRowsResponse=z.looseObject({connection:searchConnection,rows:z.array(searchProviderRow),nextCursor:nullable});
+export const searchRowsResponse=z.looseObject({...browsePageOutput,connection:searchConnection,rows:z.array(searchProviderRow),nextCursor:nullable});
 export const searchSyncResponse=z.looseObject({connection:searchConnection,rowCount:z.number().int().nonnegative()});
 export const searchPropertiesResponse=z.looseObject({properties:z.array(z.looseObject({property:text,permission:text}))});
 export const searchStartResponse=z.looseObject({authorizationUrl:z.url(),expiresAt:text});

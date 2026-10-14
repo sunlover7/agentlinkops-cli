@@ -54,3 +54,34 @@ export function matchesTarget(candidate, target, scope) {
       return false;
   }
 }
+
+const REDIRECT_URL_PARAMETERS = new Set(['url', 'redirect_url', 'redirect_uri', 'destination', 'target']);
+const MAX_WRAPPER_PARAMETERS = 4096;
+
+/**
+ * A physical anchor may declare a destination through a redirect service.
+ * This is only a reason to withhold absence, never a matching occurrence or
+ * permission to request that URL. Return no publisher URL or token-bearing data.
+ */
+export function hasRedirectWrapperToTarget(links, targetUrl, targetScope = 'exact') {
+  if (!Array.isArray(links) || !['exact', 'domain', 'subdomain', 'path'].includes(targetScope)) return false;
+  const target = validatePublicUrl(targetUrl);
+  if (!target.valid) return false;
+  for (const link of links) {
+    if (typeof link?.targetUrl !== 'string' || !link.targetUrl.includes('?')) continue;
+    const wrapper = validatePublicUrl(link.targetUrl);
+    if (!wrapper.valid || wrapper.url.length > 8192) continue;
+    let parameters = 0;
+    // URLSearchParams decodes the query once. No recursive URL traversal,
+    // repeated decoding, substring search or hydration/text interpretation.
+    // The URL's 8192-character bound cannot contain over 4096 nonempty query
+    // entries, even with one-character names and no values; no valid tail is cut.
+    for (const [name, value] of new URL(wrapper.url).searchParams) {
+      if (++parameters > MAX_WRAPPER_PARAMETERS) break;
+      if (!REDIRECT_URL_PARAMETERS.has(name)) continue;
+      const destination = validatePublicUrl(value);
+      if (destination.valid && matchesTarget(destination.url, target.url, targetScope)) return true;
+    }
+  }
+  return false;
+}

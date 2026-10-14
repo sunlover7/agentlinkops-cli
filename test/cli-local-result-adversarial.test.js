@@ -4,6 +4,10 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import dns from 'node:dns/promises';
+import https from 'node:https';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
 import { main } from '../cli/main.js';
 import { loadConfig } from '../cli/config.js';
 import { readLedger } from '../cli/ledger.js';
@@ -20,6 +24,23 @@ const fetchPage = async url => new URL(url).pathname === '/robots.txt'
 const portable = () => localCheck(input, { hostDelayMs: 0,
   verify: (args, options) => verifyLink(args, { ...options, fetchImpl: fetchPage, now: captured }) });
 const resign = result => { result.result_id = `lr_${createHash('sha256').update(JSON.stringify({ input: result.input, observation: result.observation })).digest('hex')}`; return result; };
+function mockPublicPage(t) {
+  t.mock.method(dns, 'lookup', async () => [{ address: '93.184.215.14', family: 4 }]);
+  return t.mock.method(https, 'request', (options, callback) => {
+    const request = new EventEmitter(); request.destroy = () => { request.destroyed = true; };
+    request.end = () => queueMicrotask(() => {
+      if (request.destroyed) return;
+      const socket = new EventEmitter(); socket.remoteAddress = '93.184.215.14';
+      request.emit('socket', socket); socket.emit('connect');
+      if (request.destroyed) return;
+      const robots = options.path === '/robots.txt';
+      const response = Readable.from([Buffer.from(robots ? '' : `<html><body><p>Read our <a href="${input.target}">guide</a>.</p></body></html>`)]);
+      Object.assign(response, { statusCode: robots ? 404 : 200, headers: { 'content-type': 'text/html' }, complete: true, socket });
+      callback(response);
+    });
+    return request;
+  });
+}
 async function run(cwd, args) {
   const out = [], err = [];
   const code = await main(args, { cwd, out: value => out.push(String(value)), err: value => err.push(String(value)) });
@@ -38,6 +59,23 @@ test('portable input with a recomputed checksum cannot smuggle HTML or contradic
   const edits = [
     value => { value.observation.evidence.html = '<html>PRIVATE</html>'; },
     value => { value.observation.evidence.credentials = { access_token: 'private-token' }; },
+    value => { value.observation.evidence.capture.body.html = '<html>PRIVATE</html>'; },
+    value => { value.observation.evidence.capture.body.bodyBase64 = 'PRIVATE'; },
+    value => { value.observation.evidence.capture.body.sha256 = 'a'.repeat(64); },
+    value => { value.observation.evidence.capture.body.decodedSha256 = 'a'.repeat(64); },
+    value => { value.observation.evidence.capture.body.bytes++; },
+    value => { value.observation.evidence.capture.requestedUrl = 'https://other.example.com/'; },
+    value => { value.observation.evidence.capture.finalUrl = 'http://127.0.0.1/'; },
+    value => { value.observation.evidence.capture.httpStatus = 403; },
+    value => { value.observation.evidence.capture.acquiredAt = '2026-09-14T12:00:00.000Z'; },
+    value => { value.observation.evidence.capture.body.charset = 'invented-charset'; },
+    value => { value.observation.evidence.capture.body.complete = false; },
+    value => { value.observation.evidence.capture.coverage.iframes = true; },
+    value => { value.observation.evidence.capture.transport.qualified = false; },
+    value => { value.observation.evidence.capture.representation = 'rendered_dom'; },
+    value => { value.observation.robots.bodyDiagnostic.sampleText = '<html>PRIVATE</html>'; },
+    value => { value.observation.robots.googlebot.headers = { authorization: 'PRIVATE' }; },
+    value => { value.observation.robots.overrideUsed = true; },
     value => { value.observation.occurrences[0].metadata = { secret: 'private-token' }; },
     value => { value.observation.occurrences[0].rel = [{ token: 'private-token' }]; },
     value => { value.observation.occurrences[0].anchor = { token: 'private-token' }; },
@@ -93,7 +131,8 @@ test('journal recovery preserves manual changes and portable replay cannot claim
 
 test('real CLI direct check requires no repository and adoption preserves existing cloud configuration', async t => {
   const { cwd } = await setup(t, false);
-  const fetchMock = t.mock.method(globalThis, 'fetch', fetchPage);
+  const fetchMock = mockPublicPage(t);
+  t.mock.method(globalThis, 'fetch', () => assert.fail('actual direct CLI uses the qualified local Node connector'));
   const direct = await run(cwd, ['check', '--source', input.source, '--target', input.target, '--json']);
   assert.equal(direct.code, 0, direct.err);
   const result = JSON.parse(direct.out);

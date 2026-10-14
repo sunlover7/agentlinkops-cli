@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import dns from 'node:dns/promises';
+import http from 'node:http';
+import https from 'node:https';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
 import { main } from '../cli/main.js';
 import { normalizeEntry, serializeLedger } from '../cli/ledger.js';
 import { observationRow, readObservations, writeObservations } from '../cli/mirror.js';
@@ -128,22 +133,47 @@ test('real human check labels complete raw absence ABSENT and retains verifier e
   const f = await workspace(t);
   const scenario = CASES.find(row => row.name === 'a page that simply does not link to the target is absent');
   let requests = 0;
-  const fetchImpl = async url => {
-    requests++;
-    const parsed = new URL(url); assert.equal(parsed.hostname, 'publisher.com');
-    if (parsed.pathname === '/robots.txt') return new Response('', { status: 404 });
-    assert.equal(String(url), SOURCE);
-    return new Response(scenario.html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
-  };
-  t.mock.method(globalThis, 'fetch', fetchImpl);
-  const result = await invoke(f.dir, ['check', '--all', '--host-delay', '0', '--concurrency', '1'], fetchImpl);
+  const address = '93.184.215.14';
+  // Exercise the actual default connector; only DNS and the physical socket
+  // response are synthetic. A global-fetch override must not hide regressions.
+  t.mock.method(globalThis, 'fetch', async () => assert.fail('local check used global fetch'));
+  t.mock.method(http, 'request', () => assert.fail('unexpected plain HTTP request'));
+  t.mock.method(dns, 'lookup', async (host, options) => {
+    assert.equal(host, 'publisher.com'); assert.deepEqual(options, { all: true, verbatim: true });
+    return [{ address, family: 4 }];
+  });
+  t.mock.method(https, 'request', (options, callback) => {
+    assert.equal(options.hostname, 'publisher.com'); assert.equal(options.agent, false);
+    assert.equal(options.servername, 'publisher.com'); assert.equal(options.rejectUnauthorized, true);
+    options.lookup(options.hostname, {}, (error, pinned, family) => {
+      assert.equal(error, null); assert.equal(pinned, address); assert.equal(family, 4);
+    });
+    const request = new EventEmitter();
+    request.destroy = () => { request.destroyed = true; };
+    request.end = () => queueMicrotask(() => {
+      if (request.destroyed) return;
+      const socket = new EventEmitter(); socket.remoteAddress = address;
+      request.emit('socket', socket); socket.emit('connect');
+      if (request.destroyed) return;
+      requests++;
+      const robots = options.path === '/robots.txt';
+      if (!robots) assert.equal(`${options.protocol}//${options.hostname}${options.path}`, SOURCE);
+      const response = Readable.from([Buffer.from(robots ? '' : scenario.html)]);
+      Object.assign(response, { statusCode: robots ? 404 : 200,
+        headers: { 'content-type': robots ? 'text/plain' : 'text/html; charset=utf-8' }, complete: true, socket });
+      callback(response);
+    });
+    return request;
+  });
+  const result = await invoke(f.dir, ['check', '--all', '--host-delay', '0', '--concurrency', '1']);
   assert.equal(result.code, 1); assert.match(result.out, /^ABSENT\s+lk_evidence01/m);
-  assert.doesNotMatch(result.out, /\bLOST\b/); assert.ok(requests > 0);
+  assert.doesNotMatch(result.out, /\bLOST\b/); assert.equal(requests, 2);
   const mirror = await readObservations(f.mirror);
   assert.equal(mirror.problems.length, 0); assert.equal(mirror.rows.length, 1);
   const row = mirror.rows[0];
   assert.equal(row.state, 'absent'); assert.equal(row.result.state, 'absent'); assert.equal(row.complete, true);
   assert.equal(row.reason, 'no_matching_link_in_complete_html'); assert.ok(row.result.evidence.sha256);
+  assert.deepEqual(row.result.evidence.capture.transport, { id: 'local_node_http', version: 'alo-local-node-v1', qualified: true });
   assert.equal(summarize([entry], [row]).exitCode, 1);
   assert.equal(disagreements([entry], [row])[0].kind, 'suspected_missing');
 });

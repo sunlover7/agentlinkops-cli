@@ -9,7 +9,7 @@ records. This page is the complete agent reference: the same text prints from
 full once per session, then use `describe` (or `exec describe` on MCP) for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.13. 147 commands in 16 toolsets.
+Pack version 0.6.14. 171 commands in 17 toolsets.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)
@@ -39,8 +39,10 @@ the connection exists.
 
 Sign-in happens in the client's OAuth flow: the person picks the account, workspace and
 scopes. Never ask for a password, one-time code or token in conversation, and never print a
-credential. Hosted access is an invitation-only pilot; with no account, the local check still
-works:
+credential. Hosted access opens in stages: anyone can create an account, and an account
+outside the pilot gets `PILOT_ACCESS_REQUIRED`. If a call returns it, tell the person the account
+is waiting for pilot access, pass on the error's `details.next`, and don't retry. With no account, the local
+check still works:
 
 ```bash
 npx -y agentlinkops check --source https://publisher.example/resources --target https://your-site.example/guide
@@ -56,7 +58,7 @@ environment (`AGENTLINKOPS_TOKEN` also works; the older `LINKTRAIL_*` names keep
 during the pilot compatibility window with one warning per process). MCP OAuth tokens are
 bound to `/mcp` and are not API keys.
 
-Verify: on MCP call `get_workspace` with `{}` — directly, or as
+Verify: on MCP call `get_workspace` with `{}`, directly or as
 `exec: {"command": "call get_workspace {}"}` (a workspace name in the answer means the
 connection works); on the CLI run `agentlinkops doctor` (its `cloud` and `token` lines say
 `ok` when the origin answers and the key is accepted).
@@ -67,7 +69,7 @@ One catalog, several endpoints. Every command is callable on every view; only th
 changes. `agentlinkops agent setup` picks the right one per client.
 
 - `/mcp` (default): one tool, `exec`, carries the whole catalog. Pass it CLI-style command
-  strings — `search`, `tools`, `describe`, `schema`, `call` — and the server instructions list
+  strings (`search`, `tools`, `describe`, `schema`, `call`), and the server instructions list
   every command by toolset. Every command is also callable directly on this view (a client
   that already knows the name may call it), and the older discovery tools
   (`search_tools`, `describe_tools`, `run_read_command`, `run_write_command`) still answer
@@ -99,11 +101,27 @@ exceeds the context budget is summarized, and any field carrying a `hint` expand
 `schema <name> <field.path>`. Find with `search`, `describe` a name once, then `call` and
 reuse the schema; an unknown name answers with the `search` that finds the current one.
 
+`GET /v1/commands` answers `{toolsets, count, next}`. Each toolset is `{name, summary, commands}`,
+and each command is `{name, readOnly, summary, scopes, scopeAuthorized}`, plus `tier: "core"`,
+`aliases`, `confirm` or `availability: "unavailable"` only when they apply. The summary is the
+first sentence of the description, cut to about 40 characters. `?include=schemas` returns
+`{items}` with every full definition instead.
+
 Read the description first; `describe` before any write. List commands answer concise rows on
 MCP and code mode, detailed rows on REST and the CLI; pass `format` (`concise` or `detailed`),
 or `call --json` through `exec`, to choose, and read `defaults_applied` to know which you got.
 A retired command name still resolves to its canonical command for twelve months and the
 description says so.
+
+## Start here
+
+At the start of a hosted session, call `list_tasks` with `{}` and tell the person what needs
+them, in the order it returns (urgent first). Each task names who can act (`who`), whether the
+person can (`canAct`), how it clears (`clears`) and the console `route` where it gets done.
+Offer to do the tasks where `agent.can` is true: follow the task's `agent.steps`, or call
+`get_handoff` when `handoff` names one; draft but never send any email or outreach; and finish
+with the verify step. `agent.prompt` is the plain sentence the person pastes to ask for the
+task. An empty `tasks` list means nothing needs them now.
 
 ## Start a session
 
@@ -156,8 +174,10 @@ grant.
 - Preview before the one irreversible write (`preview_resource_deletion` before
   `delete_resource`); pause rather than delete when history matters.
 - Use `/mcp/code` for batches and joins only; a single lookup goes through the direct tool.
-- AgentLinkOps does not send email and does not browse sites for you. Asked to contact a
-  publisher through it, say so at once, offer to draft the message for the person's own email tool, and
+- AgentLinkOps sends no outreach email and does not browse sites for you; apart from sign-in
+  codes sent to a person's own address, its email goes only to workspace members and invitees.
+  Asked to contact a publisher through it, say so at once, offer to draft the message for the
+  person's own email tool, and
   read `get_public_contacts` only for published contact evidence. Campaign strategy, outreach,
   suppression and the CRM stay in the person's own tools and files.
 
@@ -238,6 +258,28 @@ emails and contact pages from saved HTML; candidate pages are not fetched, deliv
 verified); `get_link_profile` and `get_anchor_report` (keep their coverage and truncation
 notes when reporting counts).
 
+## Handoffs
+
+Some tasks happen on another website that has no API, such as uploading the disavow file to
+Google's disavow tool. `list_tasks` finds them: a task whose `handoff` names an id is one of
+these, for the website in its `projectId`. The person may also paste a short prompt like
+"Upload my disavow list for example.com to Google. Use AgentLinkOps get_handoff
+"disavow_upload" for the steps." Then:
+
+1. Find the website's `projectId` with `list_projects` and call
+   `get_handoff {"projectId": "…", "handoff": "disavow_upload"}`. It returns the current steps
+   for that website and its live `status`.
+2. Check `agent.needs`. Without browser control or the access it names, tell the person and
+   stop.
+3. Follow `agent.procedure` in order, in the person's own browser. Stop and ask when anything
+   in `agent.stop_if` happens; never do anything in `agent.never`.
+4. Finish with `agent.verify` (`confirm_disavow_upload` with the file downloaded from Google,
+   or the counts Google shows) and report its `result` in one sentence. A click is not proof;
+   only the verify result is.
+
+`get_disavow_status` reads the same status any time: `google.state` is `never_checked`,
+`in_sync`, `behind` (rules changed after the last matching check), `differs` or `counts_only`.
+
 ## Irreversible writes
 
 `delete_resource` removes only never-executed scratch resources: call
@@ -256,7 +298,7 @@ counts, superlatives or claims about other products beyond dated public statemen
    fetch never proves removal.
 3. **Checks and events continue after the session ends:** `monitor_link` returns
    `next_check_at`; `list_events` returns what changed while nobody was connected. Boundary:
-   invitation-only hosted access; `cadenceSeconds` between 3600 and 2592000; no availability
+   hosted access opens in stages; `cadenceSeconds` between 3600 and 2592000; no availability
    percentage is published.
 4. **Usage and exit are readable:** `get_usage` totals with a `check_budget` block;
    `export_link_watches` pages monitored placements out for the person's records. Boundary:
@@ -269,24 +311,25 @@ The human-readable version is
 ## Tool reference
 
 <!-- generated:skill-tools begin (npm run generate:tools; source: src/tool-registry.js) -->
-147 commands in 16 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated today: prepare_domain_baseline, start_domain_baseline, request_competitor_inventory, request_domain_overview, discover_backlinks; these refuse before any persistence.
+171 commands in 17 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated commands: prepare_domain_baseline, start_domain_baseline, request_competitor_inventory, request_domain_overview, discover_backlinks. Starting new provider-backed work requires admission in the selected deployment; without admission these commands return a configuration error.
 
 | Toolset | Commands | What it covers |
 | --- | --- | --- |
-| `monitoring` | 17 | Watch earned links and destination URLs: create, list, update, import, export, recheck. |
+| `monitoring` | 18 | Watch earned links and destination URLs: create, list, update, import, export, recheck. |
+| `classification` | 17 | Retained physical link context, attributed labels and quoted model suggestions. |
 | `evidence` | 17 | What a check observed: histories, snapshots, change feeds, check jobs, published contacts. |
 | `rank` | 5 | Synthetic DataForSEO rank schedules and dated history; hosted collection disabled. |
 | `licensed` | 6 | Licensed source-search evidence and charge custody; operator admission required. |
 | `discovery` | 16 | Import candidate rows, read stored runs, verify selected candidates, enroll them. |
-| `baseline` | 7 | Scoped backlink baselines; supplier admission disabled. |
-| `library` | 3 | Read and export the coverage-stated opportunity library. |
+| `baseline` | 7 | Scoped backlink baselines; new live work requires admission in this deployment. |
+| `library` | 3 | Read and export the coverage-stated opportunity library. Operator only: not available to customer accounts (TOOL_NOT_FOUND). |
 | `competitors` | 17 | Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports. |
-| `reports` | 9 | Placement chronology, service assurance and backlink reports. |
-| `workspace` | 16 | Workspace, projects, usage, members, invitations, scratch-resource cleanup. |
+| `reports` | 10 | Placement chronology, service assurance and backlink reports. |
+| `workspace` | 17 | Workspace, projects, usage, members, invitations, scratch-resource cleanup. |
 | `notifications` | 6 | Email notification preferences, previews, tests and deliveries. |
 | `webhooks` | 6 | Webhook endpoints, state, secrets and delivery records. |
-| `admission` | 7 | Project rules, URL previews and retained admission decisions. |
-| `disavow` | 7 | Propose, review and export website disavow rules. |
+| `admission` | 7 | Project rules, URL previews and retained admission decisions. Operator only: not available to customer accounts (TOOL_NOT_FOUND). |
+| `disavow` | 11 | Propose, review and export website disavow rules; check the copy Google holds (handoffs). |
 | `lifecycle` | 4 | Placement costs, expiry, renewal events and currency reports. |
 | `digests` | 4 | Own-address digest preferences, delivery history and exact events. |
 <!-- generated:skill-tools end -->
@@ -294,7 +337,7 @@ The human-readable version is
 ## What it does not do
 
 AgentLinkOps grants no access to the mailbox or local files, has no independent global
-backlink index, authority metrics or email sending, does not browse sites for you and
+backlink index or authority metrics, sends no outreach email, does not browse sites for you and
 monitors supplied URLs. Finding prospects, campaign decisions, navigating sites and authorized
 outreach stay with the person's existing agent, research, browser and email tools; prospects,
 contacts, outreach references and earned placements remain in their chosen files, CRM or

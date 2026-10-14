@@ -3,7 +3,14 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
-## 0.6.13 (unreleased)
+## 0.6.14 (unreleased)
+
+- Connect the CLI without environment variables or IDs. `agentlinkops connect` asks for an API key from the Agent page, checks it, and saves it outside the repository: in the macOS Keychain, or in a mode 600 file under `~/.agentlinkops/keys` on Linux. The key names its workspace. With a ledger in the folder, `connect` maps the ledger to the workspace's only website, or prints one command per website to choose from.
+- Send cloud commands to `https://app.agentlinkops.com` when no origin is configured. Without a key, `call` now says to run `connect` instead of failing with `NO_CLOUD_ORIGIN`.
+- End `agent setup` with the sign-in and approval steps for each client. On a terminal it also offers to connect the CLI; pressing Enter skips it.
+- Refuse an activity state written by a newer CLI (`state.json` format above 3) with `UNSUPPORTED_STATE_VERSION` before loading, reducing or writing it. The original state and history stay unchanged.
+
+## 0.6.13 (2026-10-10)
 
 - Show the latest attempt, conclusive source check and link verification separately in status, fleet and reports. Unknown checks retain the previous link verification for the same placement.
 - Add `chronology pull` for saved placement history on compatible hosted versions and `chronology export` for frozen local pages. Exports retain denied origins, history gaps and partial paging.
