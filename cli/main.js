@@ -24,7 +24,9 @@ import { disagreements, transitions } from './status.js';
 import { readImport, parseMap } from './import.js';
 import { freezeDataset, renderReport, datasetDigest } from './report.js';
 import { createClient, CloudError } from './client.js';
-import { cloudConnection, connectMain, keySetup } from './connection.js';
+import { cloudConnection, connectKey, connectMain, keySetup } from './connection.js';
+import { createKeyStore, withStoredKeys } from './key-store.js';
+import { askSecret } from './prompt.js';
 import { syncPlan, pushExpectations, pullLifecycleMirrors, pullEvents, cloudObservationRows, watchIndex, pullTargetEvents } from './sync.js';
 import { SUPPLIER_NAMES } from './adapters/suppliers.js';
 import { fleetSummary, renderFleet } from './fleet.js';
@@ -82,7 +84,9 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
                                             .agentlinkops/citations/; live engines need
                                             engine-specific setup; the mock engine makes no paid calls
   agentlinkops receive --body FILE --headers FILE   signed notification; authenticated pull
-  agentlinkops connect --workspace ID --project-id ID [--origin URL] [--selection FILE] [--oauth --issuer URL --client-id ID [--credential-ref REF]]
+  agentlinkops connect [--project-id ID] [--workspace ID] [--origin URL] [--selection FILE] [--oauth --issuer URL --client-id ID [--credential-ref REF]]
+                                            paste an API key once; it is saved outside the
+                                            repository and the key names its workspace
   agentlinkops tools [TOOLSET] [--json] [--refresh]   cloud commands by toolset (offline snapshot;
                                             --refresh reads the live catalog)
   agentlinkops describe NAME [--examples] [--output-schema] [--json]  one command's exact schema
@@ -91,7 +95,8 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops agent setup [--client ID ...] [--scope project|user] [--origin URL] [--dry-run]
                                             core connection/reference and the right MCP view;
                                             optional --skill ID ... / --recipe ID ... / --all-skills;
-                                            stores no credential; preserves customer instructions
+                                            stores no credential unless you paste a CLI key
+                                            when asked; preserves customer instructions
   agentlinkops agent status                 what is installed where
   agentlinkops agent remove [--skill ID ...] [--recipe ID ...] [--scope project|user] [--apply] [--json]
   agentlinkops agent recover [--scope project|user] [--apply] [--json]
@@ -126,6 +131,24 @@ evidence · 2 usage, configuration or ledger error. Unknown is nonfailing by def
 Names: \`linktrail\` still runs this CLI, LINKTRAIL_* variables are still read, and an existing
 .linktrail/ directory is still used, each with a one-line notice, until the DP-0029 cutover.`;
 
+// After `agent setup` on a terminal: the CLI half, so the folder's agent can also run
+// `agentlinkops call`. Optional (Enter skips), and setup has already succeeded either way.
+async function connectCliAfterSetup(origin, { env, ask, keyStore, fetchImpl, out }) {
+  let connection = null;
+  try { connection = cloudConnection({ cloud: { origin } }, env); } catch { /* Disagreeing variables: connect reports them. */ }
+  out('');
+  if (connection?.token) { out(`The agentlinkops CLI can use this account too (key in ${connection.tokenSource}).`); return; }
+  try {
+    const key = await connectKey({ origin, ask, keyStore, fetchImpl, out,
+      prompt: `To use the agentlinkops CLI as well, paste an API key from ${origin}/#/access (Create API key), or press Enter to skip: ` });
+    out(key
+      ? `The CLI is connected to ${key.account.workspace.name || 'your workspace'}. Try: agentlinkops call list_tasks`
+      : 'Skipped. Run `npx -y agentlinkops connect` when you want the CLI.');
+  } catch (error) {
+    out(`The CLI wasn't connected: ${error.serverMessage ?? error.message}. Run \`npx -y agentlinkops connect\` to try again.`);
+  }
+}
+
 const parseArgs = argv => parseArguments(argv,["tag", "project", "observations-of", "state-of", "observations", "benchmark", "seed"],{tag:[]});
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -139,7 +162,14 @@ function reportProblems(problems, what, out) {
   if (problems.length > 20) out(`  … and ${problems.length - 20} more`);
 }
 
-export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), out = console.log, err = console.error, env = process.env, fetchImpl = globalThis.fetch, afterHistoryPersisted, afterStatePersisted } = {}) {
+export async function main(argv = process.argv.slice(2), options) {
+  // The executables call main() with no options, the one caller that reads the person's saved
+  // key and asks on their terminal. Every other caller passes options and gets neither.
+  const executable = options === undefined;
+  const { cwd = process.cwd(), out = console.log, err = console.error, fetchImpl = globalThis.fetch, localFetchImpl = null, afterHistoryPersisted, afterStatePersisted, signal,
+    keyStore = executable ? createKeyStore() : null,
+    ask = executable && process.stdin.isTTY === true && process.stderr.isTTY === true ? askSecret : null } = options ?? {};
+  const env = withStoredKeys(options?.env ?? process.env, keyStore);
   if (argv[0] === 'gsc-links') return await gscLinksMain(argv, { cwd, out });
   // Citation watches keep their own files under .agentlinkops/citations/ and never
   // touch the link ledger, so they dispatch before its requirement like context does.
@@ -163,17 +193,18 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     if (command === 'setup') return await setupPlanMain(argv, { cwd, out });
     if (command === 'tools' || command === 'describe' || command === 'schema' || command === 'call') return await commandsMain(argv, { cwd, out, err, env, fetchImpl });
     if (command === 'skill') return await skillMain(argv, { out });
-    if (command === 'agent') return await agentMain(argv, { cwd, out, err });
+    if (command === 'agent') return await agentMain(argv, { cwd, out, err, env, connectCli: ask && keyStore ? origin => connectCliAfterSetup(origin, { env, ask, keyStore, fetchImpl, out }) : null });
     if (command === 'connect') {
-      if (args._.length !== 1 || args.tag.length || Object.keys(args).some(key => !['_', 'tag', 'origin', 'workspace', 'project-id', 'selection', 'oauth', 'issuer', 'client-id', 'credential-ref'].includes(key))) throw new ConfigError('connect --workspace ID --project-id ID [--origin URL] [--selection FILE] [--oauth --issuer URL --client-id ID [--credential-ref REF]]');
-      return await connectMain(args, { cwd, out, env, fetchImpl });
+      if (args._.length !== 1 || args.tag.length || Object.keys(args).some(key => !['_', 'tag', 'origin', 'workspace', 'project-id', 'selection', 'oauth', 'issuer', 'client-id', 'credential-ref'].includes(key))) throw new ConfigError('connect [--project-id ID] [--workspace ID] [--origin URL] [--selection FILE] [--oauth --issuer URL --client-id ID [--credential-ref REF]]');
+      return await connectMain(args, { cwd, out, env, fetchImpl, keyStore, ask });
     }
     if (command === 'check' && (args.source !== undefined || args.target !== undefined)) {
       if (typeof args.source !== 'string' || typeof args.target !== 'string') throw new ConfigError('check requires both --source URL and --target URL');
       const allowed = new Set(['_', 'source', 'target', 'scope', 'json', 'out']);
       if (Object.keys(args).some(key => key !== 'tag' && !allowed.has(key)) || args.tag.length || args._.length !== 1) throw new ConfigError('unsupported option for a single local check');
       if (args.out !== undefined && (typeof args.out !== 'string' || !args.out.trim())) throw new ConfigError('--out requires a file path');
-      const result = await checkToFile({ source: args.source, target: args.target, scope: args.scope }, args.out ? resolve(cwd, args.out) : null);
+      const result = await checkToFile({ source: args.source, target: args.target, scope: args.scope }, args.out ? resolve(cwd, args.out) : null,
+        { fetchImpl: localFetchImpl });
       out(args.json ? JSON.stringify(result, null, 2) : `${result.observation.state}  ${result.observation.reason}  ${result.checked_at}${args.out ? `  saved ${args.out}` : ''}`);
       return 0;
     }
@@ -333,7 +364,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       // DP-0017's context surface owns its config and files and needs no ledger, so it runs
       // before the ledger check below. contextMain parses its own argv; hand it everything
       // after the command word (found positionally, because flags may precede it).
-      return await contextMain(argv.slice(argv.indexOf(command) + 1), { cwd, out, err });
+      return await contextMain(argv.slice(argv.indexOf(command) + 1), { cwd, out, err,signal });
     }
     if (command === 'doctor') {
       // Doctor must run exactly where the ledger cannot be trusted yet: its job is to name
@@ -341,7 +372,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       // file itself. Takes no flags and repairs nothing. Awaited on purpose: a promise returned
       // from inside the try escapes the ConfigError handler below, and a disagreeing pair of
       // token spellings would surface as a stack trace instead of the exit-2 message.
-      return await doctorMain(argv.slice(argv.indexOf(command) + 1), { cwd, out, err });
+      return await doctorMain(argv.slice(argv.indexOf(command) + 1), { cwd, out, err, env });
     }
 
     const config = await loadConfig({ cwd });
@@ -616,6 +647,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
         concurrency: Number(args.concurrency ?? config.defaults.concurrency ?? DEFAULTS.concurrency),
         timeoutMs: Number(args.timeout ?? config.defaults.timeoutMs ?? DEFAULTS.timeoutMs),
         hostDelayMs: Number(args['host-delay'] ?? config.defaults.hostDelayMs ?? DEFAULTS.hostDelayMs),
+        fetchImpl: localFetchImpl,
       });
       // The mirror records changes; `state.json` records activity. Appending a row that says
       // the same thing as the one above it is 2 KB of git churn per link per run, and the only

@@ -3,15 +3,16 @@
 export const CATALOG_SOURCE = 'src/tool-registry.js';
 export const CATALOG_TOOLSETS = {
  "admission": "Project rules, URL previews and retained admission decisions.",
- "disavow": "Propose, review and export website disavow rules.",
+ "disavow": "Propose, review and export website disavow rules; check the copy Google holds (handoffs).",
  "lifecycle": "Placement costs, expiry, renewal events and currency reports.",
  "digests": "Own-address digest preferences, delivery history and exact events.",
  "monitoring": "Watch earned links and destination URLs: create, list, update, import, export, recheck.",
+ "classification": "Retained physical link context, attributed labels and quoted model suggestions.",
  "evidence": "What a check observed: histories, snapshots, change feeds, check jobs, published contacts.",
  "rank": "Synthetic DataForSEO rank schedules and dated history; hosted collection disabled.",
  "licensed": "Licensed source-search evidence and charge custody; operator admission required.",
  "discovery": "Import candidate rows, read stored runs, verify selected candidates, enroll them.",
- "baseline": "Scoped backlink baselines; supplier admission disabled.",
+ "baseline": "Scoped backlink baselines; new live work requires admission in this deployment.",
  "library": "Read and export the coverage-stated opportunity library.",
  "competitors": "Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports.",
  "reports": "Placement chronology, service assurance and backlink reports.",
@@ -20,6 +21,3050 @@ export const CATALOG_TOOLSETS = {
  "webhooks": "Webhook endpoints, state, secrets and delivery records."
 };
 export const CATALOG_COMMANDS = [
+ {
+  "name": "get_classification_metadata",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "tags",
+   "subtypes",
+   "settings"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read saved website tag definitions and effective workspace/project display settings. Reading makes no model request.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "asOfRevision": {
+     "description": "as of revision; see schema.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "binding": {
+     "type": "object",
+     "properties": {
+      "workspaceId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "projectId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      }
+     },
+     "required": [
+      "workspaceId",
+      "projectId"
+     ],
+     "additionalProperties": false
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "asOfRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "definitions": {
+     "maxItems": 70,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "family": {
+        "type": "string",
+        "enum": [
+         "organizational",
+         "subtype",
+         "semantic"
+        ]
+       },
+       "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+       },
+       "color": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^#[a-fA-F0-9]{6}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "order": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1000
+       },
+       "retired": {
+        "type": "boolean"
+       },
+       "parentId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "taxonomyVersion": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "definition": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+       },
+       "inclusions": {
+        "minItems": 1,
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 500
+        }
+       },
+       "exclusions": {
+        "minItems": 1,
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 500
+        }
+       },
+       "positiveExamples": {
+        "minItems": 1,
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 500
+        }
+       },
+       "negativeExamples": {
+        "minItems": 1,
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 500
+        }
+       },
+       "insufficientEvidence": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+       }
+      },
+      "required": [
+       "id",
+       "family",
+       "name"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "settings": {
+     "type": "object",
+     "properties": {
+      "taxonomyVersion": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "roleAliases": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+       }
+      },
+      "roleGroups": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+       }
+      },
+      "hiddenRoleIds": {
+       "maxItems": 20,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       }
+      },
+      "roleOrder": {
+       "maxItems": 20,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       }
+      },
+      "suggestionsPaused": {
+       "type": "boolean"
+      },
+      "automaticLabels": {
+       "type": "boolean",
+       "const": false
+      },
+      "renderedImages": {
+       "type": "boolean",
+       "const": false
+      },
+      "semanticAlerts": {
+       "type": "boolean",
+       "const": false
+      },
+      "feedbackReuse": {
+       "type": "boolean",
+       "const": false
+      }
+     },
+     "additionalProperties": false
+    },
+    "origins": {
+     "type": "object",
+     "propertyNames": {
+      "type": "string"
+     },
+     "additionalProperties": {
+      "type": "string",
+      "enum": [
+       "default",
+       "workspace",
+       "project"
+      ]
+     }
+    },
+    "workspaceRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "projectRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "inferenceEffect": {
+     "type": "string",
+     "const": "none"
+    },
+    "enrollmentEffect": {
+     "type": "string",
+     "const": "none"
+    },
+    "readAt": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    }
+   },
+   "required": [
+    "binding",
+    "revision",
+    "asOfRevision",
+    "definitions",
+    "settings",
+    "origins",
+    "workspaceRevision",
+    "projectRevision",
+    "inferenceEffect",
+    "enrollmentEffect",
+    "readAt"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "save_classification_definition",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "tags",
+   "subtypes",
+   "settings"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Save or retire an administrator-owned tag or subtype definition. Semantic edits keep prior snapshots and invalidate old subtype applicability. Makes no model request.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "expectedRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Previously read revision; mismatches reject concurrent updates."
+    },
+    "reason": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 500,
+     "description": "reason; see schema."
+    },
+    "definition": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "family": {
+       "type": "string",
+       "enum": [
+        "organizational",
+        "subtype",
+        "semantic"
+       ]
+      },
+      "name": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "color": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^#[a-fA-F0-9]{6}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "order": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 1000
+      },
+      "retired": {
+       "type": "boolean"
+      },
+      "parentId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "taxonomyVersion": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "definition": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 1000
+      },
+      "inclusions": {
+       "minItems": 1,
+       "maxItems": 8,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+       }
+      },
+      "exclusions": {
+       "minItems": 1,
+       "maxItems": 8,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+       }
+      },
+      "positiveExamples": {
+       "minItems": 1,
+       "maxItems": 8,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+       }
+      },
+      "negativeExamples": {
+       "minItems": 1,
+       "maxItems": 8,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+       }
+      },
+      "insufficientEvidence": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 500
+      }
+     },
+     "required": [
+      "id",
+      "family",
+      "name"
+     ],
+     "additionalProperties": false,
+     "description": "definition; see schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "expectedRevision",
+    "reason",
+    "definition"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "inferenceEffect": {
+     "type": "string",
+     "const": "none"
+    }
+   },
+   "required": [
+    "revision",
+    "inferenceEffect"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "save_classification_settings",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "tags",
+   "subtypes",
+   "settings"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Save administrator-owned display settings or pause suggestions. Workspace defaults require unrestricted workspace access. Makes no model request and grants no supplier enrollment.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "expectedRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Previously read revision; mismatches reject concurrent updates."
+    },
+    "reason": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 500,
+     "description": "reason; see schema."
+    },
+    "level": {
+     "type": "string",
+     "enum": [
+      "project",
+      "workspace"
+     ],
+     "description": "level; see schema."
+    },
+    "expectedSettingsRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "expected settings revision; see schema."
+    },
+    "settings": {
+     "type": "object",
+     "properties": {
+      "taxonomyVersion": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "roleAliases": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+       }
+      },
+      "roleGroups": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+       }
+      },
+      "hiddenRoleIds": {
+       "maxItems": 20,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       }
+      },
+      "roleOrder": {
+       "maxItems": 20,
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       }
+      },
+      "suggestionsPaused": {
+       "type": "boolean"
+      },
+      "automaticLabels": {
+       "type": "boolean",
+       "const": false
+      },
+      "renderedImages": {
+       "type": "boolean",
+       "const": false
+      },
+      "semanticAlerts": {
+       "type": "boolean",
+       "const": false
+      },
+      "feedbackReuse": {
+       "type": "boolean",
+       "const": false
+      }
+     },
+     "additionalProperties": false,
+     "description": "settings; see schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "expectedRevision",
+    "reason",
+    "level",
+    "expectedSettingsRevision",
+    "settings"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "inferenceEffect": {
+     "type": "string",
+     "const": "none"
+    }
+   },
+   "required": [
+    "revision",
+    "inferenceEffect"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "tag_placement_occurrences",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "tags",
+   "subtypes",
+   "settings"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Attach or remove supplied organizational tags or a subtype on exact retained occurrences. Subtypes require an accepted matching parent. Makes no model request.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "expectedRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Previously read revision; mismatches reject concurrent updates."
+    },
+    "reason": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 500,
+     "description": "reason; see schema."
+    },
+    "definitionId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "definition ID from create/list."
+    },
+    "action": {
+     "type": "string",
+     "enum": [
+      "attach",
+      "detach"
+     ],
+     "description": "action; see schema."
+    },
+    "occurrences": {
+     "minItems": 1,
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "watchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "occurrenceId": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       },
+       "captureId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "evidenceHash": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       }
+      },
+      "required": [
+       "watchId",
+       "occurrenceId",
+       "captureId",
+       "evidenceHash"
+      ],
+      "additionalProperties": false
+     },
+     "description": "occurrences; see schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "expectedRevision",
+    "reason",
+    "definitionId",
+    "action",
+    "occurrences"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "inferenceEffect": {
+     "type": "string",
+     "const": "none"
+    }
+   },
+   "required": [
+    "revision",
+    "inferenceEffect"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_placement_metadata",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "tags",
+   "subtypes",
+   "settings"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read supplied tags and supplied subtype for one exact retained occurrence. Historical names stay bound to their saved definition; current applicability remains separate.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "occurrenceId": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "occurrence ID from create/list."
+    },
+    "captureId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "capture ID from create/list."
+    },
+    "evidenceHash": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "evidence hash; see schema."
+    },
+    "asOfRevision": {
+     "description": "as of revision; see schema.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "projectId",
+    "watchId",
+    "occurrenceId",
+    "captureId",
+    "evidenceHash"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "binding": {
+     "type": "object",
+     "properties": {
+      "workspaceId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "projectId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "watchId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "occurrenceId": {
+       "type": "string",
+       "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "captureId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      }
+     },
+     "required": [
+      "workspaceId",
+      "projectId",
+      "watchId",
+      "occurrenceId",
+      "captureId"
+     ],
+     "additionalProperties": {}
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "asOfRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "items": {
+     "maxItems": 21,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "definition": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         "family": {
+          "type": "string",
+          "enum": [
+           "organizational",
+           "subtype",
+           "semantic"
+          ]
+         },
+         "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "color": {
+          "anyOf": [
+           {
+            "type": "string",
+            "pattern": "^#[a-fA-F0-9]{6}$"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+         },
+         "retired": {
+          "type": "boolean"
+         },
+         "parentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         "taxonomyVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         "definition": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+         },
+         "inclusions": {
+          "minItems": 1,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 500
+          }
+         },
+         "exclusions": {
+          "minItems": 1,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 500
+          }
+         },
+         "positiveExamples": {
+          "minItems": 1,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 500
+          }
+         },
+         "negativeExamples": {
+          "minItems": 1,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 500
+          }
+         },
+         "insufficientEvidence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "id",
+         "family",
+         "name"
+        ],
+        "additionalProperties": {}
+       },
+       "semanticRevision": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "actorId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "recordedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+       },
+       "retired": {
+        "type": "boolean"
+       },
+       "applicable": {
+        "type": "boolean"
+       },
+       "state": {
+        "type": "string",
+        "enum": [
+         "accepted_manual",
+         "customer_metadata"
+        ]
+       }
+      },
+      "required": [
+       "definition",
+       "semanticRevision",
+       "actorId",
+       "recordedAt",
+       "retired",
+       "applicable",
+       "state"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "inferenceEffect": {
+     "type": "string",
+     "const": "none"
+    }
+   },
+   "required": [
+    "binding",
+    "revision",
+    "asOfRevision",
+    "items",
+    "inferenceEffect"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_placement_context",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "link role",
+   "placement context"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read scoped placement context and independent classification axes from retained evidence. Includes source applicability, review state and native authority. Reading never fetches a source or invokes a model.",
+  "examples": [
+   {
+    "watchId": "wat_00000000-0000-0000-0000-000000000001"
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    }
+   },
+   "required": [
+    "watchId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "version": {
+     "type": "string",
+     "const": "placement-context-v1"
+    },
+    "binding": {
+     "type": "object",
+     "properties": {
+      "workspaceId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "projectId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "watchId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      }
+     },
+     "required": [
+      "workspaceId",
+      "projectId",
+      "watchId"
+     ],
+     "additionalProperties": false
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "applicability": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "summary": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string"
+      },
+      "count": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "role": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "kind",
+      "count",
+      "role"
+     ],
+     "additionalProperties": {}
+    },
+    "occurrences": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       },
+       "captureId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "revision": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "evidenceHash": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       },
+       "axes": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {
+         "type": "object",
+         "properties": {
+          "value": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "state": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "value",
+          "state"
+         ],
+         "additionalProperties": {}
+        }
+       },
+       "passages": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "text": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "id",
+          "text"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "canCorrect": {
+        "type": "boolean"
+       }
+      },
+      "required": [
+       "id",
+       "captureId",
+       "revision",
+       "evidenceHash",
+       "axes",
+       "passages",
+       "canCorrect"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "capability": {
+     "type": "object",
+     "properties": {
+      "suggestionsAvailable": {
+       "type": "boolean"
+      },
+      "reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "classificationAllowance": {
+       "type": "object",
+       "properties": {
+        "contract": {
+         "type": "string",
+         "const": "classification-allowance-v1"
+        },
+        "unit": {
+         "type": "string",
+         "const": "classification-assessment-v1"
+        },
+        "scope": {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "const": "workspace"
+          },
+          "workspaceId": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "sharedAcrossWebsites": {
+           "type": "boolean",
+           "const": true
+          }
+         },
+         "required": [
+          "kind",
+          "workspaceId",
+          "sharedAcrossWebsites"
+         ],
+         "additionalProperties": false
+        },
+        "state": {
+         "type": "string",
+         "enum": [
+          "unavailable",
+          "not_entitled",
+          "exhausted",
+          "available"
+         ]
+        },
+        "limit": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "reserved": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "used": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "remaining": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "period": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "key": {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 200
+            },
+            "startsAt": {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "endsAt": {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+           },
+           "required": [
+            "key",
+            "startsAt",
+            "endsAt"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "resetAt": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "contract",
+        "unit",
+        "scope",
+        "state",
+        "limit",
+        "reserved",
+        "used",
+        "remaining",
+        "period",
+        "resetAt"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "suggestionsAvailable",
+      "reason"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "version",
+    "binding",
+    "revision",
+    "applicability",
+    "reason",
+    "summary",
+    "occurrences",
+    "capability"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_placement_review_history",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "review history",
+   "timeline",
+   "undo"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read dated model suggestions, corrections, undo actions and concerns for one retained physical occurrence. Pages remain bound to that capture and a frozen revision. Missing or expired history does not establish that no earlier changes occurred. Makes no source fetch, write or model call.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "occurrenceId": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "occurrence ID from create/list."
+    },
+    "captureId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "capture ID from create/list."
+    },
+    "evidenceHash": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "evidence hash; see schema."
+    },
+    "limit": {
+     "description": "Page/report row cap; see bounds.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50
+    },
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 2048
+    }
+   },
+   "required": [
+    "watchId",
+    "occurrenceId",
+    "captureId",
+    "evidenceHash"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schemaVersion": {
+     "type": "number",
+     "const": 1
+    },
+    "historyMeaning": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 1000
+    },
+    "binding": {
+     "type": "object",
+     "properties": {
+      "workspaceId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "projectId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "watchId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "occurrenceId": {
+       "type": "string",
+       "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "captureId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "evidenceHash": {
+       "type": "string",
+       "pattern": "^sha256:[a-f0-9]{64}$"
+      }
+     },
+     "required": [
+      "workspaceId",
+      "projectId",
+      "watchId",
+      "occurrenceId",
+      "captureId",
+      "evidenceHash"
+     ],
+     "additionalProperties": false
+    },
+    "asOfRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "readAt": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "items": {
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 240
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "model_receipt",
+         "correction",
+         "revocation",
+         "concern"
+        ]
+       },
+       "revision": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "occurredAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+       },
+       "recordedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+       },
+       "actorId": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "axis": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "page_surface",
+           "link_role",
+           "region_inferred",
+           "relevance",
+           "risk_cues",
+           "acquisition"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "value": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "state": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "accepted_manual",
+           "accepted_auto",
+           "suggested",
+           "superseded",
+           "insufficient_evidence",
+           "not_evaluated"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "reason": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "receiptId": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "axes": {
+        "minItems": 1,
+        "maxItems": 6,
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "axis": {
+           "type": "string",
+           "enum": [
+            "page_surface",
+            "link_role",
+            "region_inferred",
+            "relevance",
+            "risk_cues",
+            "acquisition"
+           ]
+          },
+          "value": {
+           "anyOf": [
+            {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 100
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "state": {
+           "type": "string",
+           "enum": [
+            "accepted_manual",
+            "accepted_auto",
+            "suggested",
+            "superseded",
+            "insufficient_evidence",
+            "not_evaluated"
+           ]
+          },
+          "basis": {
+           "type": "string",
+           "enum": [
+            "model",
+            "rule",
+            "manual",
+            "attributed"
+           ]
+          }
+         },
+         "required": [
+          "axis",
+          "value",
+          "state",
+          "basis"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "policy": {
+        "type": "object",
+        "properties": {
+         "taxonomyVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         "rubricVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         "extractorVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         "privacyRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         }
+        },
+        "required": [
+         "taxonomyVersion",
+         "rubricVersion",
+         "extractorVersion",
+         "privacyRevision"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "required": [
+       "id",
+       "kind",
+       "revision",
+       "occurredAt",
+       "recordedAt",
+       "actorId",
+       "axis",
+       "value",
+       "state",
+       "reason",
+       "receiptId"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "nextCursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 2048
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "hasMore": {
+     "type": "boolean"
+    },
+    "coverage": {
+     "type": "object",
+     "properties": {
+      "status": {
+       "type": "string",
+       "enum": [
+        "retained",
+        "expired",
+        "unavailable"
+       ]
+      },
+      "reason": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "meaning": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 1000
+      }
+     },
+     "required": [
+      "status",
+      "reason",
+      "meaning"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "schemaVersion",
+    "historyMeaning",
+    "binding",
+    "asOfRevision",
+    "readAt",
+    "items",
+    "nextCursor",
+    "hasMore",
+    "coverage"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "prepare_placement_context",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "link role",
+   "placement context"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Extract physical occurrences from the current retained source capture. No network or model request. Requires the current project classification revision; expired, changed or incomplete source evidence fails closed.",
+  "examples": [
+   {
+    "watchId": "wat_00000000-0000-0000-0000-000000000001",
+    "expectedRevision": 0
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "expectedRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Previously read revision; mismatches reject concurrent updates."
+    }
+   },
+   "required": [
+    "watchId",
+    "expectedRevision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "version": {
+     "type": "string",
+     "const": "placement-context-v1"
+    },
+    "binding": {
+     "type": "object",
+     "properties": {
+      "workspaceId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "projectId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "watchId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      }
+     },
+     "required": [
+      "workspaceId",
+      "projectId",
+      "watchId"
+     ],
+     "additionalProperties": false
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "applicability": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "summary": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string"
+      },
+      "count": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "role": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "kind",
+      "count",
+      "role"
+     ],
+     "additionalProperties": {}
+    },
+    "occurrences": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       },
+       "captureId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "revision": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "evidenceHash": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       },
+       "axes": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {
+         "type": "object",
+         "properties": {
+          "value": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "state": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "value",
+          "state"
+         ],
+         "additionalProperties": {}
+        }
+       },
+       "passages": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "text": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "id",
+          "text"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "canCorrect": {
+        "type": "boolean"
+       }
+      },
+      "required": [
+       "id",
+       "captureId",
+       "revision",
+       "evidenceHash",
+       "axes",
+       "passages",
+       "canCorrect"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "capability": {
+     "type": "object",
+     "properties": {
+      "suggestionsAvailable": {
+       "type": "boolean"
+      },
+      "reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "classificationAllowance": {
+       "type": "object",
+       "properties": {
+        "contract": {
+         "type": "string",
+         "const": "classification-allowance-v1"
+        },
+        "unit": {
+         "type": "string",
+         "const": "classification-assessment-v1"
+        },
+        "scope": {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "const": "workspace"
+          },
+          "workspaceId": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "sharedAcrossWebsites": {
+           "type": "boolean",
+           "const": true
+          }
+         },
+         "required": [
+          "kind",
+          "workspaceId",
+          "sharedAcrossWebsites"
+         ],
+         "additionalProperties": false
+        },
+        "state": {
+         "type": "string",
+         "enum": [
+          "unavailable",
+          "not_entitled",
+          "exhausted",
+          "available"
+         ]
+        },
+        "limit": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "reserved": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "used": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "remaining": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "period": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "key": {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 200
+            },
+            "startsAt": {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "endsAt": {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+           },
+           "required": [
+            "key",
+            "startsAt",
+            "endsAt"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "resetAt": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "contract",
+        "unit",
+        "scope",
+        "state",
+        "limit",
+        "reserved",
+        "used",
+        "remaining",
+        "period",
+        "resetAt"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "suggestionsAvailable",
+      "reason"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "version",
+    "binding",
+    "revision",
+    "applicability",
+    "reason",
+    "summary",
+    "occurrences",
+    "capability"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "review_placement_context",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "link role",
+   "placement context"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Correct or revoke one occurrence axis, or report an evidence concern. Requires exact capture, evidence hash and current revision. Records the acting account and reason. Does not prove human review or infer other axes or model accuracy.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "workspaceId": {
+     "description": "workspace ID from create/list.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "projectId": {
+     "description": "project ID from create/list.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "action": {
+     "type": "string",
+     "enum": [
+      "correct",
+      "revoke",
+      "concern"
+     ],
+     "description": "action; see schema."
+    },
+    "occurrenceId": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "occurrence ID from create/list."
+    },
+    "captureId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "capture ID from create/list."
+    },
+    "evidenceHash": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "evidence hash; see schema."
+    },
+    "expectedRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Previously read revision; mismatches reject concurrent updates."
+    },
+    "axis": {
+     "description": "axis; see schema.",
+     "type": "string",
+     "enum": [
+      "page_surface",
+      "link_role",
+      "region_inferred",
+      "relevance",
+      "risk_cues",
+      "acquisition"
+     ]
+    },
+    "value": {
+     "description": "value; see schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 100
+    },
+    "reason": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 500,
+     "description": "reason; see schema."
+    }
+   },
+   "required": [
+    "watchId",
+    "action",
+    "occurrenceId",
+    "captureId",
+    "evidenceHash",
+    "expectedRevision",
+    "reason"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "version": {
+     "type": "string",
+     "const": "placement-context-v1"
+    },
+    "binding": {
+     "type": "object",
+     "properties": {
+      "workspaceId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "projectId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "watchId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      }
+     },
+     "required": [
+      "workspaceId",
+      "projectId",
+      "watchId"
+     ],
+     "additionalProperties": false
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "applicability": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "summary": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string"
+      },
+      "count": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "role": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "kind",
+      "count",
+      "role"
+     ],
+     "additionalProperties": {}
+    },
+    "occurrences": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       },
+       "captureId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "revision": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "evidenceHash": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+       },
+       "axes": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {
+         "type": "object",
+         "properties": {
+          "value": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "state": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "value",
+          "state"
+         ],
+         "additionalProperties": {}
+        }
+       },
+       "passages": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "text": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "id",
+          "text"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "canCorrect": {
+        "type": "boolean"
+       }
+      },
+      "required": [
+       "id",
+       "captureId",
+       "revision",
+       "evidenceHash",
+       "axes",
+       "passages",
+       "canCorrect"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "capability": {
+     "type": "object",
+     "properties": {
+      "suggestionsAvailable": {
+       "type": "boolean"
+      },
+      "reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "classificationAllowance": {
+       "type": "object",
+       "properties": {
+        "contract": {
+         "type": "string",
+         "const": "classification-allowance-v1"
+        },
+        "unit": {
+         "type": "string",
+         "const": "classification-assessment-v1"
+        },
+        "scope": {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "const": "workspace"
+          },
+          "workspaceId": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "sharedAcrossWebsites": {
+           "type": "boolean",
+           "const": true
+          }
+         },
+         "required": [
+          "kind",
+          "workspaceId",
+          "sharedAcrossWebsites"
+         ],
+         "additionalProperties": false
+        },
+        "state": {
+         "type": "string",
+         "enum": [
+          "unavailable",
+          "not_entitled",
+          "exhausted",
+          "available"
+         ]
+        },
+        "limit": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "reserved": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "used": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "remaining": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "period": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "key": {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 200
+            },
+            "startsAt": {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "endsAt": {
+             "type": "string",
+             "format": "date-time",
+             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+           },
+           "required": [
+            "key",
+            "startsAt",
+            "endsAt"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "resetAt": {
+         "anyOf": [
+          {
+           "type": "string",
+           "format": "date-time",
+           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "contract",
+        "unit",
+        "scope",
+        "state",
+        "limit",
+        "reserved",
+        "used",
+        "remaining",
+        "period",
+        "resetAt"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "suggestionsAvailable",
+      "reason"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "version",
+    "binding",
+    "revision",
+    "applicability",
+    "reason",
+    "summary",
+    "occurrences",
+    "capability"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "quote_placement_classification",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "clef",
+   "placement context"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Operator evaluation only. Quote one bounded suggestion from retained evidence without reserving allowance or funds, fetching pages or calling a model. Customers receive OPERATOR_REQUIRED; existing grants gain no authority.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "occurrenceId": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "occurrence ID from create/list."
+    },
+    "captureId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "capture ID from create/list."
+    },
+    "evidenceHash": {
+     "type": "string",
+     "pattern": "^sha256:[a-f0-9]{64}$",
+     "description": "evidence hash; see schema."
+    },
+    "expectedRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Previously read revision; mismatches reject concurrent updates."
+    },
+    "model": {
+     "description": "model; see schema.",
+     "type": "string",
+     "enum": [
+      "clef",
+      "clef-flash"
+     ]
+    }
+   },
+   "required": [
+    "watchId",
+    "occurrenceId",
+    "captureId",
+    "evidenceHash",
+    "expectedRevision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "maxCalls": {
+     "type": "number",
+     "const": 1
+    },
+    "maxInputTokens": {
+     "type": "number",
+     "const": 65536
+    },
+    "ceilingMicrousd": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "expiresAt": {
+     "type": "string",
+     "format": "date-time",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "ready": {
+     "type": "boolean"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "maxCalls",
+    "maxInputTokens",
+    "ceilingMicrousd",
+    "expiresAt",
+    "ready"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "classify_placement",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "clef",
+   "placement context"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Operator evaluation only. Start one selected quote with joint customer-allowance and supplier reservations. Replay returns the same job; ambiguous charges require reconciliation without another call. Customers receive OPERATOR_REQUIRED.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "quoteId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "quote ID from create/list."
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "minLength": 8,
+     "maxLength": 200,
+     "description": "Caller-generated key reused only for retries of the same operation and arguments in this workspace."
+    }
+   },
+   "required": [
+    "watchId",
+    "quoteId",
+    "idempotencyKey"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "queued",
+      "dispatched",
+      "succeeded",
+      "failed",
+      "reconciliation_required",
+      "cancelled"
+     ]
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "state"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_placement_classification_job",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "clef",
+   "placement context"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read a saved classification job. Reading neither dispatches nor retries provider work. Suggested labels and reviewed decisions remain independent of link presence and index status.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "jobId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "job ID from create/list."
+    }
+   },
+   "required": [
+    "watchId",
+    "jobId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "queued",
+      "dispatched",
+      "succeeded",
+      "failed",
+      "reconciliation_required",
+      "cancelled"
+     ]
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "state"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "reconcile_placement_classification",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "classification",
+   "retained suggestion",
+   "publication recovery"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "classification:write"
+  ],
+  "readOnly": false,
+  "description": "Save a retained suggestion after interrupted or conflicted publication. Requires its original settled usage receipt. Rechecks exact evidence, current source, access and revision. Uses the original response and classification date; makes no provider call or new supplier reservation. Unclear provider charges cannot be resolved by this command.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "jobId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "job ID from create/list."
+    },
+    "expectedRevision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991,
+     "description": "Previously read revision; mismatches reject concurrent updates."
+    }
+   },
+   "required": [
+    "watchId",
+    "jobId",
+    "expectedRevision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "queued",
+      "dispatched",
+      "succeeded",
+      "failed",
+      "reconciliation_required",
+      "cancelled"
+     ]
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "state"
+   ],
+   "additionalProperties": {}
+  }
+ },
  {
   "name": "monitor_domain_baseline_candidates",
   "toolset": "baseline",
@@ -36,7 +3081,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Monitor selected baseline links. Enroll 1 to 10 explicitly selected fresh-present links with durable per-item outcomes. Defaults to weekly. User-paused watches require explicit resume; existing cadence and retries remain unchanged.",
+  "description": "Monitor selected baseline links. Enroll 1 to 50 explicitly selected fresh-present links with durable per-item outcomes. Defaults to weekly. User-paused watches require explicit resume; existing cadence and retries remain unchanged.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -44,7 +3089,7 @@ export const CATALOG_COMMANDS = [
     "runId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     },
     "idempotencyKey": {
      "type": "string",
@@ -53,7 +3098,7 @@ export const CATALOG_COMMANDS = [
     },
     "items": {
      "minItems": 1,
-     "maxItems": 10,
+     "maxItems": 50,
      "type": "array",
      "items": {
       "type": "object",
@@ -76,7 +3121,7 @@ export const CATALOG_COMMANDS = [
      "description": "Selected stored candidates to check, each by candidateId with an optional localReference for the caller's own record."
     },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
@@ -136,27 +3181,27 @@ export const CATALOG_COMMANDS = [
       "pending": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "created": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "already_monitored": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "ineligible": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "failed": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       }
      },
      "required": [
@@ -169,7 +3214,7 @@ export const CATALOG_COMMANDS = [
      "additionalProperties": false
     },
     "items": {
-     "maxItems": 10,
+     "maxItems": 50,
      "type": "array",
      "items": {
       "type": "object",
@@ -177,7 +3222,7 @@ export const CATALOG_COMMANDS = [
        "ordinal": {
         "type": "integer",
         "minimum": 0,
-        "maximum": 10
+        "maximum": 50
        },
        "candidate_id": {
         "type": "string"
@@ -293,7 +3338,7 @@ export const CATALOG_COMMANDS = [
     "batchId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the batch returned by its create or list operation."
+     "description": "batch ID from create/list."
     }
    },
    "required": [
@@ -348,27 +3393,27 @@ export const CATALOG_COMMANDS = [
       "pending": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "created": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "already_monitored": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "ineligible": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       },
       "failed": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 50
       }
      },
      "required": [
@@ -381,7 +3426,7 @@ export const CATALOG_COMMANDS = [
      "additionalProperties": false
     },
     "items": {
-     "maxItems": 10,
+     "maxItems": 50,
      "type": "array",
      "items": {
       "type": "object",
@@ -389,7 +3434,7 @@ export const CATALOG_COMMANDS = [
        "ordinal": {
         "type": "integer",
         "minimum": 0,
-        "maximum": 10
+        "maximum": 50
        },
        "candidate_id": {
         "type": "string"
@@ -510,7 +3555,7 @@ export const CATALOG_COMMANDS = [
     "projectId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -625,7 +3670,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Prepare a baseline offer. No provider calls. Supplier admission is disabled; retained runs remain readable. The offer binds the exact host, initial static checks and explicit consent. No recurring monitoring.",
+  "description": "Prepare a baseline offer. No paid provider calls. Needs operator-enabled supplier admission; retained runs remain readable. The offer binds the exact host, initial static checks and explicit consent. No recurring monitoring.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -633,7 +3678,7 @@ export const CATALOG_COMMANDS = [
     "projectId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "domain": {
      "type": "string",
@@ -646,11 +3691,11 @@ export const CATALOG_COMMANDS = [
      "description": "Include subdomains of the selected domain in this query."
     },
     "confirmNormalizedScope": {
-     "description": "The confirm normalized scope value; allowed values and bounds are specified in this schema.",
+     "description": "confirm normalized scope; see schema.",
      "type": "boolean"
     },
     "forceRefresh": {
-     "description": "The force refresh value; allowed values and bounds are specified in this schema.",
+     "description": "force refresh; see schema.",
      "type": "boolean"
     }
    },
@@ -762,8 +3807,16 @@ export const CATALOG_COMMANDS = [
            "const": 1000
           },
           "source_checks": {
-           "type": "number",
-           "const": 10
+           "anyOf": [
+            {
+             "type": "number",
+             "const": 10
+            },
+            {
+             "type": "number",
+             "const": 1000
+            }
+           ]
           },
           "renders": {
            "type": "number",
@@ -906,8 +3959,16 @@ export const CATALOG_COMMANDS = [
            "const": 1000
           },
           "source_checks": {
-           "type": "number",
-           "const": 10
+           "anyOf": [
+            {
+             "type": "number",
+             "const": 10
+            },
+            {
+             "type": "number",
+             "const": 1000
+            }
+           ]
           },
           "renders": {
            "type": "number",
@@ -1650,32 +4711,32 @@ export const CATALOG_COMMANDS = [
         "selected_checks": {
          "type": "integer",
          "minimum": 0,
-         "maximum": 10
+         "maximum": 1000
         },
         "checked": {
          "type": "integer",
          "minimum": 0,
-         "maximum": 10
+         "maximum": 1000
         },
         "present": {
          "type": "integer",
          "minimum": 0,
-         "maximum": 10
+         "maximum": 1000
         },
         "absent": {
          "type": "integer",
          "minimum": 0,
-         "maximum": 10
+         "maximum": 1000
         },
         "source_unavailable": {
          "type": "integer",
          "minimum": 0,
-         "maximum": 10
+         "maximum": 1000
         },
         "unknown": {
          "type": "integer",
          "minimum": 0,
-         "maximum": 10
+         "maximum": 1000
         }
        },
        "required": [
@@ -1744,7 +4805,7 @@ export const CATALOG_COMMANDS = [
          ]
         },
         "candidate_ids": {
-         "maxItems": 10,
+         "maxItems": 1000,
          "type": "array",
          "items": {
           "type": "string",
@@ -1830,7 +4891,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Start a baseline. Requires a prepared offer, explicit consent and a retry key. Returns the same durable baseline on replay. Admission is disabled until supplier prerequisites are recorded; retries cannot activate it.",
+  "description": "Start a baseline. Requires a prepared offer, explicit consent and a retry key. Returns the same durable baseline on replay. Daily spend caps apply before any supplier call; retries never buy twice.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -1838,7 +4899,7 @@ export const CATALOG_COMMANDS = [
     "offerId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the offer returned by its create or list operation."
+     "description": "offer ID from create/list."
     },
     "idempotencyKey": {
      "type": "string",
@@ -1848,7 +4909,7 @@ export const CATALOG_COMMANDS = [
     "consent": {
      "type": "boolean",
      "const": true,
-     "description": "The consent value; allowed values and bounds are specified in this schema."
+     "description": "consent; see schema."
     }
    },
    "required": [
@@ -2533,32 +5594,32 @@ export const CATALOG_COMMANDS = [
       "selected_checks": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "checked": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "present": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "absent": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "source_unavailable": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "unknown": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       }
      },
      "required": [
@@ -2627,7 +5688,7 @@ export const CATALOG_COMMANDS = [
        ]
       },
       "candidate_ids": {
-       "maxItems": 10,
+       "maxItems": 1000,
        "type": "array",
        "items": {
         "type": "string",
@@ -2712,7 +5773,7 @@ export const CATALOG_COMMANDS = [
     "runId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     }
    },
    "required": [
@@ -3395,32 +6456,32 @@ export const CATALOG_COMMANDS = [
       "selected_checks": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "checked": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "present": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "absent": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "source_unavailable": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "unknown": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       }
      },
      "required": [
@@ -3489,7 +6550,7 @@ export const CATALOG_COMMANDS = [
        ]
       },
       "candidate_ids": {
-       "maxItems": 10,
+       "maxItems": 1000,
        "type": "array",
        "items": {
         "type": "string",
@@ -3571,21 +6632,87 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "runId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
-     "maxLength": 1024
+     "minLength": 1,
+     "maxLength": 16384
     }
    },
    "required": [
@@ -3597,6 +6724,76 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "schema_version": {
      "anyOf": [
       {
@@ -3917,6 +7114,11 @@ export const CATALOG_COMMANDS = [
                }
               ]
              },
+             "domain_from": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253
+             },
              "domain_from_rank": {
               "anyOf": [
                {
@@ -3990,6 +7192,13 @@ export const CATALOG_COMMANDS = [
                {
                 "type": "null"
                }
+              ]
+             },
+             "target_basis": {
+              "type": "string",
+              "enum": [
+               "supplier_observed",
+               "user_supplied_target_expectation"
               ]
              },
              "supplier_generated_at": {
@@ -4140,6 +7349,67 @@ export const CATALOG_COMMANDS = [
           "type": "null"
          }
         ]
+       },
+       "current_verification": {
+        "type": "object",
+        "properties": {
+         "job_id": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "state": {
+          "type": "string"
+         },
+         "error_code": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "observation": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "string"
+             },
+             "state": {
+              "type": "string"
+             },
+             "reason": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "checked_at": {
+              "type": "string"
+             }
+            },
+            "required": [
+             "id",
+             "state",
+             "reason",
+             "checked_at"
+            ],
+            "additionalProperties": false
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "job_id",
+         "state",
+         "error_code",
+         "observation"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -4172,15 +7442,6 @@ export const CATALOG_COMMANDS = [
       "additionalProperties": false
      }
     },
-    "has_more": {
-     "type": "boolean"
-    },
-    "next_cursor": {
-     "type": [
-      "string",
-      "null"
-     ]
-    },
     "truncated": {
      "type": "boolean"
     },
@@ -4206,14 +7467,14 @@ export const CATALOG_COMMANDS = [
     }
    },
    "required": [
+    "has_more",
+    "next_cursor",
     "schema_version",
     "baseline_run_id",
     "discovery_run_id",
     "scope",
     "coverage",
     "items",
-    "has_more",
-    "next_cursor",
     "truncated",
     "snapshot"
    ],
@@ -4247,7 +7508,7 @@ export const CATALOG_COMMANDS = [
     "runId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     }
    },
    "required": [
@@ -4930,32 +8191,32 @@ export const CATALOG_COMMANDS = [
       "selected_checks": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "checked": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "present": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "absent": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "source_unavailable": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       },
       "unknown": {
        "type": "integer",
        "minimum": 0,
-       "maximum": 10
+       "maximum": 1000
       }
      },
      "required": [
@@ -5024,7 +8285,7 @@ export const CATALOG_COMMANDS = [
        ]
       },
       "candidate_ids": {
-       "maxItems": 10,
+       "maxItems": 1000,
        "type": "array",
        "items": {
         "type": "string",
@@ -5109,10 +8370,10 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "all",
@@ -5121,13 +8382,13 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "comparison": {
-     "description": "The comparison value; allowed values and bounds are specified in this schema.",
+     "description": "comparison; see schema.",
      "type": "object",
      "properties": {
       "setId": {
@@ -5159,7 +8420,7 @@ export const CATALOG_COMMANDS = [
      "additionalProperties": false
     },
     "indexSourceKey": {
-     "description": "The index source key value; allowed values and bounds are specified in this schema.",
+     "description": "index source key; see schema.",
      "type": "string",
      "minLength": 1,
      "maxLength": 512
@@ -5799,10 +9060,10 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "all",
@@ -5811,13 +9072,13 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "comparison": {
-     "description": "The comparison value; allowed values and bounds are specified in this schema.",
+     "description": "comparison; see schema.",
      "type": "object",
      "properties": {
       "setId": {
@@ -5849,7 +9110,7 @@ export const CATALOG_COMMANDS = [
      "additionalProperties": false
     },
     "indexSourceKey": {
-     "description": "The index source key value; allowed values and bounds are specified in this schema.",
+     "description": "index source key; see schema.",
      "type": "string",
      "minLength": 1,
      "maxLength": 512
@@ -5872,7 +9133,7 @@ export const CATALOG_COMMANDS = [
       "language",
       "google_index"
      ],
-     "description": "The dimension value; allowed values and bounds are specified in this schema."
+     "description": "dimension; see schema."
     },
     "format": {
      "type": "string",
@@ -5880,7 +9141,7 @@ export const CATALOG_COMMANDS = [
       "json",
       "csv"
      ],
-     "description": "The format value; allowed values and bounds are specified in this schema."
+     "description": "format; see schema."
     }
    },
    "required": [
@@ -6544,13 +9805,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "observationId": {
      "type": "string",
@@ -6559,13 +9820,13 @@ export const CATALOG_COMMANDS = [
      "description": "ID of a saved observation; this does not fetch a new publisher page."
     },
     "offset": {
-     "description": "The offset value; allowed values and bounds are specified in this schema.",
+     "description": "offset; see schema.",
      "type": "integer",
      "minimum": 0,
      "maximum": 999
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -6787,12 +10048,12 @@ export const CATALOG_COMMANDS = [
     "scheduleId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the schedule returned by its create or list operation."
+     "description": "schedule ID from create/list."
     },
     "projectId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "target": {
      "type": "string",
@@ -6808,22 +10069,22 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "format": "date-time",
      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
-     "description": "The anchor at value; allowed values and bounds are specified in this schema."
+     "description": "anchor at; see schema."
     },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 86400,
      "maximum": 2592000
     },
     "staleAfterSeconds": {
-     "description": "The stale after seconds value; allowed values and bounds are specified in this schema.",
+     "description": "stale after seconds; see schema.",
      "type": "integer",
      "minimum": 86400,
      "maximum": 5184000
     },
     "alerts": {
-     "description": "The alerts value; allowed values and bounds are specified in this schema.",
+     "description": "alerts; see schema.",
      "type": "object",
      "properties": {
       "enabled": {
@@ -7048,18 +10309,18 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$"
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
      "maxLength": 1024
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -7288,7 +10549,7 @@ export const CATALOG_COMMANDS = [
     "scheduleId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the schedule returned by its create or list operation."
+     "description": "schedule ID from create/list."
     }
    },
    "required": [
@@ -7490,16 +10751,16 @@ export const CATALOG_COMMANDS = [
     "scheduleId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the schedule returned by its create or list operation."
+     "description": "schedule ID from create/list."
     },
     "expectedVersion": {
      "type": "integer",
      "exclusiveMinimum": 0,
      "maximum": 9007199254740991,
-     "description": "The expected version value; allowed values and bounds are specified in this schema."
+     "description": "expected version; see schema."
     },
     "state": {
-     "description": "Requested resource state or saved-observation filter, as enumerated here.",
+     "description": "Resource state or saved-observation filter.",
      "type": "string",
      "enum": [
       "active",
@@ -7507,13 +10768,13 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "staleAfterSeconds": {
-     "description": "The stale after seconds value; allowed values and bounds are specified in this schema.",
+     "description": "stale after seconds; see schema.",
      "type": "integer",
      "minimum": 86400,
      "maximum": 5184000
     },
     "alerts": {
-     "description": "The alerts value; allowed values and bounds are specified in this schema.",
+     "description": "alerts; see schema.",
      "type": "object",
      "properties": {
       "enabled": {
@@ -7740,22 +11001,22 @@ export const CATALOG_COMMANDS = [
     "scheduleId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the schedule returned by its create or list operation."
+     "description": "schedule ID from create/list."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
      "maxLength": 1024
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -8142,13 +11403,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     }
    },
    "required": [
@@ -8356,19 +11617,19 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "revision": {
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740991,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "deal": {
      "type": "object",
@@ -8490,7 +11751,7 @@ export const CATALOG_COMMANDS = [
       }
      },
      "additionalProperties": false,
-     "description": "The deal value; allowed values and bounds are specified in this schema."
+     "description": "deal; see schema."
     }
    },
    "required": [
@@ -8700,11 +11961,11 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "limit": {
      "default": 100,
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -8774,14 +12035,14 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "from": {
-     "description": "The from value; allowed values and bounds are specified in this schema.",
+     "description": "from; see schema.",
      "type": "string"
     },
     "to": {
-     "description": "The to value; allowed values and bounds are specified in this schema.",
+     "description": "to; see schema.",
      "type": "string"
     }
    },
@@ -8935,11 +12196,76 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "source": {
      "type": "string",
@@ -8947,18 +12273,19 @@ export const CATALOG_COMMANDS = [
       "watches",
       "candidates"
      ],
-     "description": "The source value; allowed values and bounds are specified in this schema."
+     "description": "source; see schema."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
-     "maxLength": 1024
+     "minLength": 1,
+     "maxLength": 16384
     }
    },
    "required": [
@@ -8971,6 +12298,76 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "project_id": {
      "type": "string",
      "minLength": 1,
@@ -9148,15 +12545,6 @@ export const CATALOG_COMMANDS = [
      "minimum": 0,
      "maximum": 9007199254740991
     },
-    "next_cursor": {
-     "type": [
-      "string",
-      "null"
-     ]
-    },
-    "has_more": {
-     "type": "boolean"
-    },
     "report_only": {
      "type": "boolean",
      "const": true
@@ -9171,14 +12559,14 @@ export const CATALOG_COMMANDS = [
     }
    },
    "required": [
+    "has_more",
+    "next_cursor",
     "project_id",
     "source",
     "rows",
     "page_summary",
     "policy_revision",
     "disavow_revision",
-    "next_cursor",
-    "has_more",
     "report_only",
     "snapshot",
     "domain_cap_applied"
@@ -9210,13 +12598,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "operationId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the operation returned by its create or list operation."
+     "description": "operation ID from create/list."
     }
    },
    "required": [
@@ -9441,22 +12829,88 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
-     "maxLength": 4096
+     "minLength": 1,
+     "maxLength": 16384
     }
    },
    "required": [
@@ -9468,6 +12922,82 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "rules": {
      "type": "array",
      "items": {
@@ -9595,7 +13125,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "kind": {
      "type": "string",
@@ -9605,20 +13135,20 @@ export const CATALOG_COMMANDS = [
       "require_pattern",
       "domain_cap"
      ],
-     "description": "The kind value; allowed values and bounds are specified in this schema."
+     "description": "kind; see schema."
     },
     "value": {
      "type": "string",
      "minLength": 1,
      "maxLength": 300,
-     "description": "The value value; allowed values and bounds are specified in this schema."
+     "description": "value; see schema."
     },
     "enabled": {
-     "description": "The enabled value; allowed values and bounds are specified in this schema.",
+     "description": "enabled; see schema.",
      "type": "boolean"
     },
     "note": {
-     "description": "The note value; allowed values and bounds are specified in this schema.",
+     "description": "note; see schema.",
      "type": "string",
      "maxLength": 1000
     }
@@ -9749,32 +13279,32 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "ruleId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the rule returned by its create or list operation."
+     "description": "rule ID from create/list."
     },
     "revision": {
      "type": "integer",
      "exclusiveMinimum": 0,
      "maximum": 9007199254740991,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "value": {
-     "description": "The value value; allowed values and bounds are specified in this schema.",
+     "description": "value; see schema.",
      "type": "string",
      "minLength": 1,
      "maxLength": 300
     },
     "enabled": {
-     "description": "The enabled value; allowed values and bounds are specified in this schema.",
+     "description": "enabled; see schema.",
      "type": "boolean"
     },
     "note": {
-     "description": "The note value; allowed values and bounds are specified in this schema.",
+     "description": "note; see schema.",
      "type": "string",
      "maxLength": 1000
     }
@@ -9905,19 +13435,19 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "ruleId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the rule returned by its create or list operation."
+     "description": "rule ID from create/list."
     },
     "revision": {
      "type": "integer",
      "exclusiveMinimum": 0,
      "maximum": 9007199254740991,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     }
    },
    "required": [
@@ -9978,7 +13508,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "urls": {
      "minItems": 1,
@@ -9988,10 +13518,10 @@ export const CATALOG_COMMANDS = [
       "type": "string",
       "maxLength": 2048
      },
-     "description": "The urls value; allowed values and bounds are specified in this schema."
+     "description": "urls; see schema."
     },
     "context": {
-     "description": "The context value; allowed values and bounds are specified in this schema.",
+     "description": "context; see schema.",
      "type": "string",
      "enum": [
       "point",
@@ -10207,7 +13737,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -10318,13 +13848,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "revision": {
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740991,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "frequency": {
      "type": "string",
@@ -10333,7 +13863,7 @@ export const CATALOG_COMMANDS = [
       "daily",
       "weekly"
      ],
-     "description": "The frequency value; allowed values and bounds are specified in this schema."
+     "description": "frequency; see schema."
     },
     "categories": {
      "minItems": 1,
@@ -10349,7 +13879,7 @@ export const CATALOG_COMMANDS = [
        "renewals"
       ]
      },
-     "description": "The categories value; allowed values and bounds are specified in this schema."
+     "description": "categories; see schema."
     }
    },
    "required": [
@@ -10458,20 +13988,91 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
     "projectId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "before": {
-     "description": "The before value; allowed values and bounds are specified in this schema.",
+     "description": "before; see schema.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
@@ -10486,6 +14087,82 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "deliveries": {
      "type": "array",
      "items": {
@@ -10586,7 +14263,7 @@ export const CATALOG_COMMANDS = [
       {
        "type": "string",
        "minLength": 1,
-       "maxLength": 200
+       "maxLength": 16384
       },
       {
        "type": "null"
@@ -10627,7 +14304,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "category": {
      "type": "string",
@@ -10638,13 +14315,13 @@ export const CATALOG_COMMANDS = [
       "index",
       "renewals"
      ],
-     "description": "The category value; allowed values and bounds are specified in this schema."
+     "description": "category; see schema."
     },
     "eventId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the event returned by its create or list operation."
+     "description": "event ID from create/list."
     }
    },
    "required": [
@@ -10755,19 +14432,84 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": true,
-  "description": "List proposed, approved or rejected website disavow rules. Proposals do not affect export or admission.",
+  "description": "List proposed, approved or rejected website disavow rules. Proposals do not affect export or admission. Omit projectId (with browse:true) to list every accessible website in one paged table.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
-    "projectId": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "projectId": {
+     "description": "project ID from create/list.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "proposed",
@@ -10776,26 +14518,100 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
-     "maxLength": 4096
+     "minLength": 1,
+     "maxLength": 16384
     }
    },
-   "required": [
-    "projectId"
-   ],
    "additionalProperties": false
   },
   "outputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "rules": {
      "type": "array",
      "items": {
@@ -10882,6 +14698,24 @@ export const CATALOG_COMMANDS = [
        },
        "updated_at": {
         "type": "string"
+       },
+       "covered_links": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by_label": {
+        "type": "string",
+        "enum": [
+         "you",
+         "imported",
+         "agent",
+         "owner",
+         "admin",
+         "member",
+         "viewer",
+         "former member"
+        ]
        }
       },
       "required": [
@@ -10913,6 +14747,32 @@ export const CATALOG_COMMANDS = [
       "string",
       "null"
      ]
+    },
+    "summary": {
+     "type": "object",
+     "properties": {
+      "active": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "proposed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "rejected": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "active",
+      "proposed",
+      "rejected"
+     ],
+     "additionalProperties": false
     }
    },
    "required": [
@@ -10948,7 +14808,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "kind": {
      "type": "string",
@@ -10956,16 +14816,16 @@ export const CATALOG_COMMANDS = [
       "domain",
       "url"
      ],
-     "description": "The kind value; allowed values and bounds are specified in this schema."
+     "description": "kind; see schema."
     },
     "value": {
      "type": "string",
      "minLength": 1,
      "maxLength": 2048,
-     "description": "The value value; allowed values and bounds are specified in this schema."
+     "description": "value; see schema."
     },
     "comments": {
-     "description": "The comments value; allowed values and bounds are specified in this schema.",
+     "description": "comments; see schema.",
      "maxItems": 8,
      "type": "array",
      "items": {
@@ -10976,7 +14836,7 @@ export const CATALOG_COMMANDS = [
      }
     },
     "source": {
-     "description": "The source value; allowed values and bounds are specified in this schema.",
+     "description": "source; see schema.",
      "type": "string",
      "enum": [
       "manual",
@@ -10984,7 +14844,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "proposed",
@@ -11089,6 +14949,24 @@ export const CATALOG_COMMANDS = [
        },
        "updated_at": {
         "type": "string"
+       },
+       "covered_links": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by_label": {
+        "type": "string",
+        "enum": [
+         "you",
+         "imported",
+         "agent",
+         "owner",
+         "admin",
+         "member",
+         "viewer",
+         "former member"
+        ]
        }
       },
       "required": [
@@ -11124,6 +15002,63 @@ export const CATALOG_COMMANDS = [
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740991
+    },
+    "approved": {
+     "type": "boolean"
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "sites": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "pages": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "already_listed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "sites",
+      "pages",
+      "already_listed"
+     ],
+     "additionalProperties": false
+    },
+    "warnings": {
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "failed": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "ruleId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "code": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "ruleId",
+       "code"
+      ],
+      "additionalProperties": false
+     }
     }
    },
    "required": [
@@ -11151,7 +15086,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Import a Google-format disavow file as inert proposals. Existing rules are not replaced; human approval is required before export.",
+  "description": "Import a Google-format disavow file (up to 500 rules per call) as inert proposals. Existing rules are kept unchanged. approve:true is honoured only for a signed-in owner or administrator; agents always suggest. approved is true only when every imported rule ended up active; otherwise failed names the rules to review again.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -11160,12 +15095,16 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "text": {
      "type": "string",
-     "maxLength": 163840,
-     "description": "The text value; allowed values and bounds are specified in this schema."
+     "maxLength": 240000,
+     "description": "text; see schema."
+    },
+    "approve": {
+     "description": "approve; see schema.",
+     "type": "boolean"
     }
    },
    "required": [
@@ -11264,6 +15203,24 @@ export const CATALOG_COMMANDS = [
        },
        "updated_at": {
         "type": "string"
+       },
+       "covered_links": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by_label": {
+        "type": "string",
+        "enum": [
+         "you",
+         "imported",
+         "agent",
+         "owner",
+         "admin",
+         "member",
+         "viewer",
+         "former member"
+        ]
        }
       },
       "required": [
@@ -11299,6 +15256,63 @@ export const CATALOG_COMMANDS = [
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740991
+    },
+    "approved": {
+     "type": "boolean"
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "sites": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "pages": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "already_listed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "sites",
+      "pages",
+      "already_listed"
+     ],
+     "additionalProperties": false
+    },
+    "warnings": {
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "failed": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "ruleId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "code": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "ruleId",
+       "code"
+      ],
+      "additionalProperties": false
+     }
     }
    },
    "required": [
@@ -11335,19 +15349,19 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "ruleId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the rule returned by its create or list operation."
+     "description": "rule ID from create/list."
     },
     "revision": {
      "type": "integer",
      "exclusiveMinimum": 0,
      "maximum": 9007199254740991,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "decision": {
      "type": "string",
@@ -11355,7 +15369,7 @@ export const CATALOG_COMMANDS = [
       "approve",
       "reject"
      ],
-     "description": "The decision value; allowed values and bounds are specified in this schema."
+     "description": "decision; see schema."
     }
    },
    "required": [
@@ -11456,6 +15470,24 @@ export const CATALOG_COMMANDS = [
        },
        "updated_at": {
         "type": "string"
+       },
+       "covered_links": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by_label": {
+        "type": "string",
+        "enum": [
+         "you",
+         "imported",
+         "agent",
+         "owner",
+         "admin",
+         "member",
+         "viewer",
+         "former member"
+        ]
        }
       },
       "required": [
@@ -11491,6 +15523,343 @@ export const CATALOG_COMMANDS = [
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740991
+    },
+    "approved": {
+     "type": "boolean"
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "sites": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "pages": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "already_listed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "sites",
+      "pages",
+      "already_listed"
+     ],
+     "additionalProperties": false
+    },
+    "warnings": {
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "failed": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "ruleId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "code": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "ruleId",
+       "code"
+      ],
+      "additionalProperties": false
+     }
+    }
+   },
+   "required": [
+    "rules",
+    "created",
+    "unchanged",
+    "revision"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "review_disavow_rules",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Approve or reject up to 100 rules at their current revisions in one change. Requires a signed-in owner or administrator; agent credentials cannot approve. Rules whose revision changed are reported in failed.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "rules": {
+     "minItems": 1,
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "ruleId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "ruleId",
+       "revision"
+      ],
+      "additionalProperties": false
+     },
+     "description": "Customer-owned exclusion rules for the selected competitor revision."
+    },
+    "decision": {
+     "type": "string",
+     "enum": [
+      "approve",
+      "reject"
+     ],
+     "description": "decision; see schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "rules",
+    "decision"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "rules": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "workspace_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "project_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "domain",
+         "url"
+        ]
+       },
+       "value": {
+        "type": "string"
+       },
+       "identity": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string",
+        "enum": [
+         "manual",
+         "import",
+         "agent_proposal"
+        ]
+       },
+       "status": {
+        "type": "string",
+        "enum": [
+         "proposed",
+         "active",
+         "rejected"
+        ]
+       },
+       "comments": {
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 120,
+         "format": "starts_with",
+         "pattern": "^#.*"
+        }
+       },
+       "revision": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "approved_by": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "updated_at": {
+        "type": "string"
+       },
+       "covered_links": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "created_by_label": {
+        "type": "string",
+        "enum": [
+         "you",
+         "imported",
+         "agent",
+         "owner",
+         "admin",
+         "member",
+         "viewer",
+         "former member"
+        ]
+       }
+      },
+      "required": [
+       "id",
+       "workspace_id",
+       "project_id",
+       "kind",
+       "value",
+       "identity",
+       "source",
+       "status",
+       "comments",
+       "revision",
+       "created_by",
+       "approved_by",
+       "created_at",
+       "updated_at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "created": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "unchanged": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "approved": {
+     "type": "boolean"
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "sites": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "pages": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "already_listed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "sites",
+      "pages",
+      "already_listed"
+     ],
+     "additionalProperties": false
+    },
+    "warnings": {
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "failed": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "ruleId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "code": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "ruleId",
+       "code"
+      ],
+      "additionalProperties": false
+     }
     }
    },
    "required": [
@@ -11527,19 +15896,19 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "ruleId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the rule returned by its create or list operation."
+     "description": "rule ID from create/list."
     },
     "revision": {
      "type": "integer",
      "exclusiveMinimum": 0,
      "maximum": 9007199254740991,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     }
    },
    "required": [
@@ -11592,7 +15961,7 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": false,
-  "description": "Export approved rules as deterministic Google-format text and record its hash receipt. Never submits to Google.",
+  "description": "Export approved rules as deterministic Google-format text and record its hash receipt. Needs watches:read; viewers may download. Never submits to Google.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -11601,7 +15970,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -11700,6 +16069,17 @@ export const CATALOG_COMMANDS = [
       },
       "created_at": {
        "type": "string"
+      },
+      "exported_by_label": {
+       "type": "string",
+       "enum": [
+        "you",
+        "owner",
+        "admin",
+        "member",
+        "viewer",
+        "former member"
+       ]
       }
      },
      "required": [
@@ -11743,27 +16123,93 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": true,
-  "description": "List dated disavow export receipts with content hashes and source rule revisions.",
+  "description": "List dated disavow export receipts with content hashes and source rule revisions. The newest 900 receipts per website are kept.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
-     "maxLength": 4096
+     "minLength": 1,
+     "maxLength": 16384
     }
    },
    "required": [
@@ -11775,6 +16221,82 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "receipts": {
      "type": "array",
      "items": {
@@ -11853,6 +16375,17 @@ export const CATALOG_COMMANDS = [
        },
        "created_at": {
         "type": "string"
+       },
+       "exported_by_label": {
+        "type": "string",
+        "enum": [
+         "you",
+         "owner",
+         "admin",
+         "member",
+         "viewer",
+         "former member"
+        ]
        }
       },
       "required": [
@@ -11877,11 +16410,1439 @@ export const CATALOG_COMMANDS = [
       "string",
       "null"
      ]
+    },
+    "changed_since": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
     }
    },
    "required": [
     "receipts",
     "cursor"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_disavow_status",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export",
+   "handoff",
+   "search console upload",
+   "google copy"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Disavow list status and Google's copy. Returns active rules, rule edits since the last download, the latest download receipt and google.state (never_checked, in_sync, behind, differs or counts_only) from the latest confirm_disavow_upload check.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "project_id": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "rules": {
+     "type": "object",
+     "properties": {
+      "active": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "effective": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "domains": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "urls": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "active",
+      "effective",
+      "domains",
+      "urls"
+     ],
+     "additionalProperties": false
+    },
+    "changed_since_download": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "last_change_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "last_download": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "workspace_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "project_id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "format_version": {
+         "type": "number",
+         "const": 1
+        },
+        "sha256": {
+         "type": "string",
+         "pattern": "^[a-f0-9]{64}$"
+        },
+        "stored_active_count": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "effective_count": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "byte_length": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "collection_revision": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "source_revisions": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+           },
+           "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+           }
+          },
+          "required": [
+           "id",
+           "revision"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "created_by": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "created_at": {
+         "type": "string"
+        },
+        "exported_by_label": {
+         "type": "string",
+         "enum": [
+          "you",
+          "owner",
+          "admin",
+          "member",
+          "viewer",
+          "former member"
+         ]
+        }
+       },
+       "required": [
+        "id",
+        "workspace_id",
+        "project_id",
+        "format_version",
+        "sha256",
+        "stored_active_count",
+        "effective_count",
+        "byte_length",
+        "collection_revision",
+        "source_revisions",
+        "created_by",
+        "created_at"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "google": {
+     "type": "object",
+     "properties": {
+      "state": {
+       "type": "string",
+       "enum": [
+        "never_checked",
+        "in_sync",
+        "behind",
+        "differs",
+        "counts_only"
+       ]
+      },
+      "changes_since_check": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "last_check": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "checked_at": {
+           "type": "string"
+          },
+          "method": {
+           "type": "string",
+           "enum": [
+            "text",
+            "counts"
+           ]
+          },
+          "result": {
+           "type": "string",
+           "enum": [
+            "match",
+            "differs",
+            "counts_match",
+            "counts_differ"
+           ]
+          },
+          "missing_in_google": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "extra_in_google": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "examples": {
+           "type": "object",
+           "properties": {
+            "missing_in_google": {
+             "maxItems": 20,
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            },
+            "extra_in_google": {
+             "maxItems": 20,
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            }
+           },
+           "required": [
+            "missing_in_google",
+            "extra_in_google"
+           ],
+           "additionalProperties": false
+          },
+          "google": {
+           "type": "object",
+           "properties": {
+            "domains": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "urls": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            }
+           },
+           "required": [
+            "domains",
+            "urls"
+           ],
+           "additionalProperties": false
+          },
+          "uploaded_on": {
+           "anyOf": [
+            {
+             "type": "string",
+             "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "checked_by": {
+           "type": "string",
+           "enum": [
+            "person",
+            "agent"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "checked_at",
+          "method",
+          "result",
+          "missing_in_google",
+          "extra_in_google",
+          "examples",
+          "google",
+          "uploaded_on",
+          "checked_by"
+         ],
+         "additionalProperties": false
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "state",
+      "changes_since_check",
+      "last_check"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "project_id",
+    "rules",
+    "changed_since_download",
+    "last_change_at",
+    "last_download",
+    "google"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "get_handoff",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export",
+   "handoff",
+   "search console upload",
+   "google copy"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read the steps for an off-site task. The task happens on another website (handoff: disavow_upload); the steps are filled in for this website, with its live status. Follow agent.procedure in the person's browser, respect stop_if and never, and finish with agent.verify.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "handoff": {
+     "type": "string",
+     "enum": [
+      "disavow_upload"
+     ],
+     "description": "handoff; see schema."
+    }
+   },
+   "required": [
+    "projectId",
+    "handoff"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "enum": [
+      "disavow_upload"
+     ]
+    },
+    "title": {
+     "type": "string"
+    },
+    "why": {
+     "type": "string"
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "steps": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "href": {
+        "type": "string",
+        "format": "uri"
+       },
+       "action": {
+        "type": "string",
+        "enum": [
+         "download",
+         "verify"
+        ]
+       }
+      },
+      "required": [
+       "text"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "agent": {
+     "type": "object",
+     "properties": {
+      "goal": {
+       "type": "string"
+      },
+      "needs": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "procedure": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "verify": {
+       "type": "object",
+       "properties": {
+        "command": {
+         "type": "string"
+        },
+        "input": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "command",
+        "input"
+       ],
+       "additionalProperties": false
+      },
+      "stop_if": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "never": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "required": [
+      "goal",
+      "needs",
+      "procedure",
+      "verify",
+      "stop_if",
+      "never"
+     ],
+     "additionalProperties": false
+    },
+    "website": {
+     "type": "object",
+     "properties": {
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "domain": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "project_id",
+      "domain"
+     ],
+     "additionalProperties": false
+    },
+    "status": {
+     "type": "object",
+     "properties": {
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "rules": {
+       "type": "object",
+       "properties": {
+        "active": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "effective": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "domains": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "urls": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "active",
+        "effective",
+        "domains",
+        "urls"
+       ],
+       "additionalProperties": false
+      },
+      "changed_since_download": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "last_change_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "last_download": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "workspace_id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "project_id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "format_version": {
+           "type": "number",
+           "const": 1
+          },
+          "sha256": {
+           "type": "string",
+           "pattern": "^[a-f0-9]{64}$"
+          },
+          "stored_active_count": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "effective_count": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "byte_length": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "collection_revision": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "source_revisions": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+             },
+             "revision": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+             }
+            },
+            "required": [
+             "id",
+             "revision"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "created_by": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "created_at": {
+           "type": "string"
+          },
+          "exported_by_label": {
+           "type": "string",
+           "enum": [
+            "you",
+            "owner",
+            "admin",
+            "member",
+            "viewer",
+            "former member"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "workspace_id",
+          "project_id",
+          "format_version",
+          "sha256",
+          "stored_active_count",
+          "effective_count",
+          "byte_length",
+          "collection_revision",
+          "source_revisions",
+          "created_by",
+          "created_at"
+         ],
+         "additionalProperties": false
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "google": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "never_checked",
+          "in_sync",
+          "behind",
+          "differs",
+          "counts_only"
+         ]
+        },
+        "changes_since_check": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "last_check": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 200
+            },
+            "checked_at": {
+             "type": "string"
+            },
+            "method": {
+             "type": "string",
+             "enum": [
+              "text",
+              "counts"
+             ]
+            },
+            "result": {
+             "type": "string",
+             "enum": [
+              "match",
+              "differs",
+              "counts_match",
+              "counts_differ"
+             ]
+            },
+            "missing_in_google": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "extra_in_google": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "examples": {
+             "type": "object",
+             "properties": {
+              "missing_in_google": {
+               "maxItems": 20,
+               "type": "array",
+               "items": {
+                "type": "string"
+               }
+              },
+              "extra_in_google": {
+               "maxItems": 20,
+               "type": "array",
+               "items": {
+                "type": "string"
+               }
+              }
+             },
+             "required": [
+              "missing_in_google",
+              "extra_in_google"
+             ],
+             "additionalProperties": false
+            },
+            "google": {
+             "type": "object",
+             "properties": {
+              "domains": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "urls": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              }
+             },
+             "required": [
+              "domains",
+              "urls"
+             ],
+             "additionalProperties": false
+            },
+            "uploaded_on": {
+             "anyOf": [
+              {
+               "type": "string",
+               "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "checked_by": {
+             "type": "string",
+             "enum": [
+              "person",
+              "agent"
+             ]
+            }
+           },
+           "required": [
+            "id",
+            "checked_at",
+            "method",
+            "result",
+            "missing_in_google",
+            "extra_in_google",
+            "examples",
+            "google",
+            "uploaded_on",
+            "checked_by"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "changes_since_check",
+        "last_check"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "project_id",
+      "rules",
+      "changed_since_download",
+      "last_change_at",
+      "last_download",
+      "google"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "id",
+    "title",
+    "why",
+    "prompt",
+    "steps",
+    "agent",
+    "website",
+    "status"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "confirm_disavow_upload",
+  "toolset": "disavow",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "disavow",
+   "rules",
+   "google export",
+   "handoff",
+   "search console upload",
+   "google copy"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Record a dated check of the disavow file Google holds. Send text (the file downloaded from Google's disavow tool) for a rule-by-rule comparison with the approved list, or counts (domains and urls Google shows) when it offers no download. Returns match or differs with up to 20 examples each way, and the updated status. Leaves the rules as they are; viewers cannot record checks.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "project ID from create/list."
+    },
+    "text": {
+     "description": "text; see schema.",
+     "type": "string",
+     "maxLength": 2000000
+    },
+    "counts": {
+     "description": "counts; see schema.",
+     "type": "object",
+     "properties": {
+      "domains": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 100000
+      },
+      "urls": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 100000
+      },
+      "uploaded_on": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+     },
+     "required": [
+      "domains",
+      "urls"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "projectId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "check": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "checked_at": {
+       "type": "string"
+      },
+      "method": {
+       "type": "string",
+       "enum": [
+        "text",
+        "counts"
+       ]
+      },
+      "result": {
+       "type": "string",
+       "enum": [
+        "match",
+        "differs",
+        "counts_match",
+        "counts_differ"
+       ]
+      },
+      "missing_in_google": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "extra_in_google": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "examples": {
+       "type": "object",
+       "properties": {
+        "missing_in_google": {
+         "maxItems": 20,
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "extra_in_google": {
+         "maxItems": 20,
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "missing_in_google",
+        "extra_in_google"
+       ],
+       "additionalProperties": false
+      },
+      "google": {
+       "type": "object",
+       "properties": {
+        "domains": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "urls": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "domains",
+        "urls"
+       ],
+       "additionalProperties": false
+      },
+      "uploaded_on": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "checked_by": {
+       "type": "string",
+       "enum": [
+        "person",
+        "agent"
+       ]
+      }
+     },
+     "required": [
+      "id",
+      "checked_at",
+      "method",
+      "result",
+      "missing_in_google",
+      "extra_in_google",
+      "examples",
+      "google",
+      "uploaded_on",
+      "checked_by"
+     ],
+     "additionalProperties": false
+    },
+    "status": {
+     "type": "object",
+     "properties": {
+      "project_id": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      },
+      "rules": {
+       "type": "object",
+       "properties": {
+        "active": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "effective": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "domains": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        "urls": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "active",
+        "effective",
+        "domains",
+        "urls"
+       ],
+       "additionalProperties": false
+      },
+      "changed_since_download": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "last_change_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "last_download": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "workspace_id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "project_id": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "format_version": {
+           "type": "number",
+           "const": 1
+          },
+          "sha256": {
+           "type": "string",
+           "pattern": "^[a-f0-9]{64}$"
+          },
+          "stored_active_count": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "effective_count": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "byte_length": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "collection_revision": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          "source_revisions": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+             },
+             "revision": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+             }
+            },
+            "required": [
+             "id",
+             "revision"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "created_by": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 200
+          },
+          "created_at": {
+           "type": "string"
+          },
+          "exported_by_label": {
+           "type": "string",
+           "enum": [
+            "you",
+            "owner",
+            "admin",
+            "member",
+            "viewer",
+            "former member"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "workspace_id",
+          "project_id",
+          "format_version",
+          "sha256",
+          "stored_active_count",
+          "effective_count",
+          "byte_length",
+          "collection_revision",
+          "source_revisions",
+          "created_by",
+          "created_at"
+         ],
+         "additionalProperties": false
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "google": {
+       "type": "object",
+       "properties": {
+        "state": {
+         "type": "string",
+         "enum": [
+          "never_checked",
+          "in_sync",
+          "behind",
+          "differs",
+          "counts_only"
+         ]
+        },
+        "changes_since_check": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "last_check": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 200
+            },
+            "checked_at": {
+             "type": "string"
+            },
+            "method": {
+             "type": "string",
+             "enum": [
+              "text",
+              "counts"
+             ]
+            },
+            "result": {
+             "type": "string",
+             "enum": [
+              "match",
+              "differs",
+              "counts_match",
+              "counts_differ"
+             ]
+            },
+            "missing_in_google": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "extra_in_google": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "examples": {
+             "type": "object",
+             "properties": {
+              "missing_in_google": {
+               "maxItems": 20,
+               "type": "array",
+               "items": {
+                "type": "string"
+               }
+              },
+              "extra_in_google": {
+               "maxItems": 20,
+               "type": "array",
+               "items": {
+                "type": "string"
+               }
+              }
+             },
+             "required": [
+              "missing_in_google",
+              "extra_in_google"
+             ],
+             "additionalProperties": false
+            },
+            "google": {
+             "type": "object",
+             "properties": {
+              "domains": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "urls": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              }
+             },
+             "required": [
+              "domains",
+              "urls"
+             ],
+             "additionalProperties": false
+            },
+            "uploaded_on": {
+             "anyOf": [
+              {
+               "type": "string",
+               "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+               "type": "null"
+              }
+             ]
+            },
+            "checked_by": {
+             "type": "string",
+             "enum": [
+              "person",
+              "agent"
+             ]
+            }
+           },
+           "required": [
+            "id",
+            "checked_at",
+            "method",
+            "result",
+            "missing_in_google",
+            "extra_in_google",
+            "examples",
+            "google",
+            "uploaded_on",
+            "checked_by"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "null"
+          }
+         ]
+        }
+       },
+       "required": [
+        "state",
+        "changes_since_check",
+        "last_check"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "project_id",
+      "rules",
+      "changed_since_download",
+      "last_change_at",
+      "last_download",
+      "google"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "check",
+    "status"
    ],
    "additionalProperties": {}
   }
@@ -11916,13 +17877,13 @@ export const CATALOG_COMMANDS = [
       "target",
       "project"
      ],
-     "description": "The resource type value; allowed values and bounds are specified in this schema."
+     "description": "resource type; see schema."
     },
     "resourceId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the resource returned by its create or list operation."
+     "description": "resource ID from create/list."
     }
    },
    "required": [
@@ -12102,16 +18063,16 @@ export const CATALOG_COMMANDS = [
       "target",
       "project"
      ],
-     "description": "The resource type value; allowed values and bounds are specified in this schema."
+     "description": "resource type; see schema."
     },
     "resourceId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the resource returned by its create or list operation."
+     "description": "resource ID from create/list."
     },
     "confirmation": {
-     "description": "The confirmation value; allowed values and bounds are specified in this schema.",
+     "description": "confirmation; see schema.",
      "type": "string",
      "minLength": 1,
      "maxLength": 240
@@ -12197,7 +18158,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -12229,23 +18190,23 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string"
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -12297,13 +18258,13 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "all",
@@ -12312,7 +18273,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -12348,7 +18309,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the endpoint returned by its create or list operation."
+     "description": "endpoint ID from create/list."
     }
    },
    "required": [
@@ -12383,7 +18344,7 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": true,
-  "description": "Read the retained JSON snapshot for one observation: subject link for a source-page placement check, subject target for a destination health check. Publisher text is untrusted evidence. Expired snapshots return EVIDENCE_EXPIRED.",
+  "description": "Read one retained observation snapshot. Returns the JSON snapshot; use subject link for a source-page placement check, subject target for a destination health check. Publisher text is untrusted evidence. Expired snapshots return EVIDENCE_EXPIRED.",
   "examples": [
    {
     "subject": "link",
@@ -12448,11 +18409,11 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string"
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -12486,7 +18447,10 @@ export const CATALOG_COMMANDS = [
      }
     },
     "next_cursor": {
-     "type": "string"
+     "type": [
+      "string",
+      "null"
+     ]
     },
     "has_more": {
      "type": "boolean"
@@ -12521,13 +18485,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Human-readable name for the resource being created or updated."
+     "description": "Human-readable resource name to create or update."
     },
     "expectedName": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "The expected name value; allowed values and bounds are specified in this schema."
+     "description": "expected name; see schema."
     }
    },
    "required": [
@@ -12575,19 +18539,19 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "name": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Human-readable name for the resource being created or updated."
+     "description": "Human-readable resource name to create or update."
     },
     "expectedName": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "The expected name value; allowed values and bounds are specified in this schema."
+     "description": "expected name; see schema."
     }
    },
    "required": [
@@ -12641,12 +18605,12 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the invitation returned by its create or list operation."
+     "description": "invitation ID from create/list."
     },
     "token": {
      "type": "string",
      "pattern": "^lti_[a-f0-9]{64}$",
-     "description": "The token value; allowed values and bounds are specified in this schema."
+     "description": "token; see schema."
     }
    },
    "required": [
@@ -12858,11 +18822,11 @@ export const CATALOG_COMMANDS = [
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740991,
-     "description": "Revision last read by the caller; mismatches reject concurrent updates."
+     "description": "Previously read revision; mismatches reject concurrent updates."
     },
     "enabled": {
      "type": "boolean",
-     "description": "The enabled value; allowed values and bounds are specified in this schema."
+     "description": "enabled; see schema."
     },
     "email": {
      "type": "string",
@@ -12878,25 +18842,25 @@ export const CATALOG_COMMANDS = [
       "daily",
       "weekly"
      ],
-     "description": "The frequency value; allowed values and bounds are specified in this schema."
+     "description": "frequency; see schema."
     },
     "timezone": {
      "type": "string",
      "minLength": 1,
      "maxLength": 100,
-     "description": "The timezone value; allowed values and bounds are specified in this schema."
+     "description": "timezone; see schema."
     },
     "hour": {
      "type": "integer",
      "minimum": 0,
      "maximum": 23,
-     "description": "The hour value; allowed values and bounds are specified in this schema."
+     "description": "hour; see schema."
     },
     "weekday": {
      "type": "integer",
      "minimum": 0,
      "maximum": 6,
-     "description": "The weekday value; allowed values and bounds are specified in this schema."
+     "description": "weekday; see schema."
     },
     "categories": {
      "minItems": 1,
@@ -12911,7 +18875,7 @@ export const CATALOG_COMMANDS = [
        "workspace"
       ]
      },
-     "description": "The categories value; allowed values and bounds are specified in this schema."
+     "description": "categories; see schema."
     },
     "projectIds": {
      "anyOf": [
@@ -13049,8 +19013,79 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -13062,6 +19097,82 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "items": {
      "type": "array",
      "items": {
@@ -13179,7 +19290,7 @@ export const CATALOG_COMMANDS = [
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740991,
-     "description": "Revision last read by the caller; mismatches reject concurrent updates."
+     "description": "Previously read revision; mismatches reject concurrent updates."
     }
    },
    "required": [
@@ -13223,7 +19334,7 @@ export const CATALOG_COMMANDS = [
    "projects:read"
   ],
   "readOnly": true,
-  "description": "Read workspace limits, usage and membership.",
+  "description": "Read facts. Workspace limits, usage and membership.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -13234,6 +19345,275 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {},
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_tasks",
+  "toolset": "workspace",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "tasks",
+   "needs you",
+   "what needs doing",
+   "to do",
+   "start here",
+   "next steps",
+   "action items"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "projects:read"
+  ],
+  "readOnly": true,
+  "description": "Read what needs the person now: one list of tasks across their websites, such as missing links, pages that are down, disavow uploads, renewals, plan and payment problems, Search Console reconnects, agent access requests and setup. Each task says who can act, how it clears, where in the console it gets done and what an agent may do; agents draft outreach and never send it. Call it at the start of a session.",
+  "examples": [
+   {}
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "description": "One website id from list_projects. Omit it for every website this credential can read. Selecting a website still includes eligible workspace tasks, subject to read scopes and who can act.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "tasks": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "description": "Stable across calls: kind and website id, or kind and workspace id for a workspace task."
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "search_console_reconnect",
+         "payment_problem",
+         "page_down",
+         "agent_access_request",
+         "missing_links",
+         "disavow_upload",
+         "disavow_suggestions",
+         "renewals_due",
+         "plan_limit",
+         "cant_reach_lasting",
+         "setup_add_links",
+         "setup_connect_agent",
+         "setup_search_console"
+        ]
+       },
+       "group": {
+        "type": "string",
+        "enum": [
+         "needs_you",
+         "setup"
+        ]
+       },
+       "priority": {
+        "type": "string",
+        "enum": [
+         "urgent",
+         "normal",
+         "low",
+         "setup"
+        ]
+       },
+       "projectId": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "website": {
+        "description": "The website domain; null for a workspace task.",
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "who": {
+        "type": "string",
+        "enum": [
+         "you",
+         "owner",
+         "agent_or_you",
+         "only_you"
+        ],
+        "description": "Who can act: you (a member with write access), owner, agent_or_you or only_you (the person's own sign-in elsewhere)."
+       },
+       "canAct": {
+        "type": "boolean",
+        "description": "Whether the person behind this credential can act, from their workspace role. agent.can says whether their agent can."
+       },
+       "title": {
+        "type": "string"
+       },
+       "detail": {
+        "type": "string"
+       },
+       "count": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "since": {
+        "description": "When the task began: the oldest affected record. Null when unknown.",
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "route": {
+        "type": "string",
+        "description": "Console hash route where the task gets done; a website task carries website=."
+       },
+       "handoff": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "disavow_upload"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "get_handoff id with the steps, when the task happens on another website."
+       },
+       "agent": {
+        "type": "object",
+        "properties": {
+         "can": {
+          "type": "boolean",
+          "description": "Whether the person's agent may do this task. Agents draft outreach and never send it."
+         },
+         "prompt": {
+          "description": "A plain sentence the person can paste to their agent; it names the website, never an id.",
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "steps": {
+          "description": "The exact commands for an agent task that has no handoff; with a handoff, get_handoff carries them.",
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         }
+        },
+        "required": [
+         "can",
+         "prompt"
+        ],
+        "additionalProperties": false
+       },
+       "clears": {
+        "type": "string",
+        "description": "How the task clears: verified by data, or a deliberate accept action. Never a click."
+       },
+       "items": {
+        "maxItems": 5,
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "label": {
+           "type": "string"
+          },
+          "route": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "label",
+          "route"
+         ],
+         "additionalProperties": false
+        }
+       }
+      },
+      "required": [
+       "id",
+       "kind",
+       "group",
+       "priority",
+       "projectId",
+       "website",
+       "who",
+       "canAct",
+       "title",
+       "detail",
+       "count",
+       "since",
+       "route",
+       "handoff",
+       "agent",
+       "clears"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "counts": {
+     "type": "object",
+     "properties": {
+      "urgent": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "normal": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "low": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "setup": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "urgent",
+      "normal",
+      "low",
+      "setup"
+     ],
+     "additionalProperties": false
+    },
+    "generatedAt": {
+     "type": "string"
+    },
+    "truncated": {
+     "type": "boolean",
+     "description": "True when the workspace has more than 200 readable websites and only the first 200 were read."
+    }
+   },
+   "required": [
+    "tasks",
+    "counts",
+    "generatedAt",
+    "truncated"
+   ],
    "additionalProperties": {}
   }
  },
@@ -13254,7 +19634,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Schedule inventory lookups from the stored corpus for an approved competitor revision. Set cadence and a member limit. The first cycle is due immediately. No paid supplier request or monitoring enrollment.",
+  "description": "Schedule owned-corpus lookups for an approved revision, with cadence and member limit. First cycle is due now; no paid supplier requests or monitoring enrollment.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -13263,13 +19643,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "expectedRevision": {
      "type": "integer",
      "exclusiveMinimum": 0,
      "maximum": 9007199254740991,
-     "description": "Revision last read by the caller; mismatches reject concurrent updates."
+     "description": "Previously read revision; mismatches reject concurrent updates."
     },
     "cadence": {
      "type": "string",
@@ -13278,13 +19658,13 @@ export const CATALOG_COMMANDS = [
       "biweekly",
       "monthly"
      ],
-     "description": "The cadence value; allowed values and bounds are specified in this schema."
+     "description": "cadence; see schema."
     },
     "memberLimit": {
      "type": "integer",
      "minimum": 1,
      "maximum": 11,
-     "description": "The member limit value; allowed values and bounds are specified in this schema."
+     "description": "member limit; see schema."
     }
    },
    "required": [
@@ -13470,7 +19850,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Read a competitor refresh schedule and the latest cycle counts. Missing rows remain limited to the selected corpus and never prove a link was lost.",
+  "description": "Read refresh settings and latest cycle counts. Missing corpus rows do not prove lost links.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -13479,7 +19859,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     }
    },
    "required": [
@@ -13663,7 +20043,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Pause or resume a competitor refresh schedule against the current approved revision. Resume requires configured owned discovery. Pausing preserves saved inventories and cycle history.",
+  "description": "Pause/resume the current approved revision. Resume needs configured owned discovery; pause preserves inventories and cycle history.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -13672,17 +20052,17 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "expectedRevision": {
      "type": "integer",
      "exclusiveMinimum": 0,
      "maximum": 9007199254740991,
-     "description": "Revision last read by the caller; mismatches reject concurrent updates."
+     "description": "Previously read revision; mismatches reject concurrent updates."
     },
     "paused": {
      "type": "boolean",
-     "description": "The paused value; allowed values and bounds are specified in this schema."
+     "description": "paused; see schema."
     }
    },
    "required": [
@@ -13872,7 +20252,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Explicitly approve one customer and up to ten competitors. Registration does not verify links or buy discovery.",
+  "description": "Approve one customer and up to ten competitors; no link checks or discovery purchases.",
   "examples": [
    {
     "projectId": "pr_01example",
@@ -13904,7 +20284,7 @@ export const CATALOG_COMMANDS = [
     "projectId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "approved": {
      "type": "boolean",
@@ -13958,7 +20338,7 @@ export const CATALOG_COMMANDS = [
       ],
       "additionalProperties": false
      },
-     "description": "Customer and competitor members approved for this set revision."
+     "description": "Customer/competitor members approved for this set revision."
     }
    },
    "required": [
@@ -13986,7 +20366,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "List approved competitor sets in one accessible project, including retired sets.",
+  "description": "List approved and retired competitor sets in an accessible project.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -13995,19 +20375,84 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 1024
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
     }
    },
    "required": [
@@ -14037,7 +20482,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Read an approved competitor revision; historical revisions stay immutable.",
+  "description": "Read an approved set revision; past revisions are immutable.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14046,10 +20491,10 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "revision": {
-     "description": "Immutable set revision to read or compare.",
+     "description": "Immutable set revision to read/compare.",
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990
@@ -14079,7 +20524,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Approve a complete new member revision with optimistic concurrency. Keep member IDs only for unchanged members.",
+  "description": "Approve a full member revision with concurrency checks. Reuse IDs only for unchanged members.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14088,13 +20533,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "expectedRevision": {
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990,
-     "description": "Revision last read by the caller; mismatches reject concurrent updates."
+     "description": "Previously read revision; mismatches reject concurrent updates."
     },
     "approved": {
      "type": "boolean",
@@ -14152,7 +20597,7 @@ export const CATALOG_COMMANDS = [
       ],
       "additionalProperties": false
      },
-     "description": "Customer and competitor members approved for this set revision."
+     "description": "Customer/competitor members approved for this set revision."
     }
    },
    "required": [
@@ -14182,7 +20627,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Retire a competitor set to stop new inventory requests; preserve approved revisions and dated evidence.",
+  "description": "Stop new inventory requests; retain approved revisions and dated evidence.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14191,13 +20636,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "expectedRevision": {
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990,
-     "description": "Revision last read by the caller; mismatches reject concurrent updates."
+     "description": "Previously read revision; mismatches reject concurrent updates."
     }
    },
    "required": [
@@ -14225,7 +20670,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Request an inventory lookup for one approved member and revision from the configured owned corpus. Candidates remain unchecked. No supplier spending or monitoring enrollment. Missing corpus rows never prove backlink absence. Where owned discovery is not configured, the error names the operator change required; retrying cannot configure it.",
+  "description": "Look up one approved member/revision in the owned corpus. Candidates are unchecked; missing rows do not prove absence. No supplier spending or monitoring. If unconfigured, follow the error's operator action; retries cannot configure it.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14234,18 +20679,18 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "revision": {
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "memberId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the member returned by its create or list operation."
+     "description": "member ID from create/list."
     },
     "backlinksStatus": {
      "type": "string",
@@ -14309,7 +20754,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Freeze one terminal, previously bound discovery run into an immutable inventory. Requires a previously bound terminal run; an arbitrary imported run is not a competitor inventory. Works with retained data when new discovery admission is disabled. Reads only stored evidence; never purchases a query or checks links.",
+  "description": "Freeze a bound terminal discovery run as an immutable inventory; arbitrary imports are ineligible. Retained evidence works with new admission disabled. No query purchases or link checks.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14318,7 +20763,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     }
    },
    "required": [
@@ -14348,7 +20793,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "List dated inventory summaries for one approved set revision. Requires revision, available from get_competitor_set. Works with saved inventories when new admission is disabled. Missing edges are not confirmed absence.",
+  "description": "List saved inventories for a revision from get_competitor_set, even with new admission disabled. Missing edges do not prove absence.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14357,31 +20802,96 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "revision": {
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "memberId": {
-     "description": "Identifier of the member returned by its create or list operation.",
+     "description": "member ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 1024
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
     }
    },
    "required": [
@@ -14412,7 +20922,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Requires an inventoryId from list_competitor_inventories; saved inventories remain readable when new admission is disabled. Page exact stored source/target rows with contributor identity and captured verification state. No provider tokens or raw evidence.",
+  "description": "Page saved source/target rows for an inventoryId from list_competitor_inventories, even with new admission disabled. Includes contributors and captured verification; no provider tokens or raw evidence.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14421,22 +20931,87 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the inventory returned by its create or list operation."
+     "description": "inventory ID from create/list."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 1024
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -14472,7 +21047,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Compare selected frozen inventories by exact page or source host. Requires saved inventory IDs from list_competitor_inventories; new admission can be disabled. Missing edges are dataset-qualified; incomplete data cannot establish gaps. Page groups or pass groupKey for exact contributor rows. Select exclusionRevision explicitly to apply saved rules. Never buys discovery or checks links.",
+  "description": "Compare frozen inventories by exact page or source host using IDs from list_competitor_inventories; new admission may be disabled. Gaps require complete selected data. Page groups or use groupKey for contributors; exclusionRevision applies saved rules. No discovery or checks.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14481,13 +21056,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "revision": {
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "inventoryIds": {
      "minItems": 2,
@@ -14497,7 +21072,7 @@ export const CATALOG_COMMANDS = [
       "type": "string",
       "pattern": "^[a-zA-Z0-9_-]{1,128}$"
      },
-     "description": "Frozen inventory IDs to compare; records must belong to the approved set."
+     "description": "Frozen inventory IDs to compare within the approved set."
     },
     "grouping": {
      "type": "string",
@@ -14505,7 +21080,7 @@ export const CATALOG_COMMANDS = [
       "page",
       "source_host"
      ],
-     "description": "Grouping dimension used to aggregate the selected inventories."
+     "description": "Aggregate selected inventories by this dimension."
     },
     "exclusions": {
      "description": "Customer-approved exclusions to apply to this report.",
@@ -14535,13 +21110,13 @@ export const CATALOG_COMMANDS = [
      }
     },
     "maxRetrievalSkewMs": {
-     "description": "Maximum permitted difference between inventory retrieval times, in milliseconds.",
+     "description": "Maximum inventory retrieval-time skew in milliseconds.",
      "type": "integer",
      "minimum": 0,
      "maximum": 86400000
     },
     "exclusionRevision": {
-     "description": "Saved exclusion revision to apply; historical revisions remain immutable.",
+     "description": "Saved exclusion revision; historical revisions stay immutable.",
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990
@@ -14553,16 +21128,81 @@ export const CATALOG_COMMANDS = [
      "maxLength": 4096
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 1024
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
     }
    },
    "required": [
@@ -14591,7 +21231,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Requires a saved competitor set; frozen inventories are optional comparisons. Works without new discovery admission. Render the referring-domain mix over supplied discovery lanes: generic and niche splits from the labels your imported rows carry, ours against each selected frozen inventory, with label coverage and per-lane counts. Lanes are request data and never stored. One to twenty lanes, up to 2000 rows each. Never buys discovery or checks links.",
+  "description": "Compare supplied discovery lanes for a saved competitor set; frozen inventories are optional. Reports generic/niche splits from imported labels, label coverage, per-lane counts and ours versus each inventory. Lanes are not stored: 1–20, up to 2000 rows each. Works with new admission disabled; no discovery or checks.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14600,16 +21240,16 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "revision": {
-     "description": "Immutable set revision to read or compare.",
+     "description": "Immutable set revision to read/compare.",
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990
     },
     "inventoryIds": {
-     "description": "Frozen inventory IDs to compare; records must belong to the approved set.",
+     "description": "Frozen inventory IDs to compare within the approved set.",
      "maxItems": 11,
      "type": "array",
      "items": {
@@ -14682,13 +21322,13 @@ export const CATALOG_COMMANDS = [
      "description": "Evidence lanes included in the domain-mix report."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 200
     },
     "maxRetrievalSkewMs": {
-     "description": "Maximum permitted difference between inventory retrieval times, in milliseconds.",
+     "description": "Maximum inventory retrieval-time skew in milliseconds.",
      "type": "integer",
      "minimum": 0,
      "maximum": 86400000
@@ -14718,7 +21358,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Read current or historical saved source exclusion rules for an accessible competitor set. Revision zero means no saved rules.",
+  "description": "Read current or past exclusion rules for an accessible set; revision zero means none saved.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14727,10 +21367,10 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "revision": {
-     "description": "Immutable set revision to read or compare.",
+     "description": "Immutable set revision to read/compare.",
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990
@@ -14760,7 +21400,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Save a complete replacement of up to 100 exact page/host exclusion rules with expectedRevision. Empty rules clear the saved view. Keeps historical evidence and revisions; never changes provider queries or monitoring.",
+  "description": "Replace up to 100 exact page/host exclusions using expectedRevision; empty rules clear them. Preserves history and evidence; no provider-query or monitoring changes.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14769,13 +21409,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "expectedRevision": {
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740989,
-     "description": "Revision last read by the caller; mismatches reject concurrent updates."
+     "description": "Previously read revision; mismatches reject concurrent updates."
     },
     "rules": {
      "maxItems": 100,
@@ -14830,7 +21470,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Dry-run exact source exclusion rules against selected frozen inventories. Returns before/after counts and bounded matched/collateral examples. Does not save rules, buy discovery, check links or alter evidence.",
+  "description": "Preview exact exclusions on frozen inventories: before/after counts and bounded matched/collateral examples. No saves, discovery, checks or evidence changes.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14839,13 +21479,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the set returned by its create or list operation."
+     "description": "set ID from create/list."
     },
     "revision": {
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990,
-     "description": "Immutable set revision to read or compare."
+     "description": "Immutable set revision to read/compare."
     },
     "inventoryIds": {
      "minItems": 2,
@@ -14855,7 +21495,7 @@ export const CATALOG_COMMANDS = [
       "type": "string",
       "pattern": "^[a-zA-Z0-9_-]{1,128}$"
      },
-     "description": "Frozen inventory IDs to compare; records must belong to the approved set."
+     "description": "Frozen inventory IDs to compare within the approved set."
     },
     "grouping": {
      "type": "string",
@@ -14863,7 +21503,7 @@ export const CATALOG_COMMANDS = [
       "page",
       "source_host"
      ],
-     "description": "Grouping dimension used to aggregate the selected inventories."
+     "description": "Aggregate selected inventories by this dimension."
     },
     "exclusions": {
      "description": "Customer-approved exclusions to apply to this report.",
@@ -14893,13 +21533,13 @@ export const CATALOG_COMMANDS = [
      }
     },
     "maxRetrievalSkewMs": {
-     "description": "Maximum permitted difference between inventory retrieval times, in milliseconds.",
+     "description": "Maximum inventory retrieval-time skew in milliseconds.",
      "type": "integer",
      "minimum": 0,
      "maximum": 86400000
     },
     "exclusionRevision": {
-     "description": "Saved exclusion revision to apply; historical revisions remain immutable.",
+     "description": "Saved exclusion revision; historical revisions stay immutable.",
      "type": "integer",
      "minimum": 1,
      "maximum": 9007199254740990
@@ -14937,7 +21577,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Request an asynchronous check of one saved discovery candidate. Returns a verification record and queued job with immutable lineage. Requires an idempotency key; consumes check allowance when executed. Does not establish a verified result synchronously.",
+  "description": "Queue a saved candidate check with an idempotency key. Returns verification/job records with immutable lineage. Uses check allowance on execution; no synchronous verdict.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14945,15 +21585,15 @@ export const CATALOG_COMMANDS = [
     "runId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     },
     "candidateId": {
      "type": "string",
      "pattern": "^dc_[a-f0-9]{64}$",
-     "description": "Identifier of the candidate returned by its create or list operation."
+     "description": "candidate ID from create/list."
     },
     "localReference": {
-     "description": "Customer-owned reference to associate this record with a local ledger entry.",
+     "description": "Customer reference for a local ledger entry.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
@@ -14990,7 +21630,7 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": true,
-  "description": "Read a selected candidate check, immutable job observation, source-check usage and local-reference lineage. Candidate latest evidence may refer to a later explicitly requested check.",
+  "description": "Read one candidate check, its job observation, check usage and local-reference lineage. Candidate latest evidence may come from a later requested check.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -14999,7 +21639,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the job returned by its create or list operation."
+     "description": "job ID from create/list."
     }
    },
    "required": [
@@ -15032,7 +21672,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Queue checks for 1 to 50 selected stored candidates under one workspace budget reservation. Returns every item outcome, including budget rejections. Replay the same key after a network failure. Verification is asynchronous and does not enroll monitoring.",
+  "description": "Queue 1–50 saved candidate checks under one workspace budget reservation. Returns all outcomes, including budget refusals. Retry the same key after network failure. Asynchronous; no monitoring enrollment.",
   "examples": [
    {
     "runId": "run_01example",
@@ -15055,7 +21695,7 @@ export const CATALOG_COMMANDS = [
     "runId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     },
     "items": {
      "minItems": 1,
@@ -15363,7 +22003,7 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": true,
-  "description": "Read batch progress, individual job observations and reserved, consumed and released check units. Unknown observations do not establish absence.",
+  "description": "Read batch progress, job observations and reserved/used/released check units. Unknown does not prove absence.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -15371,10 +22011,10 @@ export const CATALOG_COMMANDS = [
     "batchId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the batch returned by its create or list operation."
+     "description": "batch ID from create/list."
     },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -15657,7 +22297,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Explicitly enroll a candidate-only watch from a present verification no older than 24 hours, with no superseding observation. Preserves candidate, run, observation and local-reference provenance. Active-watch limits apply; replay never reactivates a subsequently paused watch. User-paused watches require explicit resume; existing schedules are preserved.",
+  "description": "Enroll a candidate-only watch from a present verification within 24h with no newer observation. Keeps candidate/run/observation/local-reference provenance. Active-watch limits apply. Replay preserves schedules and never resumes a later paused watch; user pauses require explicit resume.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -15665,7 +22305,7 @@ export const CATALOG_COMMANDS = [
     "jobId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the job returned by its create or list operation."
+     "description": "job ID from create/list."
     },
     "idempotencyKey": {
      "type": "string",
@@ -15673,13 +22313,13 @@ export const CATALOG_COMMANDS = [
      "description": "Caller-generated key reused only for retries of the same operation and arguments in this workspace."
     },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
     },
     "deal": {
-     "description": "The deal value; allowed values and bounds are specified in this schema.",
+     "description": "deal; see schema.",
      "type": "object",
      "properties": {
       "costMinor": {
@@ -15801,7 +22441,7 @@ export const CATALOG_COMMANDS = [
      "additionalProperties": false
     },
     "dealRevision": {
-     "description": "The deal revision value; allowed values and bounds are specified in this schema.",
+     "description": "deal revision; see schema.",
      "type": "integer",
      "minimum": 0,
      "maximum": 9007199254740991
@@ -16075,7 +22715,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Read the opportunity library: publisher surfaces where a link or citation could be earned, one record per surface with its evidence, gate verdicts, verification state, provenance, rights and dates. Filter by niche, opportunity type, status, route state, freshness, source class and updated-since; page with the returned cursor. Ordered by update time, never by authority. Every answer carries the coverage block for the niches read; a surface absent from the result was not read and is not known to lack an opportunity. No score, no contact data, no fetch.",
+  "description": "Read the opportunity library. Each record is one publisher surface where a link or citation could be earned, with its evidence, gate verdicts, verification state, provenance, rights and dates. Filter by niche, opportunity type, status, route state, freshness, source class and updated-since; page with the returned cursor. Ordered by update time, never by authority. Every answer carries the coverage block for the niches read; a surface absent from the result was not read and is not known to lack an opportunity. No score, no contact data, no fetch.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -16143,16 +22783,81 @@ export const CATALOG_COMMANDS = [
      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing with the same filters; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 1024
+     "maxLength": 16384
     },
     "limit": {
      "description": "Maximum records in this page, 1 to 100; defaults to 100.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
     }
    },
    "additionalProperties": false
@@ -16209,7 +22914,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Export opportunity library records under the same filters as list_opportunities, as JSONL (one record per line) or CSV (documented column order, list fields as JSON cells), with exactly the fields the read returns and nothing added. Bounded per call; continue with the returned cursor. The coverage block travels with every export so what leaves is dated and scope-stated.",
+  "description": "Export opportunity library records. Takes the same filters as list_opportunities and writes JSONL (one record per line) or CSV (documented column order, list fields as JSON cells), with exactly the fields the read returns and nothing added. Bounded per call; continue with the returned cursor. The coverage block travels with every export so what leaves is dated and scope-stated.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -16284,17 +22989,82 @@ export const CATALOG_COMMANDS = [
      ],
      "description": "jsonl returns one JSON record per line; csv returns the same records flattened to the documented column order."
     },
-    "cursor": {
-     "description": "Opaque continuation returned by this same listing with the same filters; omit for the first page.",
-     "type": "string",
-     "minLength": 1,
-     "maxLength": 1024
-    },
     "limit": {
      "description": "Maximum records in this export call, 1 to 1000; defaults to 500. Continue with the returned cursor for the rest.",
      "type": "integer",
      "minimum": 1,
      "maximum": 1000
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     }
    },
    "required": [
@@ -16321,7 +23091,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Request a separately metered supplier summary for a domain or subdomain. Admission is disabled in this build and cannot be configured by retrying. An operator must provide a supported supplier admission path before this command can run. Summaries carry their data mode and provider provenance; they are not link checks or totals derived from selected candidates.",
+  "description": "Request a separately metered domain/subdomain supplier summary. Admission is disabled: an operator must provide a supported path; retries cannot enable it. Returns data mode and provider provenance, not link checks or candidate-derived totals.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -16329,7 +23099,7 @@ export const CATALOG_COMMANDS = [
     "projectId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "target": {
      "type": "string",
@@ -16393,7 +23163,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Requires an existing overview runId from a previously admitted request. No new overview can be requested while admission is disabled. Read a stored domain overview, dated provider provenance and separate overview usage. Missing counts remain null; reads never purchase another request.",
+  "description": "Read a stored overview by runId from a previously admitted request, with dated provenance and separate usage. New admission is disabled; reads buy nothing. Missing counts stay null.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -16402,7 +23172,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     }
    },
    "required": [
@@ -16596,7 +23366,85 @@ export const CATALOG_COMMANDS = [
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
-   "properties": {},
+   "properties": {
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
+    "limit": {
+     "description": "Page/report row cap; see bounds.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    }
+   },
    "additionalProperties": false
   },
   "outputSchema": {
@@ -16682,7 +23530,85 @@ export const CATALOG_COMMANDS = [
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
-   "properties": {},
+   "properties": {
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
+    "limit": {
+     "description": "Page/report row cap; see bounds.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    }
+   },
    "additionalProperties": false
   },
   "outputSchema": {
@@ -16713,7 +23639,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the invitation returned by its create or list operation."
+     "description": "invitation ID from create/list."
     }
    },
    "required": [
@@ -16749,7 +23675,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 128,
-     "description": "Identifier of the user returned by its create or list operation."
+     "description": "user ID from create/list."
     },
     "role": {
      "description": "Workspace access role; cannot exceed the acting member’s authority.",
@@ -16813,7 +23739,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 128,
-     "description": "Identifier of the user returned by its create or list operation."
+     "description": "user ID from create/list."
     }
    },
    "required": [
@@ -16846,7 +23772,7 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
@@ -16935,7 +23861,85 @@ export const CATALOG_COMMANDS = [
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
-   "properties": {},
+   "properties": {
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
+    "limit": {
+     "description": "Page/report row cap; see bounds.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    }
+   },
    "additionalProperties": false
   },
   "outputSchema": {
@@ -16966,7 +23970,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the endpoint returned by its create or list operation."
+     "description": "endpoint ID from create/list."
     },
     "retire": {
      "description": "First call with false to issue a new secret, save it and update the receiver. Then call with true to retire the older secret; true alone never rotates.",
@@ -17006,7 +24010,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the endpoint returned by its create or list operation."
+     "description": "endpoint ID from create/list."
     },
     "state": {
      "type": "string",
@@ -17014,7 +24018,7 @@ export const CATALOG_COMMANDS = [
       "active",
       "disabled"
      ],
-     "description": "Requested resource state or saved-observation filter, as enumerated here."
+     "description": "Resource state or saved-observation filter."
     }
    },
    "required": [
@@ -17052,14 +24056,85 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
     "endpointId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the endpoint returned by its create or list operation."
+     "description": "endpoint ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 200
@@ -17089,7 +24164,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Store a backlink export the user already owns (Ahrefs, Search Console, Semrush, Majestic, Moz, DataForSEO, Linkody or generic CSV) as unverified discovery candidates. Buys nothing; the supplier and its dates stay in provenance, separate from any check we run. Never claims complete coverage. Rejected rows return by position, none dropped; re-importing the same rows returns the same run. Rows are not verified, not monitored and never enter a shared corpus.",
+  "description": "Import user-owned Ahrefs, Search Console, Semrush, Majestic, Moz, DataForSEO, Linkody or generic CSV rows as unchecked candidates. Retains supplier/date provenance separately from checks; no spending or complete-coverage claim. Returns every rejection by position; identical rows reuse the run. No monitoring or shared-corpus entry.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -17097,7 +24172,7 @@ export const CATALOG_COMMANDS = [
     "projectId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "supplier": {
      "type": "string",
@@ -17158,6 +24233,13 @@ export const CATALOG_COMMANDS = [
          "target_url": {
           "type": "string",
           "maxLength": 4096
+         },
+         "target_basis": {
+          "type": "string",
+          "enum": [
+           "supplier_observed",
+           "user_supplied_target_expectation"
+          ]
          },
          "anchor": {
           "anyOf": [
@@ -17287,7 +24369,7 @@ export const CATALOG_COMMANDS = [
        }
       ]
      },
-     "description": "Each row requires source_url and target_url. target_url is the row destination; the outer target defines the import scope. Optional fields are shown in the row schema. Invalid rows return positional errors without rejecting valid neighbors. Example: {\"source_url\":\"https://publisher.example/article\",\"target_url\":\"https://example.com/\",\"anchor\":\"Example\"}."
+     "description": "Each row requires source_url and target_url. The outer target defines the import scope. target_url names the destination. Checks match that URL exactly by default. For a source-only Google Search Console export, set target_basis=user_supplied_target_expectation. Set target_url to the confirmed site root URL for a domain import, or the selected URL for an exact URL import. For declared expectations, checks use the saved website scope or selected exact URL. Invalid rows return positional errors without rejecting valid neighbors. Example: {\"source_url\":\"https://publisher.example/article\",\"target_url\":\"https://example.com/\",\"anchor\":\"Example\"}."
     },
     "supplierGeneratedAt": {
      "description": "Supplier export generation timestamp, distinct from import time.",
@@ -17338,7 +24420,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Query a configured owned corpus for bounded candidates with dated evidence. Candidates remain unchecked and coverage stays limited to that corpus. No supplier spending or monitoring enrollment. Reuse idempotencyKey for retries. Where owned discovery is not configured, the error names the operator change required; retrying cannot configure it, and import_backlinks remains available for exports you already own.",
+  "description": "Query the configured owned corpus for bounded, unchecked candidates with dated, corpus-limited evidence. No supplier spending or monitoring. Retry with the same idempotencyKey. If unconfigured, follow the error's operator action; retries cannot configure it. import_backlinks accepts owned exports.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -17346,7 +24428,7 @@ export const CATALOG_COMMANDS = [
     "projectId": {
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "targetKind": {
      "type": "string",
@@ -17428,27 +24510,92 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Browse stored discovery runs newest first with optional project filtering and bounded cursor pagination. No provider calls, spending or enrollment.",
+  "description": "Page saved runs newest first, optionally by project. No provider calls, spending or enrollment.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "pattern": "^[a-zA-Z0-9_-]{1,128}$"
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 1024
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
     }
    },
    "additionalProperties": false
@@ -17475,7 +24622,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Read an existing saved or imported run, including when new discovery admission is disabled: status, query coverage and separate discovery usage. This read never purchases a provider page.",
+  "description": "Read a saved/imported run: status, coverage and separate discovery usage. Works with new admission disabled; no provider purchases.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -17484,7 +24631,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     }
    },
    "required": [
@@ -17510,7 +24657,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Read up to 100 candidates from an existing saved or imported run, including when new discovery admission is disabled. Returns stored discovery candidates with dated provider provenance and separate verification status. Cursor pages freeze a stored result snapshot; restart without a cursor for newer results. Reads never purchase provider pages.",
+  "description": "Page up to 100 saved/imported candidates with dated provenance and separate verification status, even with new admission disabled. Cursors freeze the stored snapshot; omit for newer results. No provider purchases.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -17519,22 +24666,87 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the run returned by its create or list operation."
+     "description": "run ID from create/list."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "minLength": 1,
-     "maxLength": 1024
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -17570,20 +24782,87 @@ export const CATALOG_COMMANDS = [
    "projects:read"
   ],
   "readOnly": true,
-  "description": "List the website projects this credential can access.",
+  "description": "List sites. Website projects this credential can access.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
     }
    },
    "additionalProperties": false
@@ -17646,7 +24925,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Human-readable name for the resource being created or updated."
+     "description": "Human-readable resource name to create or update."
     },
     "domain": {
      "type": "string",
@@ -17690,7 +24969,7 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": true,
-  "description": "List monitored placements with compact state and attempt summaries. Use include=detail or get_link_watch for occurrences and evidence.",
+  "description": "List monitored links with categories and page assessments. Filters precede paging; include=detail or get_link_watch adds occurrence/check details.",
   "examples": [
    {
     "projectId": "pr_01example",
@@ -17708,40 +24987,189 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Saved-record text filter; no discovery.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
-    "q": {
-     "description": "Text filter applied to saved records; does not start discovery.",
-     "type": "string",
-     "maxLength": 500
-    },
     "state": {
-     "description": "Requested resource state or saved-observation filter, as enumerated here.",
+     "description": "Resource state or saved-observation filter.",
      "type": "string"
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "active",
       "paused"
      ]
     },
+    "archived": {
+     "description": "exclude hides removed links; only lists removed links; include returns both.",
+     "type": "string",
+     "enum": [
+      "exclude",
+      "only",
+      "include"
+     ]
+    },
+    "disavowed": {
+     "description": "disavowed; see schema.",
+     "type": "string",
+     "enum": [
+      "yes",
+      "suggested",
+      "no"
+     ]
+    },
+    "disavowRule": {
+     "description": "disavow rule; see schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "type": {
+     "description": "Legacy saved type, including model cache. Use category for displayed type.",
+     "type": "string",
+     "maxLength": 64
+    },
+    "tag": {
+     "description": "tag; see schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "category": {
+     "description": "none=unknown or deliberately cleared; mixed=multiple assessed page roles.",
+     "type": "string",
+     "enum": [
+      "contextual_citation",
+      "guest_post",
+      "recommendation",
+      "resource_entry",
+      "technical_reference",
+      "directory_entry",
+      "profile_website",
+      "author_attribution",
+      "discussion_contribution",
+      "navigation_template",
+      "badge_embed_attribution",
+      "partner_sponsor",
+      "other",
+      "none",
+      "mixed",
+      "cleared"
+     ]
+    },
+    "categoryScope": {
+     "description": "shown (default)=displayed category; page_role=any assessed occurrence role.",
+     "type": "string",
+     "enum": [
+      "shown",
+      "page_role"
+     ]
+    },
+    "assessmentScope": {
+     "description": "current (default) excludes previous assessments; previous selects them.",
+     "type": "string",
+     "enum": [
+      "current",
+      "previous"
+     ]
+    },
+    "categoryState": {
+     "description": "Reason/coverage state; combines with category.",
+     "type": "string",
+     "enum": [
+      "cleared",
+      "not_started",
+      "pending",
+      "classifier_unavailable",
+      "classifier_failed",
+      "page_unavailable",
+      "partial",
+      "previous"
+     ]
+    },
     "include": {
-     "description": "The include value; allowed values and bounds are specified in this schema.",
+     "description": "include; see schema.",
      "type": "string",
      "enum": [
       "summary",
@@ -17749,7 +25177,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -17767,7 +25195,758 @@ export const CATALOG_COMMANDS = [
      "type": "array",
      "items": {
       "type": "object",
-      "properties": {},
+      "properties": {
+       "category_contract": {
+        "description": "Version of the shared table, API and export category projection.",
+        "type": "string",
+        "const": "link-category-v1"
+       },
+       "chosen_category": {
+        "description": "The team category and recorded author. Cleared keeps the type empty; automatic permits the page assessment to supply the displayed category. Neither action reviews or starts AI work.",
+        "type": "object",
+        "properties": {
+         "intent": {
+          "type": "string",
+          "enum": [
+           "chosen",
+           "cleared",
+           "automatic"
+          ]
+         },
+         "id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "enum": [
+             "contextual_citation",
+             "guest_post",
+             "recommendation",
+             "resource_entry",
+             "technical_reference",
+             "directory_entry",
+             "profile_website",
+             "author_attribution",
+             "discussion_contribution",
+             "navigation_template",
+             "badge_embed_attribution",
+             "partner_sponsor",
+             "other"
+            ]
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "name": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "standard_name": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "actor_id": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "recorded_at": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Saved label revision; pass as revision to set_link_type. Required for intent=automatic."
+         },
+         "deliberate_clear": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "intent",
+         "id",
+         "name",
+         "standard_name",
+         "actor_id",
+         "recorded_at",
+         "revision",
+         "deliberate_clear"
+        ],
+        "additionalProperties": {}
+       },
+       "page_assessment": {
+        "description": "What retained page evidence says about link occurrences. Applicability separates current, previous, expired and unavailable evidence. Suggested is provisional; accepted_manual requires a recorded review; accepted_auto requires a qualified saved policy.",
+        "type": "object",
+        "properties": {
+         "status": {
+          "type": "string",
+          "enum": [
+           "ready",
+           "unavailable"
+          ]
+         },
+         "reason": {
+          "type": "string"
+         },
+         "read_reason": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "explanation": {
+          "type": "string"
+         },
+         "applicability": {
+          "type": "string"
+         },
+         "binding": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "workspaceId": {
+              "type": "string"
+             },
+             "projectId": {
+              "type": "string"
+             },
+             "watchId": {
+              "type": "string"
+             }
+            },
+            "required": [
+             "workspaceId",
+             "projectId",
+             "watchId"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "capture": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "string"
+             },
+             "manifest_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observation_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observed_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "expires_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             }
+            },
+            "required": [
+             "id",
+             "manifest_id",
+             "observation_id",
+             "observed_at",
+             "expires_at"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "source": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "state": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observed_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observation_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "pageUnavailable": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "state",
+             "observed_at",
+             "observation_id",
+             "pageUnavailable"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "assessed_at": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "revision": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Highest retained eligible occurrence decision or review revision, or null. Evidence provenance, not a write token."
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "model_revisions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "model": {
+             "type": "string"
+            },
+            "revision": {
+             "anyOf": [
+              {
+               "type": "string",
+               "description": "Recorded model version or revision, or null. Evidence provenance, not a write token."
+              },
+              {
+               "type": "null"
+              }
+             ]
+            }
+           },
+           "required": [
+            "model",
+            "revision"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "policy_revisions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "taxonomy_version": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "rubric_version": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "policy_revision": {
+             "description": "Recorded policy revision as a string or number, or null. Evidence provenance, not a write token.",
+             "type": [
+              "string",
+              "number",
+              "null"
+             ]
+            }
+           },
+           "required": [
+            "taxonomy_version",
+            "rubric_version",
+            "policy_revision"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "roles": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string",
+             "enum": [
+              "contextual_citation",
+              "guest_post",
+              "recommendation",
+              "resource_entry",
+              "technical_reference",
+              "directory_entry",
+              "profile_website",
+              "author_attribution",
+              "discussion_contribution",
+              "navigation_template",
+              "badge_embed_attribution",
+              "partner_sponsor",
+              "other"
+             ]
+            },
+            "name": {
+             "type": "string"
+            },
+            "standard_name": {
+             "type": "string"
+            },
+            "count": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "states": {
+             "type": "object",
+             "properties": {
+              "suggested": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "accepted_manual": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "accepted_auto": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              }
+             },
+             "required": [
+              "suggested",
+              "accepted_manual",
+              "accepted_auto"
+             ],
+             "additionalProperties": {}
+            }
+           },
+           "required": [
+            "id",
+            "name",
+            "standard_name",
+            "count",
+            "states"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "decision_state": {
+          "type": "string",
+          "enum": [
+           "suggested",
+           "accepted_manual",
+           "accepted_auto",
+           "mixed",
+           "none"
+          ]
+         },
+         "mixed": {
+          "type": "boolean"
+         },
+         "coverage": {
+          "type": "object",
+          "properties": {
+           "assessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "classified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "eligible": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "retained": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "excluded": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unassessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unclassified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "partial": {
+            "type": [
+             "boolean",
+             "null"
+            ]
+           }
+          },
+          "required": [
+           "assessed",
+           "classified",
+           "eligible",
+           "retained",
+           "excluded",
+           "unassessed",
+           "unclassified",
+           "partial"
+          ],
+          "additionalProperties": {},
+          "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+         },
+         "pending_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "failed_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "job_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "review_required_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "status",
+         "reason",
+         "read_reason",
+         "explanation",
+         "applicability",
+         "binding",
+         "capture",
+         "source",
+         "assessed_at",
+         "revision",
+         "model_revisions",
+         "policy_revisions",
+         "roles",
+         "decision_state",
+         "mixed",
+         "coverage",
+         "pending_count",
+         "failed_count",
+         "job_count",
+         "review_required_count"
+        ],
+        "additionalProperties": {}
+       },
+       "display_category": {
+        "description": "The category shown in the everyday table. A deliberate team choice takes precedence. Otherwise page evidence supplies a category or Mixed types, with its evidence state. Read the reason when no category is available.",
+        "type": "object",
+        "properties": {
+         "source": {
+          "type": "string",
+          "enum": [
+           "chosen",
+           "page_assessment",
+           "none"
+          ]
+         },
+         "kind": {
+          "type": "string",
+          "enum": [
+           "category",
+           "mixed",
+           "cleared",
+           "unknown"
+          ]
+         },
+         "id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "enum": [
+             "contextual_citation",
+             "guest_post",
+             "recommendation",
+             "resource_entry",
+             "technical_reference",
+             "directory_entry",
+             "profile_website",
+             "author_attribution",
+             "discussion_contribution",
+             "navigation_template",
+             "badge_embed_attribution",
+             "partner_sponsor",
+             "other"
+            ]
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "name": {
+          "type": "string"
+         },
+         "state": {
+          "type": "string"
+         },
+         "reason": {
+          "type": "string"
+         },
+         "applicability": {
+          "type": "string"
+         },
+         "coverage": {
+          "type": "object",
+          "properties": {
+           "assessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "classified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "eligible": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "retained": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "excluded": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unassessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unclassified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "partial": {
+            "type": [
+             "boolean",
+             "null"
+            ]
+           }
+          },
+          "required": [
+           "assessed",
+           "classified",
+           "eligible",
+           "retained",
+           "excluded",
+           "unassessed",
+           "unclassified",
+           "partial"
+          ],
+          "additionalProperties": {},
+          "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+         }
+        },
+        "required": [
+         "source",
+         "kind",
+         "id",
+         "name",
+         "state",
+         "reason",
+         "applicability",
+         "coverage"
+        ],
+        "additionalProperties": {}
+       }
+      },
       "additionalProperties": {}
      }
     },
@@ -17781,6 +25960,1926 @@ export const CATALOG_COMMANDS = [
    "required": [
     "items"
    ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "set_link_type",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "link type",
+   "label",
+   "classify",
+   "guest post"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Choose a team category, deliberately clear it, or use intent=automatic to show eligible AI evidence again. These choices never review a suggestion or start AI work.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "type": {
+     "description": "type; see schema.",
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "contextual_citation",
+        "guest_post",
+        "recommendation",
+        "resource_entry",
+        "technical_reference",
+        "directory_entry",
+        "profile_website",
+        "author_attribution",
+        "discussion_contribution",
+        "navigation_template",
+        "badge_embed_attribution",
+        "partner_sponsor",
+        "other"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "intent": {
+     "description": "intent; see schema.",
+     "type": "string",
+     "enum": [
+      "choose",
+      "automatic"
+     ]
+    },
+    "revision": {
+     "description": "Current chosen_category.revision; required for intent=automatic, optional concurrency guard for choosing or clearing a type.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "watchId"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "category_contract": {
+     "description": "Version of the shared table, API and export category projection.",
+     "type": "string",
+     "const": "link-category-v1"
+    },
+    "chosen_category": {
+     "description": "The team category and recorded author. Cleared keeps the type empty; automatic permits the page assessment to supply the displayed category. Neither action reviews or starts AI work.",
+     "type": "object",
+     "properties": {
+      "intent": {
+       "type": "string",
+       "enum": [
+        "chosen",
+        "cleared",
+        "automatic"
+       ]
+      },
+      "id": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "contextual_citation",
+          "guest_post",
+          "recommendation",
+          "resource_entry",
+          "technical_reference",
+          "directory_entry",
+          "profile_website",
+          "author_attribution",
+          "discussion_contribution",
+          "navigation_template",
+          "badge_embed_attribution",
+          "partner_sponsor",
+          "other"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "name": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "standard_name": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "actor_id": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "recorded_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "revision": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991,
+       "description": "Saved label revision; pass as revision to set_link_type. Required for intent=automatic."
+      },
+      "deliberate_clear": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "intent",
+      "id",
+      "name",
+      "standard_name",
+      "actor_id",
+      "recorded_at",
+      "revision",
+      "deliberate_clear"
+     ],
+     "additionalProperties": {}
+    },
+    "page_assessment": {
+     "description": "What retained page evidence says about link occurrences. Applicability separates current, previous, expired and unavailable evidence. Suggested is provisional; accepted_manual requires a recorded review; accepted_auto requires a qualified saved policy.",
+     "type": "object",
+     "properties": {
+      "status": {
+       "type": "string",
+       "enum": [
+        "ready",
+        "unavailable"
+       ]
+      },
+      "reason": {
+       "type": "string"
+      },
+      "read_reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "explanation": {
+       "type": "string"
+      },
+      "applicability": {
+       "type": "string"
+      },
+      "binding": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "workspaceId": {
+           "type": "string"
+          },
+          "projectId": {
+           "type": "string"
+          },
+          "watchId": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "workspaceId",
+          "projectId",
+          "watchId"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "capture": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "manifest_id": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observation_id": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observed_at": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "expires_at": {
+           "type": [
+            "string",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "manifest_id",
+          "observation_id",
+          "observed_at",
+          "expires_at"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "source": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "state": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observed_at": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observation_id": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "pageUnavailable": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "state",
+          "observed_at",
+          "observation_id",
+          "pageUnavailable"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "assessed_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "revision": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991,
+         "description": "Highest retained eligible occurrence decision or review revision, or null. Evidence provenance, not a write token."
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "model_revisions": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "model": {
+          "type": "string"
+         },
+         "revision": {
+          "anyOf": [
+           {
+            "type": "string",
+            "description": "Recorded model version or revision, or null. Evidence provenance, not a write token."
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "model",
+         "revision"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "policy_revisions": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "taxonomy_version": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "rubric_version": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "policy_revision": {
+          "description": "Recorded policy revision as a string or number, or null. Evidence provenance, not a write token.",
+          "type": [
+           "string",
+           "number",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "taxonomy_version",
+         "rubric_version",
+         "policy_revision"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "roles": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string",
+          "enum": [
+           "contextual_citation",
+           "guest_post",
+           "recommendation",
+           "resource_entry",
+           "technical_reference",
+           "directory_entry",
+           "profile_website",
+           "author_attribution",
+           "discussion_contribution",
+           "navigation_template",
+           "badge_embed_attribution",
+           "partner_sponsor",
+           "other"
+          ]
+         },
+         "name": {
+          "type": "string"
+         },
+         "standard_name": {
+          "type": "string"
+         },
+         "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "states": {
+          "type": "object",
+          "properties": {
+           "suggested": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "accepted_manual": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "accepted_auto": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           }
+          },
+          "required": [
+           "suggested",
+           "accepted_manual",
+           "accepted_auto"
+          ],
+          "additionalProperties": {}
+         }
+        },
+        "required": [
+         "id",
+         "name",
+         "standard_name",
+         "count",
+         "states"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "decision_state": {
+       "type": "string",
+       "enum": [
+        "suggested",
+        "accepted_manual",
+        "accepted_auto",
+        "mixed",
+        "none"
+       ]
+      },
+      "mixed": {
+       "type": "boolean"
+      },
+      "coverage": {
+       "type": "object",
+       "properties": {
+        "assessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "classified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "eligible": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retained": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "excluded": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unassessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unclassified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "partial": {
+         "type": [
+          "boolean",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "assessed",
+        "classified",
+        "eligible",
+        "retained",
+        "excluded",
+        "unassessed",
+        "unclassified",
+        "partial"
+       ],
+       "additionalProperties": {},
+       "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+      },
+      "pending_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "failed_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "job_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "review_required_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "status",
+      "reason",
+      "read_reason",
+      "explanation",
+      "applicability",
+      "binding",
+      "capture",
+      "source",
+      "assessed_at",
+      "revision",
+      "model_revisions",
+      "policy_revisions",
+      "roles",
+      "decision_state",
+      "mixed",
+      "coverage",
+      "pending_count",
+      "failed_count",
+      "job_count",
+      "review_required_count"
+     ],
+     "additionalProperties": {}
+    },
+    "display_category": {
+     "description": "The category shown in the everyday table. A deliberate team choice takes precedence. Otherwise page evidence supplies a category or Mixed types, with its evidence state. Read the reason when no category is available.",
+     "type": "object",
+     "properties": {
+      "source": {
+       "type": "string",
+       "enum": [
+        "chosen",
+        "page_assessment",
+        "none"
+       ]
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "category",
+        "mixed",
+        "cleared",
+        "unknown"
+       ]
+      },
+      "id": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "contextual_citation",
+          "guest_post",
+          "recommendation",
+          "resource_entry",
+          "technical_reference",
+          "directory_entry",
+          "profile_website",
+          "author_attribution",
+          "discussion_contribution",
+          "navigation_template",
+          "badge_embed_attribution",
+          "partner_sponsor",
+          "other"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "name": {
+       "type": "string"
+      },
+      "state": {
+       "type": "string"
+      },
+      "reason": {
+       "type": "string"
+      },
+      "applicability": {
+       "type": "string"
+      },
+      "coverage": {
+       "type": "object",
+       "properties": {
+        "assessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "classified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "eligible": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retained": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "excluded": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unassessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unclassified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "partial": {
+         "type": [
+          "boolean",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "assessed",
+        "classified",
+        "eligible",
+        "retained",
+        "excluded",
+        "unassessed",
+        "unclassified",
+        "partial"
+       ],
+       "additionalProperties": {},
+       "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+      }
+     },
+     "required": [
+      "source",
+      "kind",
+      "id",
+      "name",
+      "state",
+      "reason",
+      "applicability",
+      "coverage"
+     ],
+     "additionalProperties": {}
+    },
+    "id": {
+     "type": "string"
+    },
+    "type": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "type_source": {
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "model",
+        "person"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "tags": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "name": {
+        "type": "string"
+       },
+       "color": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id",
+       "name",
+       "color"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "disavow": {
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "active",
+        "proposed"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "type",
+    "type_source",
+    "tags",
+    "disavow"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "tag_links",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "tags",
+   "label links",
+   "bulk tag",
+   "link type"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Add or remove workspace tags (and optionally set one type) on up to 100 monitored links in one change. Tags never replace each other.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchIds": {
+     "minItems": 1,
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+     },
+     "description": "watch ids; see schema."
+    },
+    "addTagIds": {
+     "description": "add tag ids; see schema.",
+     "maxItems": 20,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+     }
+    },
+    "removeTagIds": {
+     "description": "remove tag ids; see schema.",
+     "maxItems": 20,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+     }
+    },
+    "type": {
+     "description": "type; see schema.",
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "contextual_citation",
+        "guest_post",
+        "recommendation",
+        "resource_entry",
+        "technical_reference",
+        "directory_entry",
+        "profile_website",
+        "author_attribution",
+        "discussion_contribution",
+        "navigation_template",
+        "badge_embed_attribution",
+        "partner_sponsor",
+        "other"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "watchIds"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "updated": {
+     "type": "integer",
+     "minimum": -9007199254740991,
+     "maximum": 9007199254740991
+    },
+    "items": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "category_contract": {
+        "description": "Version of the shared table, API and export category projection.",
+        "type": "string",
+        "const": "link-category-v1"
+       },
+       "chosen_category": {
+        "description": "The team category and recorded author. Cleared keeps the type empty; automatic permits the page assessment to supply the displayed category. Neither action reviews or starts AI work.",
+        "type": "object",
+        "properties": {
+         "intent": {
+          "type": "string",
+          "enum": [
+           "chosen",
+           "cleared",
+           "automatic"
+          ]
+         },
+         "id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "enum": [
+             "contextual_citation",
+             "guest_post",
+             "recommendation",
+             "resource_entry",
+             "technical_reference",
+             "directory_entry",
+             "profile_website",
+             "author_attribution",
+             "discussion_contribution",
+             "navigation_template",
+             "badge_embed_attribution",
+             "partner_sponsor",
+             "other"
+            ]
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "name": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "standard_name": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "actor_id": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "recorded_at": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Saved label revision; pass as revision to set_link_type. Required for intent=automatic."
+         },
+         "deliberate_clear": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "intent",
+         "id",
+         "name",
+         "standard_name",
+         "actor_id",
+         "recorded_at",
+         "revision",
+         "deliberate_clear"
+        ],
+        "additionalProperties": {}
+       },
+       "page_assessment": {
+        "description": "What retained page evidence says about link occurrences. Applicability separates current, previous, expired and unavailable evidence. Suggested is provisional; accepted_manual requires a recorded review; accepted_auto requires a qualified saved policy.",
+        "type": "object",
+        "properties": {
+         "status": {
+          "type": "string",
+          "enum": [
+           "ready",
+           "unavailable"
+          ]
+         },
+         "reason": {
+          "type": "string"
+         },
+         "read_reason": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "explanation": {
+          "type": "string"
+         },
+         "applicability": {
+          "type": "string"
+         },
+         "binding": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "workspaceId": {
+              "type": "string"
+             },
+             "projectId": {
+              "type": "string"
+             },
+             "watchId": {
+              "type": "string"
+             }
+            },
+            "required": [
+             "workspaceId",
+             "projectId",
+             "watchId"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "capture": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "string"
+             },
+             "manifest_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observation_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observed_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "expires_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             }
+            },
+            "required": [
+             "id",
+             "manifest_id",
+             "observation_id",
+             "observed_at",
+             "expires_at"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "source": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "state": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observed_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observation_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "pageUnavailable": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "state",
+             "observed_at",
+             "observation_id",
+             "pageUnavailable"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "assessed_at": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "revision": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Highest retained eligible occurrence decision or review revision, or null. Evidence provenance, not a write token."
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "model_revisions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "model": {
+             "type": "string"
+            },
+            "revision": {
+             "anyOf": [
+              {
+               "type": "string",
+               "description": "Recorded model version or revision, or null. Evidence provenance, not a write token."
+              },
+              {
+               "type": "null"
+              }
+             ]
+            }
+           },
+           "required": [
+            "model",
+            "revision"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "policy_revisions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "taxonomy_version": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "rubric_version": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "policy_revision": {
+             "description": "Recorded policy revision as a string or number, or null. Evidence provenance, not a write token.",
+             "type": [
+              "string",
+              "number",
+              "null"
+             ]
+            }
+           },
+           "required": [
+            "taxonomy_version",
+            "rubric_version",
+            "policy_revision"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "roles": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string",
+             "enum": [
+              "contextual_citation",
+              "guest_post",
+              "recommendation",
+              "resource_entry",
+              "technical_reference",
+              "directory_entry",
+              "profile_website",
+              "author_attribution",
+              "discussion_contribution",
+              "navigation_template",
+              "badge_embed_attribution",
+              "partner_sponsor",
+              "other"
+             ]
+            },
+            "name": {
+             "type": "string"
+            },
+            "standard_name": {
+             "type": "string"
+            },
+            "count": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "states": {
+             "type": "object",
+             "properties": {
+              "suggested": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "accepted_manual": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "accepted_auto": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              }
+             },
+             "required": [
+              "suggested",
+              "accepted_manual",
+              "accepted_auto"
+             ],
+             "additionalProperties": {}
+            }
+           },
+           "required": [
+            "id",
+            "name",
+            "standard_name",
+            "count",
+            "states"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "decision_state": {
+          "type": "string",
+          "enum": [
+           "suggested",
+           "accepted_manual",
+           "accepted_auto",
+           "mixed",
+           "none"
+          ]
+         },
+         "mixed": {
+          "type": "boolean"
+         },
+         "coverage": {
+          "type": "object",
+          "properties": {
+           "assessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "classified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "eligible": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "retained": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "excluded": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unassessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unclassified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "partial": {
+            "type": [
+             "boolean",
+             "null"
+            ]
+           }
+          },
+          "required": [
+           "assessed",
+           "classified",
+           "eligible",
+           "retained",
+           "excluded",
+           "unassessed",
+           "unclassified",
+           "partial"
+          ],
+          "additionalProperties": {},
+          "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+         },
+         "pending_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "failed_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "job_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "review_required_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "status",
+         "reason",
+         "read_reason",
+         "explanation",
+         "applicability",
+         "binding",
+         "capture",
+         "source",
+         "assessed_at",
+         "revision",
+         "model_revisions",
+         "policy_revisions",
+         "roles",
+         "decision_state",
+         "mixed",
+         "coverage",
+         "pending_count",
+         "failed_count",
+         "job_count",
+         "review_required_count"
+        ],
+        "additionalProperties": {}
+       },
+       "display_category": {
+        "description": "The category shown in the everyday table. A deliberate team choice takes precedence. Otherwise page evidence supplies a category or Mixed types, with its evidence state. Read the reason when no category is available.",
+        "type": "object",
+        "properties": {
+         "source": {
+          "type": "string",
+          "enum": [
+           "chosen",
+           "page_assessment",
+           "none"
+          ]
+         },
+         "kind": {
+          "type": "string",
+          "enum": [
+           "category",
+           "mixed",
+           "cleared",
+           "unknown"
+          ]
+         },
+         "id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "enum": [
+             "contextual_citation",
+             "guest_post",
+             "recommendation",
+             "resource_entry",
+             "technical_reference",
+             "directory_entry",
+             "profile_website",
+             "author_attribution",
+             "discussion_contribution",
+             "navigation_template",
+             "badge_embed_attribution",
+             "partner_sponsor",
+             "other"
+            ]
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "name": {
+          "type": "string"
+         },
+         "state": {
+          "type": "string"
+         },
+         "reason": {
+          "type": "string"
+         },
+         "applicability": {
+          "type": "string"
+         },
+         "coverage": {
+          "type": "object",
+          "properties": {
+           "assessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "classified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "eligible": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "retained": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "excluded": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unassessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unclassified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "partial": {
+            "type": [
+             "boolean",
+             "null"
+            ]
+           }
+          },
+          "required": [
+           "assessed",
+           "classified",
+           "eligible",
+           "retained",
+           "excluded",
+           "unassessed",
+           "unclassified",
+           "partial"
+          ],
+          "additionalProperties": {},
+          "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+         }
+        },
+        "required": [
+         "source",
+         "kind",
+         "id",
+         "name",
+         "state",
+         "reason",
+         "applicability",
+         "coverage"
+        ],
+        "additionalProperties": {}
+       },
+       "id": {
+        "type": "string"
+       },
+       "type": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "type_source": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "model",
+           "person"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "tags": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          },
+          "color": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "id",
+          "name",
+          "color"
+         ],
+         "additionalProperties": {}
+        }
+       },
+       "disavow": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "active",
+           "proposed"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [
+       "id",
+       "type",
+       "type_source",
+       "tags",
+       "disavow"
+      ],
+      "additionalProperties": {}
+     }
+    }
+   },
+   "required": [
+    "updated",
+    "items"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "save_link_tag",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "tags",
+   "create tag",
+   "rename tag",
+   "archive tag"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Create, rename, recolour, archive or restore one workspace-wide link tag. Creating an existing name returns that tag.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "tagId": {
+     "description": "tag ID from create/list.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "name": {
+     "description": "Human-readable resource name to create or update.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 64
+    },
+    "color": {
+     "description": "color; see schema.",
+     "type": "string",
+     "enum": [
+      "#075985",
+      "#155e75",
+      "#6b21a8",
+      "#3730a3",
+      "#9d174d",
+      "#334155"
+     ]
+    },
+    "archived": {
+     "description": "archived; see schema.",
+     "type": "boolean"
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {},
+   "additionalProperties": {}
+  }
+ },
+ {
+  "name": "list_link_tags",
+  "toolset": "classification",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "tags",
+   "workspace tags"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "List the workspace's link tags with how many accessible links carry each.",
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "includeArchived": {
+     "description": "include archived; see schema.",
+     "type": "boolean"
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {},
    "additionalProperties": {}
   }
  },
@@ -17804,7 +27903,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     }
    },
    "required": [
@@ -17816,6 +27915,756 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "category_contract": {
+     "description": "Version of the shared table, API and export category projection.",
+     "type": "string",
+     "const": "link-category-v1"
+    },
+    "chosen_category": {
+     "description": "The team category and recorded author. Cleared keeps the type empty; automatic permits the page assessment to supply the displayed category. Neither action reviews or starts AI work.",
+     "type": "object",
+     "properties": {
+      "intent": {
+       "type": "string",
+       "enum": [
+        "chosen",
+        "cleared",
+        "automatic"
+       ]
+      },
+      "id": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "contextual_citation",
+          "guest_post",
+          "recommendation",
+          "resource_entry",
+          "technical_reference",
+          "directory_entry",
+          "profile_website",
+          "author_attribution",
+          "discussion_contribution",
+          "navigation_template",
+          "badge_embed_attribution",
+          "partner_sponsor",
+          "other"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "name": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "standard_name": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "actor_id": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "recorded_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "revision": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991,
+       "description": "Saved label revision; pass as revision to set_link_type. Required for intent=automatic."
+      },
+      "deliberate_clear": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "intent",
+      "id",
+      "name",
+      "standard_name",
+      "actor_id",
+      "recorded_at",
+      "revision",
+      "deliberate_clear"
+     ],
+     "additionalProperties": {}
+    },
+    "page_assessment": {
+     "description": "What retained page evidence says about link occurrences. Applicability separates current, previous, expired and unavailable evidence. Suggested is provisional; accepted_manual requires a recorded review; accepted_auto requires a qualified saved policy.",
+     "type": "object",
+     "properties": {
+      "status": {
+       "type": "string",
+       "enum": [
+        "ready",
+        "unavailable"
+       ]
+      },
+      "reason": {
+       "type": "string"
+      },
+      "read_reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "explanation": {
+       "type": "string"
+      },
+      "applicability": {
+       "type": "string"
+      },
+      "binding": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "workspaceId": {
+           "type": "string"
+          },
+          "projectId": {
+           "type": "string"
+          },
+          "watchId": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "workspaceId",
+          "projectId",
+          "watchId"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "capture": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "manifest_id": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observation_id": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observed_at": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "expires_at": {
+           "type": [
+            "string",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "manifest_id",
+          "observation_id",
+          "observed_at",
+          "expires_at"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "source": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "state": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observed_at": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "observation_id": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "pageUnavailable": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "state",
+          "observed_at",
+          "observation_id",
+          "pageUnavailable"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "assessed_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "revision": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991,
+         "description": "Highest retained eligible occurrence decision or review revision, or null. Evidence provenance, not a write token."
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "model_revisions": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "model": {
+          "type": "string"
+         },
+         "revision": {
+          "anyOf": [
+           {
+            "type": "string",
+            "description": "Recorded model version or revision, or null. Evidence provenance, not a write token."
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "model",
+         "revision"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "policy_revisions": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "taxonomy_version": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "rubric_version": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "policy_revision": {
+          "description": "Recorded policy revision as a string or number, or null. Evidence provenance, not a write token.",
+          "type": [
+           "string",
+           "number",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "taxonomy_version",
+         "rubric_version",
+         "policy_revision"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "roles": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string",
+          "enum": [
+           "contextual_citation",
+           "guest_post",
+           "recommendation",
+           "resource_entry",
+           "technical_reference",
+           "directory_entry",
+           "profile_website",
+           "author_attribution",
+           "discussion_contribution",
+           "navigation_template",
+           "badge_embed_attribution",
+           "partner_sponsor",
+           "other"
+          ]
+         },
+         "name": {
+          "type": "string"
+         },
+         "standard_name": {
+          "type": "string"
+         },
+         "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "states": {
+          "type": "object",
+          "properties": {
+           "suggested": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "accepted_manual": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           "accepted_auto": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           }
+          },
+          "required": [
+           "suggested",
+           "accepted_manual",
+           "accepted_auto"
+          ],
+          "additionalProperties": {}
+         }
+        },
+        "required": [
+         "id",
+         "name",
+         "standard_name",
+         "count",
+         "states"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "decision_state": {
+       "type": "string",
+       "enum": [
+        "suggested",
+        "accepted_manual",
+        "accepted_auto",
+        "mixed",
+        "none"
+       ]
+      },
+      "mixed": {
+       "type": "boolean"
+      },
+      "coverage": {
+       "type": "object",
+       "properties": {
+        "assessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "classified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "eligible": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retained": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "excluded": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unassessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unclassified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "partial": {
+         "type": [
+          "boolean",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "assessed",
+        "classified",
+        "eligible",
+        "retained",
+        "excluded",
+        "unassessed",
+        "unclassified",
+        "partial"
+       ],
+       "additionalProperties": {},
+       "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+      },
+      "pending_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "failed_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "job_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "review_required_count": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "status",
+      "reason",
+      "read_reason",
+      "explanation",
+      "applicability",
+      "binding",
+      "capture",
+      "source",
+      "assessed_at",
+      "revision",
+      "model_revisions",
+      "policy_revisions",
+      "roles",
+      "decision_state",
+      "mixed",
+      "coverage",
+      "pending_count",
+      "failed_count",
+      "job_count",
+      "review_required_count"
+     ],
+     "additionalProperties": {}
+    },
+    "display_category": {
+     "description": "The category shown in the everyday table. A deliberate team choice takes precedence. Otherwise page evidence supplies a category or Mixed types, with its evidence state. Read the reason when no category is available.",
+     "type": "object",
+     "properties": {
+      "source": {
+       "type": "string",
+       "enum": [
+        "chosen",
+        "page_assessment",
+        "none"
+       ]
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "category",
+        "mixed",
+        "cleared",
+        "unknown"
+       ]
+      },
+      "id": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "contextual_citation",
+          "guest_post",
+          "recommendation",
+          "resource_entry",
+          "technical_reference",
+          "directory_entry",
+          "profile_website",
+          "author_attribution",
+          "discussion_contribution",
+          "navigation_template",
+          "badge_embed_attribution",
+          "partner_sponsor",
+          "other"
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "name": {
+       "type": "string"
+      },
+      "state": {
+       "type": "string"
+      },
+      "reason": {
+       "type": "string"
+      },
+      "applicability": {
+       "type": "string"
+      },
+      "coverage": {
+       "type": "object",
+       "properties": {
+        "assessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "classified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "eligible": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "retained": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "excluded": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unassessed": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "unclassified": {
+         "anyOf": [
+          {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 9007199254740991
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "partial": {
+         "type": [
+          "boolean",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "assessed",
+        "classified",
+        "eligible",
+        "retained",
+        "excluded",
+        "unassessed",
+        "unclassified",
+        "partial"
+       ],
+       "additionalProperties": {},
+       "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+      }
+     },
+     "required": [
+      "source",
+      "kind",
+      "id",
+      "name",
+      "state",
+      "reason",
+      "applicability",
+      "coverage"
+     ],
+     "additionalProperties": {}
+    },
     "id": {
      "type": "string"
     },
@@ -17862,7 +28711,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Monitor a known source page and target. Identical placements are deduplicated. Source URLs are stored normalized; join local records using local_reference rather than raw URL strings.",
+  "description": "Watch a source/target placement; duplicates reuse the watch. Source URLs are normalized: join local records by local_reference, not raw URL.",
   "examples": [
    {
     "projectId": "pr_01example",
@@ -17880,20 +28729,20 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "sourceUrl": {
      "type": "string",
      "format": "uri",
-     "description": "Public publisher page URL containing the placement to inspect."
+     "description": "Public publisher URL with the placement."
     },
     "targetUrl": {
      "type": "string",
      "format": "uri",
-     "description": "Public destination URL expected in the placement."
+     "description": "Expected public destination URL."
     },
     "targetScope": {
-     "description": "URL matching rule: exact URL, domain, subdomain, or path prefix.",
+     "description": "URL match: exact, domain, subdomain or path prefix.",
      "type": "string",
      "enum": [
       "exact",
@@ -17903,13 +28752,13 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
     },
     "expectedAnchor": {
-     "description": "Expected link anchor text; null clears the expectation.",
+     "description": "Expected anchor text; null clears expectation.",
      "anyOf": [
       {
        "type": "string",
@@ -17921,7 +28770,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "expectedRel": {
-     "description": "Expected rel tokens; null clears the expectation.",
+     "description": "Expected rel tokens; null clears expectation.",
      "anyOf": [
       {
        "type": "array",
@@ -17935,7 +28784,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "localReference": {
-     "description": "Customer-owned reference to associate this record with a local ledger entry.",
+     "description": "Customer reference for a local ledger entry.",
      "type": "string",
      "maxLength": 200
     }
@@ -17981,7 +28830,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watches": {
      "minItems": 1,
@@ -18080,7 +28929,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Pause/resume a placement or update cadence and expectations.",
+  "description": "Pause/resume, remove/restore a placement, or update cadence and expectations. Removing pauses checks and hides the link from default lists; evidence is retained. Restore leaves it paused unless status is active.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -18089,24 +28938,28 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "active",
       "paused"
      ]
     },
+    "archived": {
+     "description": "archived; see schema.",
+     "type": "boolean"
+    },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
     },
     "expectedAnchor": {
-     "description": "Expected link anchor text; null clears the expectation.",
+     "description": "Expected anchor text; null clears expectation.",
      "anyOf": [
       {
        "type": "string",
@@ -18118,7 +28971,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "expectedRel": {
-     "description": "Expected rel tokens; null clears the expectation.",
+     "description": "Expected rel tokens; null clears expectation.",
      "anyOf": [
       {
        "type": "array",
@@ -18132,7 +28985,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "localReference": {
-     "description": "Customer-owned reference to associate this record with a local ledger entry.",
+     "description": "Customer reference for a local ledger entry.",
      "type": "string",
      "maxLength": 200
     }
@@ -18170,28 +29023,95 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "engine": {
-     "description": "The engine value; allowed values and bounds are specified in this schema.",
+     "description": "engine; see schema.",
      "type": "string",
      "maxLength": 60
     },
     "classification": {
-     "description": "The classification value; allowed values and bounds are specified in this schema.",
+     "description": "classification; see schema.",
      "type": "string",
      "maxLength": 30
     }
@@ -18202,6 +29122,82 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "epochs": {
      "type": "array",
      "items": {
@@ -18353,23 +29349,90 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "active",
@@ -18383,6 +29446,82 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "watches": {
      "type": "array",
      "items": {
@@ -18474,7 +29613,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "epochs": {
      "minItems": 1,
@@ -18601,7 +29740,7 @@ export const CATALOG_COMMANDS = [
       ],
       "additionalProperties": false
      },
-     "description": "The epochs value; allowed values and bounds are specified in this schema."
+     "description": "epochs; see schema."
     }
    },
    "required": [
@@ -18659,7 +29798,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "records": {
      "minItems": 1,
@@ -18720,7 +29859,7 @@ export const CATALOG_COMMANDS = [
       ],
       "additionalProperties": false
      },
-     "description": "The records value; allowed values and bounds are specified in this schema."
+     "description": "records; see schema."
     }
    },
    "required": [
@@ -18822,30 +29961,30 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "epochId": {
-     "description": "Identifier of the epoch returned by its create or list operation.",
+     "description": "epoch ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "cellId": {
-     "description": "Identifier of the cell returned by its create or list operation.",
+     "description": "cell ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 4096
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "maxLength": 4096
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -19057,7 +30196,7 @@ export const CATALOG_COMMANDS = [
       "target",
       "citation"
      ],
-     "description": "The subject value; allowed values and bounds are specified in this schema."
+     "description": "subject; see schema."
     },
     "observationId": {
      "type": "string",
@@ -19255,7 +30394,7 @@ export const CATALOG_COMMANDS = [
       "target",
       "citation"
      ],
-     "description": "The subject value; allowed values and bounds are specified in this schema."
+     "description": "subject; see schema."
     },
     "observationId": {
      "type": "string",
@@ -19688,6 +30827,313 @@ export const CATALOG_COMMANDS = [
   }
  },
  {
+  "name": "check_link_watch",
+  "toolset": "monitoring",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "check link",
+   "all checks",
+   "classification",
+   "google index"
+  ],
+  "confirm": "none",
+  "admissionGated": false,
+  "scopes": [
+   "watches:read",
+   "watches:write"
+  ],
+  "readOnly": false,
+  "description": "Run all available checks for one active link: source presence, destination health, placement classification from fresh evidence, and permitted Google index evidence. Each component retains its own allowance and permission. Retry the same key to read progress; unavailable components stay explicit.",
+  "examples": [
+   {
+    "watchId": "wat_01example",
+    "idempotencyKey": "all-checks-wat_01example"
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "watchId": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200,
+     "description": "watch ID from create/list."
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "pattern": "^[\\x21-\\x7e]{1,128}$",
+     "description": "Caller-generated key reused only for retries of the same operation and arguments in this workspace."
+    }
+   },
+   "required": [
+    "watchId",
+    "idempotencyKey"
+   ],
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "watch_id": {
+     "type": "string"
+    },
+    "operation_key": {
+     "type": "string"
+    },
+    "state": {
+     "type": "string",
+     "enum": [
+      "pending",
+      "running",
+      "completed",
+      "partial"
+     ]
+    },
+    "source": {
+     "type": "object",
+     "properties": {
+      "state": {
+       "type": "string",
+       "enum": [
+        "queued",
+        "running",
+        "completed",
+        "skipped",
+        "unavailable",
+        "failed",
+        "waiting_source"
+       ]
+      },
+      "job_id": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "result": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "lane": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "last_crawl_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "state",
+      "job_id",
+      "reason",
+      "result",
+      "lane"
+     ],
+     "additionalProperties": false
+    },
+    "target": {
+     "type": "object",
+     "properties": {
+      "state": {
+       "type": "string",
+       "enum": [
+        "queued",
+        "running",
+        "completed",
+        "skipped",
+        "unavailable",
+        "failed",
+        "waiting_source"
+       ]
+      },
+      "job_id": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "result": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "lane": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "last_crawl_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "state",
+      "job_id",
+      "reason",
+      "result",
+      "lane"
+     ],
+     "additionalProperties": false
+    },
+    "classification": {
+     "type": "object",
+     "properties": {
+      "state": {
+       "type": "string",
+       "enum": [
+        "queued",
+        "running",
+        "completed",
+        "skipped",
+        "unavailable",
+        "failed",
+        "waiting_source"
+       ]
+      },
+      "job_id": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "result": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "lane": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "last_crawl_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "state",
+      "job_id",
+      "reason",
+      "result",
+      "lane"
+     ],
+     "additionalProperties": false
+    },
+    "google": {
+     "type": "object",
+     "properties": {
+      "state": {
+       "type": "string",
+       "enum": [
+        "queued",
+        "running",
+        "completed",
+        "skipped",
+        "unavailable",
+        "failed",
+        "waiting_source"
+       ]
+      },
+      "job_id": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "reason": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "result": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "lane": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "last_crawl_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "state",
+      "job_id",
+      "reason",
+      "result",
+      "lane"
+     ],
+     "additionalProperties": false
+    },
+    "follow_up_required": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "id",
+    "watch_id",
+    "operation_key",
+    "state",
+    "source",
+    "target",
+    "classification",
+    "google",
+    "follow_up_required"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
   "name": "request_check",
   "toolset": "monitoring",
   "tier": "deferred",
@@ -19708,7 +31154,7 @@ export const CATALOG_COMMANDS = [
    "watches:write"
   ],
   "readOnly": false,
-  "description": "Queue one metered check: subject link rechecks a monitored placement (subjectId is the watch id), subject target rechecks a destination (subjectId is the target id). Reuse the idempotency key when retrying; blocked results remain unknown.",
+  "description": "Queue one metered recheck. Subject link rechecks a monitored placement (subjectId is the watch id); subject target rechecks a destination (subjectId is the target id). Reuse the idempotency key when retrying; blocked results remain unknown.",
   "examples": [
    {
     "subject": "link",
@@ -19788,7 +31234,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the job returned by its create or list operation."
+     "description": "job ID from create/list."
     }
    },
    "required": [
@@ -19840,7 +31286,7 @@ export const CATALOG_COMMANDS = [
    "watches:read"
   ],
   "readOnly": true,
-  "description": "List paginated saved observations for one monitored subject: subject link for a placement (subjectId is the watch id), subject target for a destination (subjectId is the target id). Includes evidence references and retention limits.",
+  "description": "List saved observations for one subject. Use subject link for a placement (subjectId is the watch id) or subject target for a destination (subjectId is the target id). Paginated; includes evidence references and retention limits.",
   "examples": [
    {
     "subject": "link",
@@ -19867,17 +31313,17 @@ export const CATALOG_COMMANDS = [
      "description": "The watch id when subject is link, the target id when subject is target."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string"
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -19957,7 +31403,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     }
    },
    "required": [
@@ -19993,7 +31439,7 @@ export const CATALOG_COMMANDS = [
    "events:read"
   ],
   "readOnly": true,
-  "description": "Read one independent change feed: links, targets or citations. Citation events compare eligible epochs, never single answers. Keep each feed cursor separate and apply a full page before saving next_cursor; unknown outcomes do not prove loss.",
+  "description": "Read link, target or citation feeds. Citation events compare eligible epochs, not single answers. Keep separate feed cursors; save next_cursor after applying the full page. Unknown does not prove loss.",
   "examples": [
    {
     "feed": "links",
@@ -20016,26 +31462,93 @@ export const CATALOG_COMMANDS = [
       "targets",
       "citations"
      ],
-     "description": "Which change feed to read: links (placement changes) or targets (destination-health changes); each feed keeps its own cursor."
+     "description": "Event feed: links (placements), targets (destination health) or citations; each has its own cursor."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -20074,7 +31587,10 @@ export const CATALOG_COMMANDS = [
      }
     },
     "next_cursor": {
-     "type": "string"
+     "type": [
+      "string",
+      "null"
+     ]
     },
     "has_more": {
      "type": "boolean"
@@ -20119,13 +31635,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "from": {
      "type": "string",
      "format": "date-time",
      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
-     "description": "The from value; allowed values and bounds are specified in this schema."
+     "description": "from; see schema."
     }
    },
    "required": [
@@ -20247,6 +31763,404 @@ export const CATALOG_COMMANDS = [
   }
  },
  {
+  "name": "get_link_summary",
+  "toolset": "reports",
+  "tier": "deferred",
+  "aliases": [],
+  "keywords": [
+   "link summary",
+   "missing count",
+   "how many links",
+   "live links",
+   "lost links",
+   "found links",
+   "website counts"
+  ],
+  "admissionGated": false,
+  "scopes": [
+   "watches:read"
+  ],
+  "readOnly": true,
+  "description": "Read per-website link counts by status (live, missing, couldn't check, paused, not checked yet), last checked, and links found, back and lost over the last 1-90 days (found includes the links that came back; back counts those alone). The same numbers the console shows on Home, Reports and the website picker.",
+  "examples": [
+   {
+    "projectId": "prj_example",
+    "days": 30
+   }
+  ],
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "projectId": {
+     "description": "project ID from create/list.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "days": {
+     "description": "days; see schema.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 90
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "schema_version": {
+     "type": "number",
+     "const": 1
+    },
+    "workspace_id": {
+     "type": "string"
+    },
+    "project_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "as_of": {
+     "type": "string"
+    },
+    "period": {
+     "type": "object",
+     "properties": {
+      "days": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 90
+      },
+      "from": {
+       "type": "string"
+      },
+      "to": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "days",
+      "from",
+      "to"
+     ],
+     "additionalProperties": {}
+    },
+    "totals": {
+     "type": "object",
+     "properties": {
+      "links": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "live": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "missing": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "couldnt_check": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "paused": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "not_checked_yet": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "last_checked_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "latest_check_at": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "found": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "back": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "lost": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "went_missing": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "links",
+      "live",
+      "missing",
+      "couldnt_check",
+      "paused",
+      "not_checked_yet",
+      "last_checked_at",
+      "found",
+      "lost"
+     ],
+     "additionalProperties": {}
+    },
+    "websites": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "project_id": {
+        "type": "string"
+       },
+       "domain": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "name": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "links": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "live": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "missing": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "couldnt_check": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "paused": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "not_checked_yet": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "last_checked_at": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "latest_check_at": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "found": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "back": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "lost": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "went_missing": {
+        "anyOf": [
+         {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [
+       "project_id",
+       "domain",
+       "name",
+       "links",
+       "live",
+       "missing",
+       "couldnt_check",
+       "paused",
+       "not_checked_yet",
+       "last_checked_at",
+       "found",
+       "lost"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "websites_truncated": {
+     "type": "boolean"
+    },
+    "daily": {
+     "anyOf": [
+      {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "day": {
+          "type": "string"
+         },
+         "found": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "back": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "lost": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         },
+         "went_missing": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+         }
+        },
+        "required": [
+         "day",
+         "found",
+         "lost"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "changes_complete": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "statuses": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "schema_version",
+    "workspace_id",
+    "project_id",
+    "as_of",
+    "period",
+    "totals",
+    "websites",
+    "websites_truncated",
+    "daily",
+    "changes_complete",
+    "statuses"
+   ],
+   "additionalProperties": {}
+  }
+ },
+ {
   "name": "export_link_watches",
   "toolset": "monitoring",
   "tier": "deferred",
@@ -20257,42 +32171,191 @@ export const CATALOG_COMMANDS = [
    "exports:create"
   ],
   "readOnly": true,
-  "description": "Export monitored placements with pagination for local CRM recovery.",
+  "description": "Export monitored links with the same category filters and evidence fields as detailed list results. Page-assessment evidence also requires watches:read.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Saved-record text filter; no discovery.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
-    "q": {
-     "description": "Text filter applied to saved records; does not start discovery.",
-     "type": "string",
-     "maxLength": 500
-    },
     "state": {
-     "description": "Requested resource state or saved-observation filter, as enumerated here.",
+     "description": "Resource state or saved-observation filter.",
      "type": "string"
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "active",
       "paused"
+     ]
+    },
+    "archived": {
+     "description": "exclude hides removed links; only lists removed links; include returns both.",
+     "type": "string",
+     "enum": [
+      "exclude",
+      "only",
+      "include"
+     ]
+    },
+    "disavowed": {
+     "description": "disavowed; see schema.",
+     "type": "string",
+     "enum": [
+      "yes",
+      "suggested",
+      "no"
+     ]
+    },
+    "disavowRule": {
+     "description": "disavow rule; see schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "type": {
+     "description": "Legacy saved type, including model cache. Use category for displayed type.",
+     "type": "string",
+     "maxLength": 64
+    },
+    "tag": {
+     "description": "tag; see schema.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "category": {
+     "description": "none=unknown or deliberately cleared; mixed=multiple assessed page roles.",
+     "type": "string",
+     "enum": [
+      "contextual_citation",
+      "guest_post",
+      "recommendation",
+      "resource_entry",
+      "technical_reference",
+      "directory_entry",
+      "profile_website",
+      "author_attribution",
+      "discussion_contribution",
+      "navigation_template",
+      "badge_embed_attribution",
+      "partner_sponsor",
+      "other",
+      "none",
+      "mixed",
+      "cleared"
+     ]
+    },
+    "categoryScope": {
+     "description": "shown (default)=displayed category; page_role=any assessed occurrence role.",
+     "type": "string",
+     "enum": [
+      "shown",
+      "page_role"
+     ]
+    },
+    "assessmentScope": {
+     "description": "current (default) excludes previous assessments; previous selects them.",
+     "type": "string",
+     "enum": [
+      "current",
+      "previous"
+     ]
+    },
+    "categoryState": {
+     "description": "Reason/coverage state; combines with category.",
+     "type": "string",
+     "enum": [
+      "cleared",
+      "not_started",
+      "pending",
+      "classifier_unavailable",
+      "classifier_failed",
+      "page_unavailable",
+      "partial",
+      "previous"
      ]
     }
    },
@@ -20306,7 +32369,758 @@ export const CATALOG_COMMANDS = [
      "type": "array",
      "items": {
       "type": "object",
-      "properties": {},
+      "properties": {
+       "category_contract": {
+        "description": "Version of the shared table, API and export category projection.",
+        "type": "string",
+        "const": "link-category-v1"
+       },
+       "chosen_category": {
+        "description": "The team category and recorded author. Cleared keeps the type empty; automatic permits the page assessment to supply the displayed category. Neither action reviews or starts AI work.",
+        "type": "object",
+        "properties": {
+         "intent": {
+          "type": "string",
+          "enum": [
+           "chosen",
+           "cleared",
+           "automatic"
+          ]
+         },
+         "id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "enum": [
+             "contextual_citation",
+             "guest_post",
+             "recommendation",
+             "resource_entry",
+             "technical_reference",
+             "directory_entry",
+             "profile_website",
+             "author_attribution",
+             "discussion_contribution",
+             "navigation_template",
+             "badge_embed_attribution",
+             "partner_sponsor",
+             "other"
+            ]
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "name": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "standard_name": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "actor_id": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "recorded_at": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Saved label revision; pass as revision to set_link_type. Required for intent=automatic."
+         },
+         "deliberate_clear": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "intent",
+         "id",
+         "name",
+         "standard_name",
+         "actor_id",
+         "recorded_at",
+         "revision",
+         "deliberate_clear"
+        ],
+        "additionalProperties": {}
+       },
+       "page_assessment": {
+        "description": "What retained page evidence says about link occurrences. Applicability separates current, previous, expired and unavailable evidence. Suggested is provisional; accepted_manual requires a recorded review; accepted_auto requires a qualified saved policy.",
+        "type": "object",
+        "properties": {
+         "status": {
+          "type": "string",
+          "enum": [
+           "ready",
+           "unavailable"
+          ]
+         },
+         "reason": {
+          "type": "string"
+         },
+         "read_reason": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "explanation": {
+          "type": "string"
+         },
+         "applicability": {
+          "type": "string"
+         },
+         "binding": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "workspaceId": {
+              "type": "string"
+             },
+             "projectId": {
+              "type": "string"
+             },
+             "watchId": {
+              "type": "string"
+             }
+            },
+            "required": [
+             "workspaceId",
+             "projectId",
+             "watchId"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "capture": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "string"
+             },
+             "manifest_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observation_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observed_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "expires_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             }
+            },
+            "required": [
+             "id",
+             "manifest_id",
+             "observation_id",
+             "observed_at",
+             "expires_at"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "source": {
+          "anyOf": [
+           {
+            "type": "object",
+            "properties": {
+             "state": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observed_at": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "observation_id": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "pageUnavailable": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "state",
+             "observed_at",
+             "observation_id",
+             "pageUnavailable"
+            ],
+            "additionalProperties": {}
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "assessed_at": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "revision": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Highest retained eligible occurrence decision or review revision, or null. Evidence provenance, not a write token."
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "model_revisions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "model": {
+             "type": "string"
+            },
+            "revision": {
+             "anyOf": [
+              {
+               "type": "string",
+               "description": "Recorded model version or revision, or null. Evidence provenance, not a write token."
+              },
+              {
+               "type": "null"
+              }
+             ]
+            }
+           },
+           "required": [
+            "model",
+            "revision"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "policy_revisions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "taxonomy_version": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "rubric_version": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "policy_revision": {
+             "description": "Recorded policy revision as a string or number, or null. Evidence provenance, not a write token.",
+             "type": [
+              "string",
+              "number",
+              "null"
+             ]
+            }
+           },
+           "required": [
+            "taxonomy_version",
+            "rubric_version",
+            "policy_revision"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "roles": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string",
+             "enum": [
+              "contextual_citation",
+              "guest_post",
+              "recommendation",
+              "resource_entry",
+              "technical_reference",
+              "directory_entry",
+              "profile_website",
+              "author_attribution",
+              "discussion_contribution",
+              "navigation_template",
+              "badge_embed_attribution",
+              "partner_sponsor",
+              "other"
+             ]
+            },
+            "name": {
+             "type": "string"
+            },
+            "standard_name": {
+             "type": "string"
+            },
+            "count": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 9007199254740991
+            },
+            "states": {
+             "type": "object",
+             "properties": {
+              "suggested": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "accepted_manual": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              },
+              "accepted_auto": {
+               "type": "integer",
+               "minimum": 0,
+               "maximum": 9007199254740991
+              }
+             },
+             "required": [
+              "suggested",
+              "accepted_manual",
+              "accepted_auto"
+             ],
+             "additionalProperties": {}
+            }
+           },
+           "required": [
+            "id",
+            "name",
+            "standard_name",
+            "count",
+            "states"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "decision_state": {
+          "type": "string",
+          "enum": [
+           "suggested",
+           "accepted_manual",
+           "accepted_auto",
+           "mixed",
+           "none"
+          ]
+         },
+         "mixed": {
+          "type": "boolean"
+         },
+         "coverage": {
+          "type": "object",
+          "properties": {
+           "assessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "classified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "eligible": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "retained": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "excluded": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unassessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unclassified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "partial": {
+            "type": [
+             "boolean",
+             "null"
+            ]
+           }
+          },
+          "required": [
+           "assessed",
+           "classified",
+           "eligible",
+           "retained",
+           "excluded",
+           "unassessed",
+           "unclassified",
+           "partial"
+          ],
+          "additionalProperties": {},
+          "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+         },
+         "pending_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "failed_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "job_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "review_required_count": {
+          "anyOf": [
+           {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "status",
+         "reason",
+         "read_reason",
+         "explanation",
+         "applicability",
+         "binding",
+         "capture",
+         "source",
+         "assessed_at",
+         "revision",
+         "model_revisions",
+         "policy_revisions",
+         "roles",
+         "decision_state",
+         "mixed",
+         "coverage",
+         "pending_count",
+         "failed_count",
+         "job_count",
+         "review_required_count"
+        ],
+        "additionalProperties": {}
+       },
+       "display_category": {
+        "description": "The category shown in the everyday table. A deliberate team choice takes precedence. Otherwise page evidence supplies a category or Mixed types, with its evidence state. Read the reason when no category is available.",
+        "type": "object",
+        "properties": {
+         "source": {
+          "type": "string",
+          "enum": [
+           "chosen",
+           "page_assessment",
+           "none"
+          ]
+         },
+         "kind": {
+          "type": "string",
+          "enum": [
+           "category",
+           "mixed",
+           "cleared",
+           "unknown"
+          ]
+         },
+         "id": {
+          "anyOf": [
+           {
+            "type": "string",
+            "enum": [
+             "contextual_citation",
+             "guest_post",
+             "recommendation",
+             "resource_entry",
+             "technical_reference",
+             "directory_entry",
+             "profile_website",
+             "author_attribution",
+             "discussion_contribution",
+             "navigation_template",
+             "badge_embed_attribution",
+             "partner_sponsor",
+             "other"
+            ]
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "name": {
+          "type": "string"
+         },
+         "state": {
+          "type": "string"
+         },
+         "reason": {
+          "type": "string"
+         },
+         "applicability": {
+          "type": "string"
+         },
+         "coverage": {
+          "type": "object",
+          "properties": {
+           "assessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "classified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "eligible": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "retained": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "excluded": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unassessed": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "unclassified": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "partial": {
+            "type": [
+             "boolean",
+             "null"
+            ]
+           }
+          },
+          "required": [
+           "assessed",
+           "classified",
+           "eligible",
+           "retained",
+           "excluded",
+           "unassessed",
+           "unclassified",
+           "partial"
+          ],
+          "additionalProperties": {},
+          "description": "Occurrence counts for this watch. Null means unavailable. Assessed counts completed evaluations, including inconclusive ones. Classified counts occurrences with a determined role; partial describes type coverage. Retained includes excluded occurrences. Counts do not represent separate watched links."
+         }
+        },
+        "required": [
+         "source",
+         "kind",
+         "id",
+         "name",
+         "state",
+         "reason",
+         "applicability",
+         "coverage"
+        ],
+        "additionalProperties": {}
+       }
+      },
       "additionalProperties": {}
      }
     },
@@ -20340,13 +33154,13 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "all",
@@ -20355,7 +33169,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -20387,13 +33201,13 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "all",
@@ -20402,7 +33216,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
@@ -20434,33 +33248,95 @@ export const CATALOG_COMMANDS = [
    "type": "object",
    "properties": {
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Saved-record text filter; no discovery.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "projectId": {
-     "description": "Identifier of the project returned by its create or list operation.",
+     "description": "project ID from create/list.",
      "type": "string",
      "minLength": 1,
      "maxLength": 200
     },
-    "q": {
-     "description": "Text filter applied to saved records; does not start discovery.",
-     "type": "string",
-     "maxLength": 500
-    },
     "state": {
-     "description": "Requested resource state or saved-observation filter, as enumerated here.",
+     "description": "Resource state or saved-observation filter.",
      "type": "string",
      "maxLength": 40
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "active",
@@ -20468,7 +33344,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -20523,7 +33399,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the target returned by its create or list operation."
+     "description": "target ID from create/list."
     }
    },
    "required": [
@@ -20596,7 +33472,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "url": {
      "type": "string",
@@ -20604,7 +33480,7 @@ export const CATALOG_COMMANDS = [
      "description": "Public HTTPS endpoint or destination URL required by this operation."
     },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
@@ -20644,10 +33520,10 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the target returned by its create or list operation."
+     "description": "target ID from create/list."
     },
     "status": {
-     "description": "Lifecycle status filter or requested status; this is separate from observation state.",
+     "description": "Lifecycle status, separate from observed state.",
      "type": "string",
      "enum": [
       "active",
@@ -20655,7 +33531,7 @@ export const CATALOG_COMMANDS = [
      ]
     },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
@@ -20697,20 +33573,87 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the target returned by its create or list operation."
+     "description": "target ID from create/list."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
     "format": {
-     "description": "Response shape: concise keeps the fields needed to decide and to call next (the evidence state always included); detailed returns every field. MCP and code mode default to concise; REST and the CLI to detailed. The response names the default it applied in defaults_applied.",
+     "description": "Concise: decisions/next calls/evidence states; detailed: all. MCP/code default concise, REST/CLI detailed; defaults_applied records defaults.",
      "type": "string",
      "enum": [
       "concise",
@@ -20755,26 +33698,26 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "enabled": {
      "type": "boolean",
-     "description": "The enabled value; allowed values and bounds are specified in this schema."
+     "description": "enabled; see schema."
     },
     "dailyLimit": {
-     "description": "The daily limit value; allowed values and bounds are specified in this schema.",
+     "description": "daily limit; see schema.",
      "type": "integer",
      "minimum": 1,
      "maximum": 2000
     },
     "retentionDays": {
-     "description": "The retention days value; allowed values and bounds are specified in this schema.",
+     "description": "retention days; see schema.",
      "type": "integer",
      "minimum": 1,
      "maximum": 90
     },
     "cadenceSeconds": {
-     "description": "Scheduled check interval in seconds, from 3600 to 2592000.",
+     "description": "Check interval: 3600 to 2592000 seconds.",
      "type": "integer",
      "minimum": 3600,
      "maximum": 2592000
@@ -20852,7 +33795,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -20927,13 +33870,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the connection returned by its create or list operation."
+     "description": "connection ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "idempotencyKey": {
      "type": "string",
@@ -21126,41 +34069,41 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "enabled": {
      "type": "boolean",
-     "description": "The enabled value; allowed values and bounds are specified in this schema."
+     "description": "enabled; see schema."
     },
     "locationCode": {
      "type": "number",
      "const": 2840,
-     "description": "The location code value; allowed values and bounds are specified in this schema."
+     "description": "location code; see schema."
     },
     "language": {
      "type": "string",
      "const": "en",
-     "description": "The language value; allowed values and bounds are specified in this schema."
+     "description": "language; see schema."
     },
     "country": {
      "type": "string",
      "const": "US",
-     "description": "The country value; allowed values and bounds are specified in this schema."
+     "description": "country; see schema."
     },
     "dailyLimit": {
-     "description": "The daily limit value; allowed values and bounds are specified in this schema.",
+     "description": "daily limit; see schema.",
      "type": "integer",
      "minimum": 1,
      "maximum": 1000
     },
     "retentionDays": {
-     "description": "The retention days value; allowed values and bounds are specified in this schema.",
+     "description": "retention days; see schema.",
      "type": "integer",
      "minimum": 1,
      "maximum": 90
     },
     "expectedRevision": {
-     "description": "Revision last read by the caller; mismatches reject concurrent updates.",
+     "description": "Previously read revision; mismatches reject concurrent updates.",
      "anyOf": [
       {
        "type": "integer",
@@ -21293,7 +34236,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -21412,13 +34355,13 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "idempotencyKey": {
      "type": "string",
@@ -21748,19 +34691,19 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "requestId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the request returned by its create or list operation."
+     "description": "request ID from create/list."
     }
    },
    "required": [
@@ -22085,19 +35028,19 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "requestId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the request returned by its create or list operation."
+     "description": "request ID from create/list."
     }
    },
    "required": [
@@ -22422,25 +35365,25 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "requestId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the request returned by its create or list operation."
+     "description": "request ID from create/list."
     },
     "receiptReference": {
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "The receipt reference value; allowed values and bounds are specified in this schema."
+     "description": "receipt reference; see schema."
     }
    },
    "required": [
@@ -22771,21 +35714,21 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
+     "description": "Opaque list cursor; omit initially.",
      "type": "string",
      "maxLength": 12000
     },
     "streams": {
-     "description": "The streams value; allowed values and bounds are specified in this schema.",
+     "description": "streams; see schema.",
      "minItems": 1,
      "maxItems": 8,
      "type": "array",
@@ -23221,7 +36164,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -25347,26 +38290,97 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
     "projectId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "beforeId": {
-     "description": "Identifier of the before returned by its create or list operation.",
+     "description": "before ID from create/list.",
      "type": "string",
      "pattern": "^[a-f0-9]{64}$"
     }
@@ -25503,7 +38517,8 @@ export const CATALOG_COMMANDS = [
      "anyOf": [
       {
        "type": "string",
-       "pattern": "^[a-f0-9]{64}$"
+       "minLength": 1,
+       "maxLength": 16384
       },
       {
        "type": "null"
@@ -25647,18 +38662,18 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "receiptId": {
      "type": "string",
      "pattern": "^[a-f0-9]{64}$",
-     "description": "Identifier of the receipt returned by its create or list operation."
+     "description": "receipt ID from create/list."
     }
    },
    "required": [
@@ -25820,26 +38835,97 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "cursor": {
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
+    },
     "projectId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     },
     "watchId": {
      "type": "string",
      "minLength": 1,
      "maxLength": 256,
-     "description": "Identifier of the watch returned by its create or list operation."
+     "description": "watch ID from create/list."
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
     },
     "beforeId": {
-     "description": "Identifier of the before returned by its create or list operation.",
+     "description": "before ID from create/list.",
      "type": "string",
      "pattern": "^[a-f0-9]{64}$"
     }
@@ -25925,7 +39011,8 @@ export const CATALOG_COMMANDS = [
      "anyOf": [
       {
        "type": "string",
-       "pattern": "^[a-f0-9]{64}$"
+       "minLength": 1,
+       "maxLength": 16384
       },
       {
        "type": "null"
@@ -25962,7 +39049,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the project returned by its create or list operation."
+     "description": "project ID from create/list."
     }
    },
    "required": [
@@ -26121,7 +39208,7 @@ export const CATALOG_COMMANDS = [
    "discovery:read"
   ],
   "readOnly": true,
-  "description": "Read dated provider rows for one connection. Coverage and provider identity remain explicit. Missing rows do not prove lost backlinks.",
+  "description": "Read dated rows and coverage for one provider connection. Missing rows do not prove lost backlinks.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -26130,17 +39217,95 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the connection returned by its create or list operation."
+     "description": "connection ID from create/list."
     },
     "cursor": {
-     "description": "Opaque continuation returned by this same listing; omit for the first page.",
-     "type": "string"
+     "description": "Opaque list cursor; omit initially.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 16384
     },
     "limit": {
-     "description": "Maximum rows in this page or bounded report; subject to the schema maximum.",
+     "description": "Page/report row cap; see bounds.",
      "type": "integer",
      "minimum": 1,
      "maximum": 100
+    },
+    "browse": {
+     "description": "Server-sorted authorized saved rows; omit for legacy paging.",
+     "type": "boolean"
+    },
+    "sort": {
+     "description": "Allowlisted saved-field identifier.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    },
+    "order": {
+     "description": "Sort direction; stable ID ties, nulls last.",
+     "type": "string",
+     "enum": [
+      "asc",
+      "desc"
+     ]
+    },
+    "q": {
+     "description": "Literal search of supported saved fields.",
+     "type": "string",
+     "maxLength": 500
+    },
+    "table_filters": {
+     "description": "Up to 12 allowlisted column filters before paging.",
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 8192
+      },
+      {
+       "maxItems": 12,
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "column": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "contains",
+           "is",
+           "is_not",
+           "empty"
+          ]
+         },
+         "value": {
+          "type": "string",
+          "maxLength": 500
+         }
+        },
+        "required": [
+         "column",
+         "operator",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     ]
+    },
+    "snapshotId": {
+     "description": "snapshot ID from create/list.",
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "capturedAt": {
+     "description": "captured at; see schema.",
+     "type": "string",
+     "maxLength": 100
     }
    },
    "required": [
@@ -26152,6 +39317,82 @@ export const CATALOG_COMMANDS = [
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
    "properties": {
+    "total": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "next_cursor": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 16384
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "page": {
+     "type": "object",
+     "properties": {
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "type": "string"
+      },
+      "order": {
+       "type": "string",
+       "enum": [
+        "asc",
+        "desc"
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9007199254740991
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "query_scope": {
+       "type": "string",
+       "const": "server_dataset"
+      },
+      "nulls": {
+       "type": "string",
+       "const": "last"
+      }
+     },
+     "required": [
+      "limit",
+      "sort",
+      "order",
+      "total",
+      "query_scope",
+      "nulls"
+     ],
+     "additionalProperties": false
+    },
     "connection": {
      "type": "object",
      "properties": {
@@ -26392,10 +39633,10 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the connection returned by its create or list operation."
+     "description": "connection ID from create/list."
     },
     "continue": {
-     "description": "The continue value; allowed values and bounds are specified in this schema.",
+     "description": "continue; see schema.",
      "type": "boolean"
     }
    },
@@ -26527,7 +39768,7 @@ export const CATALOG_COMMANDS = [
    "discovery:write"
   ],
   "readOnly": false,
-  "description": "Import selected saved Bing backlink rows as unchecked discovery candidates. Keep the same request key when retrying. Review and verify candidates before monitoring.",
+  "description": "Import selected saved Bing rows as unchecked candidates; retry the same key. Review and verify before monitoring.",
   "inputSchema": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -26536,7 +39777,7 @@ export const CATALOG_COMMANDS = [
      "type": "string",
      "minLength": 1,
      "maxLength": 200,
-     "description": "Identifier of the connection returned by its create or list operation."
+     "description": "connection ID from create/list."
     },
     "rowIds": {
      "minItems": 1,
@@ -26547,7 +39788,7 @@ export const CATALOG_COMMANDS = [
       "minLength": 1,
       "maxLength": 200
      },
-     "description": "The row ids value; allowed values and bounds are specified in this schema."
+     "description": "row ids; see schema."
     },
     "idempotencyKey": {
      "type": "string",

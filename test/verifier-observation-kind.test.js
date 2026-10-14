@@ -143,8 +143,13 @@ test('delayed publication: absence is the truthful internal alarm, and landing i
   // absent — the loss clock does not advance on a page we could not read.
   document = '<html><head><title>Just a moment...</title></head><body>Checking your browser.</body></html>';
   state = transitionState(state, await run('2026-09-12T12:05:00.000Z'));
-  assert.equal(state.state, 'suspected_missing');
+  assert.equal(state.state, 'unknown');
   assert.equal(state.absentCount, 1);
+  assert.equal(state.firstAbsentAt, '2026-09-12T12:00:00.000Z');
+  assert.equal(state.confirmedState, null, 'one clean miss is not a historical confirmation');
+  assert.equal(state.lastSuccessfulObservation.state, 'absent');
+  assert.equal(state.lastSuccessfulObservation.checkedAt, '2026-09-12T12:00:00.000Z');
+  assert.equal(state.event, null, 'an unreadable page cannot create a loss event');
   assert.equal(state.uncertain, true);
 
   // 12:40: the deploy lands. Present, acquired, dated by the OBSERVATION, not the claim.
@@ -183,7 +188,8 @@ test('a blocked page after a verified internal placement preserves the last succ
   );
   const live = transitionState(null, await run(`<p>Read the <a href="${INTERNAL_TARGET}">outreach guide</a>.</p>`, '2026-09-12T12:00:00.000Z'));
   const blocked = transitionState(live, await run('<html><body><form><input type="password" name="pw"></form><p>Sign in to continue.</p></body></html>', '2026-09-12T12:50:00.000Z'));
-  assert.equal(blocked.state, 'present');
+  assert.equal(blocked.state, 'unknown');
+  assert.equal(blocked.confirmedState, 'present');
   assert.equal(blocked.latestAttempt.state, 'unknown');
   assert.equal(blocked.latestAttempt.reason, 'possible_login_wall');
   assert.equal(blocked.lastSuccessfulObservation.state, 'present');

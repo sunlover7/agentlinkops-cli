@@ -17,13 +17,15 @@ import { parseArgs } from "./args.js";
 import { ConfigError } from "./config.js";
 import { AGENT_CLIENTS, clientById } from "../shared/agent-clients.js";
 import { NUDGE } from "./skill.js";
+import { STORED_KEY } from "./key-store.js";
 
 // DP-0036-T09: `agentlinkops agent setup` (Stripe's `stripe agent setup` shape). It detects the
 // agent clients on this machine, installs the skill pack at each client's path with digest
 // verification, and writes the MCP entry for the view that client should use, from the one
-// client table in shared/agent-clients.js. It stores no credential: OAuth happens in the
-// client. It is idempotent, never overwrites a file it did not write, and prints exactly what
-// changed. `agent status` reports what is installed without touching anything.
+// client table in shared/agent-clients.js. It stores no credential itself: OAuth happens in the
+// client, and on a terminal the caller may offer to connect the CLI too (connectCli), which saves
+// a pasted key outside the repository. It is idempotent, never overwrites a file it did not write,
+// and prints exactly what changed. `agent status` reports what is installed without touching anything.
 const USAGE =
   "agent setup [--client ID ...] [--scope project|user] [--origin URL] [--pack DIR] [--skill ID ...] [--recipe ID ...] [--all-skills] [--dry-run] [--json] | agent status [--json] | agent remove [--skill ID ...] [--recipe ID ...] [--scope project|user] [--apply] [--json] | agent recover [--scope project|user] [--apply] [--json]";
 export const DEFAULT_ORIGIN = "https://app.agentlinkops.com";
@@ -900,6 +902,7 @@ export async function agentMain(
     packDir = null,
     now = () => new Date().toISOString(),
     afterOperation,
+    connectCli = null,
   } = {},
 ) {
   const args = parseArgs(argv, ["client", "skill", "recipe"]);
@@ -1235,14 +1238,30 @@ export async function agentMain(
       if (c.mcp.action === "planned") c.mcp.action = "not applied";
     }
   }
+  if (!conflicts) {
+    // The plain next step: where the sign-in happens, then where to approve it.
+    for (const c of report.clients)
+      report.next.push(c.id === "claude-code"
+        ? `Claude Code: open it${scope === "project" ? " in this folder" : ""}, run /mcp, select ${SERVER_NAME} and choose Authenticate.`
+        : `${c.name}: sign in when it first connects to ${SERVER_NAME}; the client opens the sign-in page.`);
+    report.next.push(`Then approve the agent's request on the Agent page: ${origin}/#/access`);
+  }
+  const offerCli = !json && !report.dryRun && !conflicts && typeof connectCli === "function";
   report.next.push(
-    "For a chosen hosted task, sign in through the client's MCP OAuth flow. Local supplied-link checks require no AgentLinkOps account; no credential was stored by this command.",
+    `For a chosen hosted task, sign in through the client's MCP OAuth flow. Local supplied-link checks require no AgentLinkOps account; ${offerCli
+      ? "this command stores a credential only if you paste a CLI key below."
+      : "no credential was stored by this command."}`,
   );
+  const cliReady = ["AGENTLINKOPS_API_KEY", "AGENTLINKOPS_TOKEN", "LINKTRAIL_API_KEY", "LINKTRAIL_TOKEN"].some((name) => env[name]) ||
+    !!env[STORED_KEY]?.(origin);
+  if (!cliReady && !offerCli)
+    report.next.push(`To use the agentlinkops CLI too, run \`npx -y agentlinkops connect\` in a terminal and paste an API key from ${origin}/#/access.`);
   if (report.retainedExisting.length)
     report.next.push("Earlier payloads outside this selection were retained. Preview agent remove --skill ID or --recipe ID to remove them explicitly.");
   report.next.push("Optional skills and recipes: agent setup --skill ID or --recipe ID; --all-skills installs the complete pack.");
   report.next.push(NUDGE);
   out(json ? JSON.stringify(report, null, 2) : renderSetup(report));
+  if (offerCli) await connectCli(origin);
   return report.clients.some(
     (c) => c.skills.conflicts.length || c.mcp.action === "conflict",
   )

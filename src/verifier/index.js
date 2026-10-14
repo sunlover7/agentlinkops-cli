@@ -1,8 +1,11 @@
-import { validatePublicUrl, matchesTarget } from './url.js';
+import { validatePublicUrl, matchesTarget, hasRedirectWrapperToTarget } from './url.js';
 import { parseDocument, pageDirectives } from './parser.js';
 import { publicFetcher, VerificationError } from './fetch.js';
-import { assessReadiness } from './readiness.js';
+import {withAbort} from '../page-acquisition/bytes.js';
+import { analyzeReadiness, isAccessChallenge } from './readiness.js';
 import { nativeRenderEvidence } from './render-evidence.js';
+import {capturedDocument} from '../page-acquisition/capture.js';
+import {readRenderFailure} from '../page-acquisition/render-failure.js';
 
 export { validatePublicUrl } from './url.js';
 export { parseLinks } from './parser.js';
@@ -10,19 +13,32 @@ export { transitionState } from './transition.js';
 export { checkObservationKind, normalizeDeclaredSite, withinDeclaredSite } from './observation-kind.js';
 
 export const CHECKER_VERSION = '4';
+export function unknownLinkObservation({sourceUrl,targetUrl,targetScope='exact'},{now,reason='timeout'}={}){
+  return {state:'unknown',reason,sourceUrl,finalUrl:sourceUrl,targetUrl,targetScope,httpStatus:null,checkedAt:timestamp(now),occurrences:[],
+    directives:pageDirectives([],''),redirects:[],evidence:{method:'http_html',checkerVersion:CHECKER_VERSION,complete:false,fetchedAt:null}};
+}
 const sharedDocument = Symbol('sharedDocument');
 const suppliedDocument = Symbol('suppliedDocument');
+const suppliedInitial = Symbol('suppliedInitial');
+const forceRender = Symbol('forceRender');
 
 const RENDER_REASONS = new Set(['possible_render_required', 'navigation_requires_browser']);
 
 /** Optional adaptive lane. The default remains one bounded HTTP observation. */
 export async function verifyLink(input, options = {}) {
-  const initial = await verifyHttpLink(input, options);
-  const eligible = RENDER_REASONS.has(initial.reason)
+  const initial = options[suppliedInitial] ?? await verifyHttpLink(input, options);
+  const eligible = options[forceRender] === true || RENDER_REASONS.has(initial.reason)
     || (options.compareRendered === true && ['absent', 'present'].includes(initial.state));
   if (!eligible) return initial;
   initial.evidence.renderEligibility = RENDER_REASONS.has(initial.reason) ? 'required' : 'comparison';
-  if (!options.renderPage) return initial;
+  if (initial.robotsHistory?.some(row=>row?.overrideUsed===true)) {
+    initial.evidence.renderAttempt = { attempted:false, reason:'monitor_robots_override_fetch_limit' };
+    return initial;
+  }
+  if (!options.renderPage) {
+    initial.evidence.renderAttempt={attempted:false,reason:'render_not_configured'};
+    return initial;
+  }
   if (options.renderPage.publicFetchSafe !== true || options.renderPage.requiresNavigationAuthorization !== true) {
     initial.evidence.renderAttempt = { attempted: false, reason: 'render_public_fetch_not_configured' };
     return initial;
@@ -30,26 +46,32 @@ export async function verifyLink(input, options = {}) {
   // Grouping shares only acquisition. Target scope, expectations and comparison remain independent.
   const shared = options[sharedDocument];
   const render = async () => {
+    if(options.signal?.aborted||(Number.isFinite(options.deadlineAt)&&options.deadlineAt<=Date.now()))return {error:'render_timeout'};
     const controller = new AbortController();
-    const timeout = Math.min(Math.max(options.renderTimeoutMs ?? 20_000, 1), 20_000);
+    const ownerAbort=()=>controller.abort();
+    options.signal?.addEventListener('abort',ownerAbort,{once:true});
+    const timeout = Math.min(Math.max(options.renderTimeoutMs ?? 20_000, 1), 20_000,
+      options.deadlineAt ? Math.max(1,options.deadlineAt-Date.now()) : 20_000);
     let timer;
     try {
       const deadline = new Promise((_, reject) => {
         timer = setTimeout(() => { controller.abort(); reject(new VerificationError('render_timeout')); }, timeout);
       });
       return { value: await Promise.race([
-        Promise.resolve().then(() => options.renderPage({ sourceUrl: initial.sourceUrl }, { signal: controller.signal })),
+        withAbort(Promise.resolve().then(() => options.renderPage({ sourceUrl: initial.sourceUrl }, { signal: controller.signal,deadlineAt:options.deadlineAt })),controller.signal),
         deadline,
       ]) };
     } catch (error) {
       // Provider exception messages can contain credentials or remote page text.
+      const failure = readRenderFailure(error);
       return { error: controller.signal.aborted ? 'render_timeout' : 'render_failed',
+        ...(failure ? {failure} : {}),
         ...(Number.isFinite(error?.retryAfterSeconds) && error.retryAfterSeconds >= 0 ? {retryAfterSeconds:Math.min(86400,Math.ceil(error.retryAfterSeconds))} : {}) };
-    } finally { clearTimeout(timer); controller.abort(); }
+    } finally { clearTimeout(timer); controller.abort(); options.signal?.removeEventListener('abort', ownerAbort); }
   };
   const acquired = shared ? await (shared.render ??= render()) : await render();
-  const fail = (reason) => {
-    initial.evidence.renderAttempt = { attempted: true, reason };
+  const fail = (reason, failure) => {
+    initial.evidence.renderAttempt = { attempted: true, reason, ...(failure ? {failure} : {}) };
     // A failed comparison cannot overrule an already observed anchor. Static absence,
     // however, cannot be promoted when the requested browser comparison did not finish.
     if (initial.state === 'absent') {
@@ -60,7 +82,7 @@ export async function verifyLink(input, options = {}) {
   };
   if (acquired.error) {
     if (acquired.retryAfterSeconds !== undefined) initial.retryAfterSeconds = acquired.retryAfterSeconds;
-    return fail(acquired.error);
+    return fail(acquired.error,acquired.failure);
   }
   const doc = acquired.value;
   if (!doc || typeof doc.html !== 'string' || !validatePublicUrl(doc.finalUrl).valid
@@ -88,7 +110,7 @@ export async function verifyLink(input, options = {}) {
   const data = new TextEncoder().encode(doc.html);
   if (data.length > Math.min(options.maxBytes ?? 2 * 1024 * 1024, 2 * 1024 * 1024)) return fail('render_body_too_large');
   const rendered = await verifyHttpLink(input, {
-    ...options, [sharedDocument]: undefined,
+    ...options, [sharedDocument]: shared ? (shared.renderedDocument ??= {}) : undefined,
     [suppliedDocument]: {
       metadata: { finalUrl: doc.finalUrl, httpStatus: doc.httpStatus, redirects },
       document: {
@@ -100,6 +122,9 @@ export async function verifyLink(input, options = {}) {
   rendered.evidence.method = 'browser_html';
   rendered.evidence.rendered = true;
   rendered.evidence.ready = doc.ready;
+  rendered.evidence.capture=capturedDocument(rendered,{requestedUrl:initial.sourceUrl,representation:'rendered_dom',
+    transportId:options.renderPage.transportId??'qualified_browser',transportVersion:options.renderPage.transportVersion??'1',
+    qualified:options.renderPage.publicFetchSafe===true&&!!nativeEvidence,charset:'utf-8'});
   if (nativeEvidence) {
     rendered.evidence.browser = nativeEvidence;
     if (nativeEvidence.retryAfterSeconds !== undefined && nativeEvidence.retryAfterSeconds !== null) rendered.retryAfterSeconds = nativeEvidence.retryAfterSeconds;
@@ -140,6 +165,15 @@ export async function verifyLinks(inputs, options = {}) {
   return results;
 }
 
+/** Evaluate one admitted browser acquisition without fetching the static page again. */
+export async function verifyRenderedLinks(inputs, initial, options = {}) {
+  if(!Array.isArray(initial)||initial.length!==inputs.length)throw new TypeError('Initial observations must bind the render inputs.');
+  const shared={};const results=[];
+  for(const [i,input] of inputs.entries())results.push(await verifyLink(input,{...options,
+    [sharedDocument]:shared,[suppliedInitial]:structuredClone(initial[i]),[forceRender]:true}));
+  return results;
+}
+
 async function sha256(bytes) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
     .map((value) => value.toString(16).padStart(2, '0')).join('');
@@ -170,11 +204,7 @@ function expectations(occurrences, expectedAnchor, expectedRel) {
  */
 async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', expectedAnchor, expectedRel }, options = {}) {
   const checkedAt = timestamp(options.now);
-  const result = {
-    state: 'unknown', reason: 'not_checked', sourceUrl, finalUrl: sourceUrl, targetUrl,
-    targetScope, httpStatus: null, checkedAt, occurrences: [], directives: pageDirectives([], ''),
-    redirects: [], evidence: { method: 'http_html', checkerVersion: CHECKER_VERSION, complete: false, fetchedAt: null },
-  };
+  const result = unknownLinkObservation({sourceUrl,targetUrl,targetScope},{now:checkedAt,reason:'not_checked'});
   const source = validatePublicUrl(sourceUrl);
   const target = validatePublicUrl(targetUrl);
   if (!source.valid || !target.valid) {
@@ -192,8 +222,14 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     result.reason = 'public_fetch_not_configured';
     return result;
   }
+  if (options.signal?.aborted || (Number.isFinite(options.deadlineAt) && options.deadlineAt <= Date.now())) {
+    result.reason = 'timeout'; return result;
+  }
   const controller = new AbortController();
-  const timeoutMs = Math.min(Math.max(options.timeoutMs ?? 20_000, 1), 20_000);
+  const ownerAbort = () => controller.abort();
+  options.signal?.addEventListener('abort', ownerAbort, { once: true });
+  const timeoutMs = Math.min(Math.max(Number.isFinite(options.timeoutMs) ? options.timeoutMs : 20_000, 1), 20_000,
+    options.deadlineAt ? Math.max(1,options.deadlineAt-Date.now()) : 20_000);
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const shared = options[sharedDocument];
@@ -211,6 +247,7 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     Object.assign(result, structuredClone(fetched.metadata));
     if (fetched.error) throw fetched.error;
     const { response, body } = fetched.document;
+    if (controller.signal.aborted || (Number.isFinite(options.deadlineAt) && Date.now() >= options.deadlineAt)) throw new VerificationError('timeout');
     result.evidence.fetchedAt = checkedAt;
     if ([404, 410].includes(response.status)) {
       result.state = 'source_unavailable';
@@ -224,6 +261,10 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     result.evidence.lastModified = response.headers.get('last-modified');
     // Preserve a replayable private artifact even when classification remains unknown.
     result.evidence.sha256 = await sha256(body.data);
+    result.evidence.decodedSha256 = await sha256(new TextEncoder().encode(body.text));
+    result.evidence.capture=capturedDocument(result,{requestedUrl:source.url,transportId:options.captureTransport?.id??'public_http',
+      transportVersion:options.captureTransport?.version??'1',qualified:options.publicFetchSafe===true,
+      charset:/charset\s*=\s*["']?([^\s;"']+)/iu.exec(response.headers.get('content-type')??'')?.[1]??'utf-8'});
     if (options.includeHtml !== false) result.evidence.html = body.text;
     if (!body.text.trim()) throw new VerificationError('empty_document');
     let parsed;
@@ -233,10 +274,11 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     if (robotsHeader?.length > 4096) throw new VerificationError('page_directive_too_long');
     result.directives = pageDirectives(parsed.meta, robotsHeader);
     if (parsed.incomplete) throw new VerificationError('incomplete_html', { parseErrors: parsed.parseErrors });
+    const { readiness, managedClientChallenge } = analyzeReadiness({ html: body.text, parsed, targetUrl: target.url });
+    result.evidence.readiness = readiness;
     // Strong, recognizable access-wall evidence. Generic references to captchas in
     // an article are deliberately insufficient to classify a document as blocked.
-    if (/^(?:just a moment(?:\.\.\.)?|access denied|attention required!?\s*(?:\|\s*cloudflare)?|verify (?:you are|you're) human)$/iu.test(parsed.title)
-      || parsed.hasChallengeScript) {
+    if (isAccessChallenge(parsed, { managedClientChallenge })) {
       throw new VerificationError('access_challenge');
     }
     // A URL that REDIRECTS into the placement's scope is not a page that links to the target:
@@ -262,19 +304,31 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     const from = canonicalPage(source.url);
     const to = canonicalPage(result.finalUrl);
     const samePage = from.path === to.path && sameSite(from.host, to.host);
-    if (result.redirects.length && !samePage && matchesTarget(result.finalUrl, target.url, targetScope)) {
+    // Landing on the target PAGE is the same failure even when the URL is not an exact scope
+    // match: a tracking query, trailing slash, scheme or www hop puts the reader on the
+    // destination, whose self-links then read as placements (DP-0004-T24 corpus v2).
+    // Host identity here is exact up to a leading `www.`: a parent/child host with the same
+    // path (blog.example.com/guide versus example.com/guide) is a different page, not the target.
+    const wanted = canonicalPage(target.url);
+    const bareHost = (host) => host.replace(/^www\./, '');
+    const landsOnTargetPage = to.path === wanted.path && bareHost(to.host) === bareHost(wanted.host);
+    if (result.redirects.length && !samePage
+      && (landsOnTargetPage || matchesTarget(result.finalUrl, target.url, targetScope))) {
       throw new VerificationError('source_redirects_to_target');
     }
     result.occurrences = parsed.links.filter((link) => matchesTarget(link.targetUrl, target.url, targetScope));
     if (new TextEncoder().encode(JSON.stringify(result.occurrences)).byteLength > 96 * 1024) throw new VerificationError('evidence_too_large');
     result.expectations = expectations(result.occurrences, expectedAnchor, expectedRel);
+    // A physical tracking link can name the target without proving its eventual
+    // destination. Preserve uncertainty until redirect identity is resolved.
+    if (!result.occurrences.length && hasRedirectWrapperToTarget(parsed.links, target.url, targetScope)) {
+      throw new VerificationError('target_in_redirect_parameter');
+    }
     // Meta refresh and a password form are access/navigation evidence, not proof of
     // absence. A server-rendered occurrence can still be positively observed.
     if (!result.occurrences.length && parsed.meta.some((item) => item.name === 'refresh')) {
       throw new VerificationError('navigation_requires_browser');
     }
-    const readiness = assessReadiness({ html: body.text, parsed, targetUrl: target.url });
-    result.evidence.readiness = readiness;
     if (!result.occurrences.length && readiness.possibleLoginWall) {
       throw new VerificationError('possible_login_wall');
     }
@@ -293,11 +347,14 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
       noindex: result.directives.noindex,
       nofollow: result.directives.nofollow,
     })));
+    if (controller.signal.aborted || (Number.isFinite(options.deadlineAt) && Date.now() >= options.deadlineAt)) throw new VerificationError('timeout');
     result.warnings = ['Static HTML observation; JavaScript execution and visual visibility were not checked.'];
     return result;
   } catch (error) {
     result.state = 'unknown';
     result.occurrences = [];
+    result.evidence.complete = false;
+    delete result.linkSignature;
     result.reason = error instanceof VerificationError ? error.reason : controller.signal.aborted ? 'timeout' : 'verification_error';
     // The same floor a destination check keeps. A publisher rate-limiting the SOURCE page is the
     // more common case of the two, since a source is fetched on a cadence and a destination is not.
@@ -307,5 +364,6 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
   } finally {
     clearTimeout(timer);
     controller.abort();
+    options.signal?.removeEventListener('abort', ownerAbort);
   }
 }

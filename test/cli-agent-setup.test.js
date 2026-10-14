@@ -1333,9 +1333,11 @@ async function maintainedRecipePack() {
   const sourcePresent = await stat(source).catch(() => null);
   const packDir = sourcePresent ? source : join(root, 'skills');
   // Writing stages are assembled from their maintained content sources; the raw
-  // product toolkit contains only the five product skills. Packaged tests use
-  // their own complete skills tree, without consulting the product checkout.
-  const assembledPackDir = sourcePresent ? join(root, 'dist', 'plugin', 'agentlinkops', 'skills') : packDir;
+  // product toolkit contains only the five product skills. The committed package's
+  // skills tree is that assembly (build-oss-package.test proves it equals a fresh
+  // build), so a checkout needs no earlier plugin build into dist/. Packaged tests
+  // use their own complete skills tree, without consulting the product checkout.
+  const assembledPackDir = sourcePresent ? join(root, 'packages', 'agentlinkops-cli', 'skills') : packDir;
   const recipesDir = join(packDir, '..', 'references', 'recipes');
   const catalog = JSON.parse(await readFile(join(recipesDir, 'catalog.json'), 'utf8'));
   return { packDir, assembledPackDir, recipesDir, catalog };
@@ -1526,4 +1528,32 @@ test('removing a maintained recipe and its optional skill leaves accountless che
   assert.equal(await readFile(join(recordDir, 'placements.csv'), 'utf8'), records);
   for (const path of ['.agentlinkops/config.json', '.agentlinkops/links.jsonl', '.agentlinkops/observations.jsonl', 'agentlinkops.sqlite', '.linktrail'])
     await absent(join(f.cwd, path));
+});
+
+// 2026-10-13 onboarding: setup ends with the plain next step (where to sign in, where to approve)
+// and, on a terminal, offers to connect the CLI as well; agents reading JSON get the command.
+test("setup names the sign-in and approval steps and offers the CLI only on a terminal", async (t) => {
+  const { home, cwd, pack } = await fixture(t);
+  const first = await run(["agent", "setup", "--client", "claude-code"], { cwd, home, packDir: pack });
+  assert.equal(first.code, 0, first.err || first.out);
+  assert.deepEqual(first.json.next.slice(0, 2), [
+    "Claude Code: open it in this folder, run /mcp, select agentlinkops and choose Authenticate.",
+    `Then approve the agent's request on the Agent page: ${DEFAULT_ORIGIN}/#/access`,
+  ]);
+  assert.ok(first.json.next.includes(`To use the agentlinkops CLI too, run \`npx -y agentlinkops connect\` in a terminal and paste an API key from ${DEFAULT_ORIGIN}/#/access.`));
+  const keyed = await run(["agent", "setup", "--client", "claude-code"], { cwd, home, packDir: pack, env: { AGENTLINKOPS_API_KEY: `lt_${"ab".repeat(32)}` } });
+  assert.ok(!keyed.json.next.some((line) => line.includes("agentlinkops connect")), "a CLI that already has a key is not sent to connect");
+  const order = [];
+  const code = await agentMain(["agent", "setup", "--client", "claude-code", "--all-skills"], {
+    cwd, home, packDir: pack, env: {}, isTTY: true, now: () => "2026-09-16T00:00:00Z",
+    out: (text) => order.push(text.startsWith("done:") ? "summary" : text), err: () => {},
+    connectCli: async (origin) => order.push(`connect CLI for ${origin}`),
+  });
+  assert.equal(code, 0);
+  assert.deepEqual(order, ["summary", `connect CLI for ${DEFAULT_ORIGIN}`], "the offer comes after the summary, for the same origin");
+  const dry = [];
+  await agentMain(["agent", "setup", "--client", "claude-code", "--dry-run"], {
+    cwd, home, packDir: pack, env: {}, isTTY: true, out: () => {}, err: () => {}, connectCli: async () => dry.push("asked"),
+  });
+  assert.deepEqual(dry, [], "a dry run asks nothing");
 });

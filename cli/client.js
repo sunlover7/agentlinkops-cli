@@ -5,7 +5,7 @@ export {CloudError} from './cloud-error.js';
 // A small HTTP client for the cloud. Scoped keys only; no human session ever reaches here.
 // DP-0036-T13: the CLI names itself so the usage counters can tell it from other REST callers.
 // The version follows the plugin manifests; bump it with them.
-export const CLI_VERSION = '0.6.13';
+export const CLI_VERSION = '0.6.14';
 export const CLI_USER_AGENT = `agentlinkops-cli/${CLI_VERSION}`;
 const MAX_ATTEMPTS = 3;
 const MAX_RETRY_WAIT_MS = 5_000;
@@ -113,6 +113,7 @@ export function createClient({ origin, token, workspaceId, projectId, fetchImpl 
     callCommand: (name, args = {}) => call('POST', `/v1/commands/${encodeURIComponent(name)}`, { body: args }),
     getWorkspace: () => call('GET', '/v1/workspace'),
     getProject: projectId => call('GET', `/v1/projects/${encodeURIComponent(projectId)}`),
+    listProjects: query => call('GET', '/v1/projects', { query }),
     importWatches: (projectId, watches) => call('POST', '/v1/watches/import', { body: { projectId, watches } }),
     updateWatch: (watchId, patch) => call('PATCH', `/v1/watches/${encodeURIComponent(watchId)}`, { body: patch }),
     listWatches: query => call('GET', '/v1/watches', { query: { ...query, ...(projectId ? { projectId } : {}) } }),

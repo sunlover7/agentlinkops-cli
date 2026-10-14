@@ -30,9 +30,9 @@ export const CASES = Object.freeze([
     expect: { state: 'absent', occurrences: 0 },
   },
   {
-    name: 'the target inside an open-redirect parameter is not a link to it',
+    name: 'the target inside an open-redirect parameter cannot prove presence or absence',
     html: '<a href="https://evil.com/?url=https://customer.com/guide">Redirector</a>',
-    expect: { state: 'absent', occurrences: 0 },
+    expect: { state: 'unknown', reason: 'target_in_redirect_parameter', occurrences: 0 },
   },
   {
     name: 'an app shell with no links and no text cannot conclude absence',

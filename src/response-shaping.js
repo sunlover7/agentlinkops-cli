@@ -20,6 +20,7 @@ export function conciseObservationState(state) {
   return out;
 }
 const withState = (row, keys) => ({ ...pick(row, keys), observation_state: conciseObservationState(row.observation_state) });
+const categoryFields=['category_contract','chosen_category','page_assessment','display_category'];
 // An event snapshot (shared/observation-event.js) minus the occurrence list, expectations and
 // signatures: the state, uncertainty, check state, reason, status and timing stay.
 const conciseSnapshot = snapshot => snapshot && typeof snapshot === 'object'
@@ -34,7 +35,7 @@ const observationResult = result => result && typeof result === 'object'
 export const SHAPES = {
   list_rank_history: { rows: 'items', keeps: ['overview_run_id','slot_at','rank','observed_at','retrieved_at','freshness','outcome','execution','cost'],
     row: r => pick(r, ['overview_run_id','slot_at','rank','observed_at','retrieved_at','freshness','outcome','execution','cost']) },
-  list_link_watches: { rows: 'items', keeps: ['id','source_url','target_url','status','state','observation_state','next_check_at','local_reference'], row: r => withState(r, ['id','source_url','target_url','status','state','next_check_at','local_reference']) },
+  list_link_watches: { rows: 'items', keeps: ['id','workspace_id','project_id','source_url','target_url','status','state','observation_state','next_check_at','local_reference',...categoryFields], row: r => withState(r, ['id','workspace_id','project_id','source_url','target_url','status','state','next_check_at','local_reference',...categoryFields]) },
   list_targets: { rows: 'items', keeps: ['id','url','status','state','observation_state','next_check_at'], row: r => withState(r, ['id','url','status','state','next_check_at']) },
   get_target_placements: { rows: 'items', keeps: ['id','source_url','target_url','target_scope','status','state'], row: r => pick(r, ['id','source_url','target_url','target_scope','status','state']) },
   list_check_jobs: { rows: 'items', keeps: ['id','state','type','watch_id','target_id','attempt_count','error_code','created_at','completed_at'], row: r => pick(r, ['id','state','type','watch_id','target_id','attempt_count','error_code','created_at','completed_at']) },

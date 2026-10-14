@@ -1,5 +1,7 @@
-import { publicFetcher, VerificationError } from '../verifier/fetch.js';
+import { createPageAcquisition } from '../page-acquisition/acquire.js';
 import { validatePublicUrl } from '../verifier/url.js';
+import {runRecovery,recoverySummary} from '../page-acquisition/recovery.js';
+import {extractEdges,ExtractionError} from './extract.js';
 
 // One interface over every way we acquire a page, so a runtime can be added without
 // rebuilding the corpus. Direct fetching is implemented here on the verifier's public
@@ -51,24 +53,22 @@ export function createAcquisition(options = {}) {
   const runtimes = options.runtimes ?? {};
   const clock = options.now ?? (() => new Date().toISOString());
 
-  async function direct(url, beforeFetch, { validators = null, document = false } = {}) {
-    // The public boundary is a property of the transport, not of this module. Refuse rather
-    // than fetch on an unasserted one; a lexically public hostname can still resolve inside.
+  async function direct(url, beforeFetch, { validators = null, document = false, alternate = null, method = 'workers_http',
+    signal = options.signal, deadlineAt = options.deadlineAt } = {}) {
+    // Preserve the established compatibility refusal. New shared capture metadata does
+    // not establish public egress qualification or activate the stopped corpus machinery.
     if (options.publicFetchSafe !== true) throw new AcquisitionError('public_fetch_boundary_not_asserted');
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const trace = { finalUrl: url, redirects: [], robots: null, httpStatus: null };
-    try {
-      const fetcher = publicFetcher({ ...options, beforeFetch: beforeFetch ?? options.beforeFetch, maxBytes, maxRedirects: ACQUISITION_LIMITS.maxRedirects }, controller.signal);
-      const { response, body, notModified, validators: earned } = await fetcher.source(url, trace, { validators, document });
-      if (notModified) return { outcome: 'unchanged', trace, html: null, validators: earned };
-      if (NOT_FOUND.has(response.status)) return { outcome: 'not_found', trace, html: null };
-      return { outcome: 'fetched', trace, html: body?.text ?? '', bytes: body?.bytes ?? 0,
-        linkHeader: response.headers.get('link'),
-        validators: { etag: response.headers.get('etag'), lastModified: response.headers.get('last-modified') } };
-    } finally {
-      clearTimeout(timer);
-    }
+    const acquisition = createPageAcquisition({ ...options, beforeFetch: beforeFetch ?? options.beforeFetch,
+      ...(alternate?{fetchImpl:(target,settings)=>alternate.fetch(target,{...settings,deadlineAt})}:{}),
+      transportId: alternate?method:options.captureTransport?.id ?? 'public_http',
+      transportVersion: alternate?'alo-public-node-v1':options.captureTransport?.version ?? '1' });
+    const { response, body, notModified, validators: earned, trace, capture } = await acquisition.acquire(url,
+      { maxBytes, timeoutMs, validators, document, signal, deadlineAt });
+    if (notModified) return { outcome: 'unchanged', trace, html: null, validators: earned, capture: null };
+    if (NOT_FOUND.has(response.status)) return { outcome: 'not_found', trace, html: null, capture: null };
+    return { outcome: 'fetched', trace, html: body?.text ?? '', bytes: body?.bytes ?? 0, capture,
+      linkHeader: response.headers.get('link'),
+      validators: { etag: response.headers.get('etag'), lastModified: response.headers.get('last-modified') } };
   }
 
   /**
@@ -85,6 +85,8 @@ export function createAcquisition(options = {}) {
   }
 
   return {
+    recoveryManaged:true,
+    maxFetches:1+(options.recovery?.alternate?1:0)+(runtimes.rendered?.publicFetchSafe===true?1:0)+(runtimes.proxied?.publicFetchSafe===true?1:0),
     /**
      * Whether a fetch kind can actually be served. The crawl loop asks before escalating a
      * page to a browser, because queueing work no runtime can serve would leave the frontier
@@ -104,7 +106,7 @@ export function createAcquisition(options = {}) {
      * previous fetch of this URL earned, and an unchanged page comes back as outcome
      * `unchanged` with `http_status` 304 and no body — a dated observation, not an absence.
      */
-    async fetchPage(rawUrl, { kind = 'direct', beforeFetch = null, validators = null } = {}) {
+    async fetchPage(rawUrl, { kind = 'direct', beforeFetch = null, validators = null, recovery = options.recovery??{},purpose = options.purpose??'discovery', signal = options.signal, deadlineAt = options.deadlineAt } = {}) {
       const at = clock();
       const base = { url: rawUrl, final_url: null, kind, http_status: null, robots: null,
         html: null, body_truncated: false, fetched_at: at, reason: null, etag: null, last_modified: null };
@@ -112,21 +114,30 @@ export function createAcquisition(options = {}) {
       const checked = validatePublicUrl(rawUrl);
       if (!checked.valid) return { ...base, outcome: 'unavailable', reason: `unsafe_url:${checked.reason}` };
 
-      try {
-        if (kind === 'direct') {
-          const { outcome, trace, html, validators: earned, linkHeader } = await direct(checked.url, beforeFetch, { validators });
-          return { ...base, outcome, final_url: trace.finalUrl, http_status: trace.httpStatus,
-            robots: trace.robots, redirects: trace.redirects, html,
+      const consumed=[];
+      const acquireOne=async(routeKind,settings,provider=null,method='workers_http')=>{
+       try {
+        if (routeKind === 'direct') {
+          const { outcome, trace, html, validators: earned, linkHeader, bytes, capture } = await direct(checked.url, beforeFetch, { validators,...settings,alternate:provider,method });
+          const result={ ...base, outcome, final_url: trace.finalUrl, http_status: trace.httpStatus,
+            robots: trace.robots, redirects: trace.redirects, html, bytes, capture,
+            robotsHistory:trace.robotsHistory,sourceResponse:trace.sourceResponse,
             etag: earned?.etag ?? null, last_modified: earned?.lastModified ?? null,
             link_header: linkHeader ?? null,
             // The verifier's reader refuses an oversized body outright, so a returned body was
             // read to the end. Truncation reaches extraction from runtimes with their own caps.
             body_truncated: false, render_ms: 0, proxy_bytes: 0 };
+          // Acquisition and parsing failures enter the same router. No fetched shell
+          // can silently become an empty publisher in context or the owned corpus.
+          if(result.outcome==='fetched')try{extractEdges(html,{pageUrl:trace.finalUrl,fetchKind:'direct'});}
+          catch(error){if(!(error instanceof ExtractionError))throw error;return {...result,outcome:classifyFailure(error.reason),reason:error.reason,html:null};}
+          return result;
         }
-        const runtime = assertRuntime(kind);
-        const result = await runtime.fetchPage(checked.url, { maxBytes, timeoutMs });
-        return { ...base, outcome: result.outcome ?? 'fetched', final_url: result.finalUrl ?? checked.url,
+        const runtime = assertRuntime(routeKind);
+        const result = await runtime.fetchPage(checked.url, { maxBytes,...settings,beforeFetch });
+        const observed={ ...base,kind:routeKind,outcome: result.outcome ?? 'fetched', final_url: result.finalUrl ?? checked.url,
           http_status: result.httpStatus ?? null, html: result.html ?? null,
+          positive_only:result.positiveOnly===true,robots:result.robots??null,robotsHistory:result.robotsHistory,sourceResponse:result.sourceResponse,
           body_truncated: result.bodyTruncated === true, reason: result.reason ?? null,
           // The units a runtime actually consumed. Rendering and proxy traffic are what make
           // these paths expensive, so dropping them here would leave every metered run
@@ -134,13 +145,38 @@ export function createAcquisition(options = {}) {
           // one. A direct fetch reports neither, which is correct: it spends neither.
           render_ms: Number.isInteger(result.renderMs) ? result.renderMs : 0,
           proxy_bytes: Number.isInteger(result.proxyBytes) ? result.proxyBytes : 0 };
-      } catch (error) {
+        consumed.push(observed);
+        if(observed.outcome==='fetched')try{extractEdges(observed.html??'',{pageUrl:observed.final_url,fetchKind:routeKind,bodyTruncated:observed.body_truncated||observed.positive_only});}
+        catch(error){if(!(error instanceof ExtractionError))throw error;return {...observed,outcome:classifyFailure(error.reason),reason:error.reason,html:null};}
+        return observed;
+       } catch (error) {
         // Any error carrying its own reason keeps it, including the pacing hook's, so a
         // slot we could not take is classified as deferrable rather than as a failure.
         const reason = typeof error?.reason === 'string' ? error.reason : 'acquisition_error';
         const outcome = error instanceof AcquisitionError && /not_configured|not_asserted|_invalid$/.test(reason)
           ? 'not_configured' : classifyFailure(reason);
-        return { ...base, outcome, reason };
+        const trace=error.acquisitionTrace??{};
+        return { ...base,kind:routeKind,outcome,reason,robots:trace.robots,robotsHistory:trace.robotsHistory,sourceResponse:trace.sourceResponse,
+          http_status:trace.httpStatus??null,final_url:trace.finalUrl??null};
+       }
+      };
+      try{
+        if(kind!=='direct')return await acquireOne(kind,{signal,deadlineAt,timeoutMs});
+        const provider=recovery.alternate;
+        const runtimeRoute=(runtimeKind,method)=>({capability:recovery.capabilities?.[method]??{available:runtimes[runtimeKind]?.publicFetchSafe===true&&typeof runtimes[runtimeKind]?.fetchPage==='function',reason:'unsupported'},
+          admit:recovery[`${runtimeKind}Admission`],execute:async settings=>[await acquireOne(runtimeKind,settings)]});
+        const [result]=await runRecovery({purpose,directMethod:options.directMethod??'workers_http',authorize:recovery.authorize,options:{signal,deadlineAt,timeoutMs},
+          directFailure:reason=>[{...base,outcome:'unavailable',reason}],
+          executeDirect:async settings=>[await acquireOne('direct',settings)],routes:{
+            node_http:{capability:recovery.capabilities?.node_http??{available:!!provider,reason:'unsupported'},receipts:provider?.receipts,
+              execute:provider?async settings=>[await acquireOne('direct',settings,provider,'node_http')]:undefined},
+            node_browser:runtimeRoute('rendered','node_browser'),proxy_http:runtimeRoute('proxied','proxy_http')}});
+        result.acquisition=recoverySummary(result.evidence?.acquisition);
+        result.fetches=result.acquisition?.attempts.length??1;
+        result.render_ms=consumed.reduce((sum,row)=>sum+(row.render_ms??0),0);result.proxy_bytes=consumed.reduce((sum,row)=>sum+(row.proxy_bytes??0),0);
+        return result;
+      }catch(error){
+        return {...base,outcome:classifyFailure(error.reason??'acquisition_error'),reason:error.reason??'acquisition_error'};
       }
     },
 
@@ -153,16 +189,16 @@ export function createAcquisition(options = {}) {
      * The crawl loop never calls this; it exists for the freshness lanes (sitemap diffing,
      * feed polling) that read publisher declarations rather than pages.
      */
-    async fetchDocument(rawUrl, { beforeFetch = null, validators = null } = {}) {
+    async fetchDocument(rawUrl, { beforeFetch = null, validators = null, signal = options.signal, deadlineAt = options.deadlineAt } = {}) {
       const at = clock();
       const base = { url: rawUrl, final_url: null, kind: 'direct', http_status: null,
         body: null, fetched_at: at, reason: null, etag: null, last_modified: null };
       const checked = validatePublicUrl(rawUrl);
       if (!checked.valid) return { ...base, outcome: 'unavailable', reason: `unsafe_url:${checked.reason}` };
       try {
-        const { outcome, trace, html, validators: earned, linkHeader } = await direct(checked.url, beforeFetch, { validators, document: true });
+        const { outcome, trace, html, validators: earned, linkHeader, bytes, capture } = await direct(checked.url, beforeFetch, { validators, document: true, signal, deadlineAt });
         return { ...base, outcome, final_url: trace.finalUrl, http_status: trace.httpStatus,
-          body: outcome === 'fetched' ? html : null,
+          body: outcome === 'fetched' ? html : null, bytes, capture,
           etag: earned?.etag ?? null, last_modified: earned?.lastModified ?? null,
           link_header: linkHeader ?? null };
       } catch (error) {

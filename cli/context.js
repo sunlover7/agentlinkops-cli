@@ -19,7 +19,9 @@ import {
   readContextState, readGscRows, refreshContext, pageContext, selectFocusPages,
   importHandoff, forgetContext, createGoogleClient, recentWindows, windowFromRange,
 } from '../src/context/gsc.js';
-import { buildSiteProfile, renderSiteProfile, validateProfileCitations, readSiteFacts } from '../src/context/site-profile.js';
+import { buildSiteProfile, createSiteTransport, renderSiteProfile, validateProfileCitations, readSiteFacts } from '../src/context/site-profile.js';
+import { createAcquisition } from '../src/corpus/acquire.js';
+import { createNodePublicFetch } from './public-http.js';
 import {
   refreshGa4Context, landingPageContext, keyEventsContext, businessContextForPage,
   importGa4Handoff, forgetGa4Context, createGa4Client, readGa4Rows, GA4_SCOPE,
@@ -72,7 +74,7 @@ async function resolvePaths(cwd) {
   return { config, paths: contextPaths({ dir: config.dir, file }) };
 }
 
-export async function contextMain(argv = process.argv.slice(2), { cwd = process.cwd(), out = console.log, err = console.error, env = process.env } = {}) {
+export async function contextMain(argv = process.argv.slice(2), { cwd = process.cwd(), out = console.log, err = console.error, env = process.env, signal } = {}) {
   const args = parseArgs(argv);
   const area = args._[0] ?? 'help';
   const command = args._[1] ?? null;
@@ -273,9 +275,18 @@ export async function contextMain(argv = process.argv.slice(2), { cwd = process.
 
     if (area === 'profile') {
       if (command === 'build') {
+        // Node callers qualify their own public egress. Shared document/page
+        // primitives stay transport-injected and retain the existing budgets.
+        const fetchImpl = createNodePublicFetch();
+        const documents = createSiteTransport({ fetchImpl });
+        const transport = signal ? { fetchText: (url, options = {}) => documents.fetchText(url, { ...options,
+          signal: options.signal ? AbortSignal.any([options.signal, signal]) : signal }) } : documents;
         const result = await buildSiteProfile({
           site: args.site === true ? null : (args.site ?? null),
           paths, extraPages: args.page ?? [],
+          transport,
+          acquisition: createAcquisition({ fetchImpl, publicFetchSafe: true, purpose: 'research', directMethod: 'node_http', signal,
+            captureTransport: { id: 'local_node_http', version: 'alo-local-node-v1' } }),
         });
         if (args.json) { out(JSON.stringify(result, null, 1)); return 0; }
         out(`origin ${result.origin}: robots ${result.robots.outcome}${result.robots.reason ? ` (${result.robots.reason})` : ''}, ${result.sitemaps.documents} sitemap document(s), ${result.sitemaps.urls_found} URL(s)`);

@@ -149,3 +149,73 @@ test('hidden password widget no longer makes public article an access wall', asy
   const result = await verifyLink(input, opts);
   assert.equal(result.state, 'absent'); assert.equal(result.evidence.renderAttempt, undefined);
 });
+
+const wrappedTarget = page(`<article><p>A complete public profile presents useful biographical information and a website through a redirect service.</p>
+  <a href="https://gate.sc/?url=${encodeURIComponent(targetUrl)}&amp;token=WRAPPER-TEST-MARKER" rel="me nofollow ugc">Website</a></article>`);
+
+test('physical target wrapper stays unknown without invoking the wrapper, target or renderer', async () => {
+  const opts = options(wrappedTarget), fetched = [];
+  const fetch = opts.fetchImpl; opts.fetchImpl = async (...args) => { fetched.push(args[0]); return fetch(...args); };
+  opts.renderPage = Object.assign(async () => assert.fail('a wrapper hint cannot authorize rendering'), { publicFetchSafe: true, requiresNavigationAuthorization: true });
+  const result = await verifyLink(input, opts);
+  assert.equal(result.state, 'unknown'); assert.equal(result.reason, 'target_in_redirect_parameter');
+  assert.equal(result.evidence.complete, false); assert.deepEqual(result.occurrences, []);
+  assert.equal(result.linkSignature, undefined); assert.equal(result.evidence.renderAttempt, undefined);
+  assert.deepEqual(fetched, ['https://publisher.com/robots.txt', sourceUrl]);
+  assert.doesNotMatch(JSON.stringify(result), /WRAPPER-TEST-MARKER|gate\.sc|token=/);
+});
+
+test('ready native wrapper DOM cannot prove absence, while a direct native anchor takes precedence', async () => {
+  // Synthetic native metadata passes the real nativeRenderEvidence contract;
+  // this is a parser/verdict control, not a real browser/network qualification.
+  const native = { rendererVersion: 'cf-native-1', contentType: 'text/html; charset=utf-8', cfMitigated: '',
+    challenge: false, visibleLogin: false, browserClosed: true, browserVersion: 'Chrome/128', userAgent: 'LinktrailBot/0.1',
+    requestCount: 2, durationMs: 100, terminationReason: null,
+    robotsHistory: [{ sourceUrl, robotsUrl: 'https://publisher.com/robots.txt', httpStatus: 404,
+      productToken: 'LinktrailBot', allowed: true, reason: 'robots_allowed', crawlDelaySeconds: 0 }] };
+  for (const direct of [false, true]) {
+    const renderedHtml = direct ? wrappedTarget.replace('</article>', `<a href="${targetUrl}" rel="nofollow">Customer</a></article>`) : wrappedTarget;
+    const opts = options(shell, renderedHtml, native);
+    opts.renderPage.strictEvidenceVersion = 1; opts.renderPage.positiveOnly = true;
+    const result = await verifyLink({ ...input, expectedRel: ['nofollow'] }, opts);
+    assert.equal(result.evidence.method, 'browser_html'); assert.equal(result.evidence.ready, true);
+    assert.equal(result.evidence.browser.rendererVersion, 'cf-native-1');
+    if (direct) {
+      assert.equal(result.state, 'present'); assert.equal(result.evidence.complete, true);
+      assert.equal(result.occurrences.length, 1); assert.equal(result.occurrences[0].targetUrl, targetUrl);
+      assert.deepEqual(result.occurrences[0].rel, ['nofollow']); assert.equal(result.expectations.satisfied, true);
+    } else {
+      assert.equal(result.state, 'unknown'); assert.equal(result.reason, 'target_in_redirect_parameter');
+      assert.equal(result.evidence.complete, false); assert.deepEqual(result.occurrences, []); assert.equal(result.linkSignature, undefined);
+      assert.equal(result.evidence.capture.body.complete, true);
+    }
+    assert.doesNotMatch(JSON.stringify(result), /WRAPPER-TEST-MARKER|gate\.sc|token=/);
+  }
+});
+
+test('a direct static anchor takes precedence over an uncertain wrapper and retains its expectations', async () => {
+  const html = wrappedTarget.replace('</article>', `<a href="${targetUrl}" rel="nofollow">Customer</a></article>`);
+  const opts = options(html);
+  opts.renderPage = Object.assign(async () => assert.fail('a direct static match needs no wrapper follow-up'), { publicFetchSafe: true, requiresNavigationAuthorization: true });
+  const result = await verifyLink({ ...input, expectedRel: ['nofollow'], expectedAnchor: 'Customer' }, opts);
+  assert.equal(result.state, 'present'); assert.equal(result.evidence.complete, true); assert.equal(result.occurrences.length, 1);
+  assert.equal(result.expectations.satisfied, true); assert.equal(result.occurrences[0].targetUrl, targetUrl);
+  assert.equal(result.evidence.renderAttempt, undefined);
+});
+
+test('grouped wrapper uncertainty is target-specific and cannot advance the confirmed-loss reducer', async () => {
+  const opts = options(wrappedTarget); delete opts.renderPage;
+  const grouped = await verifyLinks([input, { ...input, targetUrl: 'https://other.com/' }], opts);
+  assert.deepEqual(grouped.map(row => row.state), ['unknown', 'absent']);
+  assert.equal(grouped[0].reason, 'target_in_redirect_parameter'); assert.equal(grouped[1].evidence.complete, true);
+  const priorOptions = options(present); delete priorOptions.renderPage; priorOptions.now = '2026-10-12T12:00:00.000Z';
+  let state = transitionState(null, await verifyLink(input, priorOptions));
+  assert.equal(state.confirmedState, 'present');
+  for (const now of ['2026-10-12T12:40:00.000Z', '2026-10-12T13:20:00.000Z']) {
+    const observed = await verifyLink(input, { ...opts, now });
+    state = transitionState(state, observed);
+    assert.equal(state.state, 'unknown'); assert.equal(state.uncertain, true);
+    assert.equal(state.confirmedState, 'present'); assert.equal(state.absentCount, 0); assert.equal(state.firstAbsentAt, null);
+    assert.equal(state.lastSuccessfulObservation.state, 'present'); assert.equal(state.event, null);
+  }
+});

@@ -13,6 +13,7 @@ import {
   createSiteTransport, derivePageFields, PROFILE_LIMITS,
 } from '../src/context/site-profile.js';
 import { contextPaths } from '../src/context/gsc.js';
+import {createAcquisition} from '../src/corpus/acquire.js';
 
 const ORIGIN = 'https://example.com';
 
@@ -68,6 +69,21 @@ A plain-English estate-settlement guide.
 ## Known assets
 - Estate cost estimator
 `;
+
+test('local site context uses the shared router only with caller-admitted recovery and reports unsupported privileged routes',async()=>{
+  const direct=async url=>url.endsWith('/robots.txt')?new Response(null,{status:404}):new Response('Forbidden',{status:403});
+  const acquisition=createAcquisition({publicFetchSafe:true,fetchImpl:direct});
+  const parameters={site:ORIGIN,transport:fakeTransport({}),acquisition,limits:{hostDelayMs:0,selectedPages:1}};
+  const blocked=await buildSiteProfile(parameters);
+  const row=blocked.pages[0];
+  assert.equal(row.outcome,'blocked');
+  assert.ok(row.acquisition.routes.slice(1).every(r=>r.admitted===false&&r.reason==='unsupported'));
+  const recovered=await buildSiteProfile({...parameters,recovery:{alternate:{fetch:async url=>url.endsWith('/robots.txt')?new Response(null,{status:404})
+    :new Response(pageHtml('Recovered guide'),{headers:{'content-type':'text/html'}})}}});
+  const actual=recovered.pages[0];
+  assert.equal(actual.outcome,'fetched');assert.equal(actual.title,'Recovered guide');
+  assert.equal(actual.acquisition.purpose,'research');assert.equal(actual.acquisition.selectedMethod,'node_http');
+});
 
 // ---------------------------------------------------------------------------
 // Fixture: sitemap-bounded — robots-refused, oversized, truncated, gzipped; counters preserved.
@@ -253,6 +269,45 @@ test('derivePageFields: titles, h1s, description, canonical; asset candidates no
   assert.equal(derived.canonical, `${ORIGIN}/tools/estimator`);
   assert.equal(derived.link_counts.total, 1);
   assert.deepEqual(derivePageFields(''), { title: null, h1s: [], meta_description: null, canonical: null, link_counts: null, asset_candidate_reasons: null });
+});
+
+test('profile metadata resolves canonical against the document base and counts canonical physical links', () => {
+  const html = '<html><head><base href="/assets/"><title>Costs &amp; guides</title>'
+    + '<meta content="Families &amp; executors" name=description><link href=../canonical rel="alternate canonical"></head>'
+    + '<body><h1>Costs <em>for families</em></h1><a href=guide>Guide</a><area href=map alt="Map">'
+    + '<template><a href=/inert>not a physical page link</a></template></body></html>';
+  const derived = derivePageFields(html, { baseUrl: `${ORIGIN}/moved/page` });
+  assert.equal(derived.title, 'Costs & guides');
+  assert.deepEqual(derived.h1s, ['Costs for families']);
+  assert.equal(derived.meta_description, 'Families & executors');
+  assert.equal(derived.canonical, `${ORIGIN}/canonical`);
+  assert.equal(derived.link_counts.total, 2);
+});
+
+test('profile metadata extraction refusal preserves an explicit unknown page and acquired hash', async t => {
+  const { paths } = await sandbox(t);
+  const html = '<html><head><title>Too many anchors</title></head><body>'
+    + '<a href="/guide">Guide</a>'.repeat(1001) + '</body></html>';
+  const result = await buildSiteProfile({ site: ORIGIN, paths,
+    transport: fakeTransport({}), acquisition: fakeAcquisition({ [`${ORIGIN}/`]: { html } }) });
+  assert.equal(result.pages[0].outcome, 'unavailable');
+  assert.equal(result.pages[0].reason, 'too_many_link_occurrences');
+  assert.equal(result.pages[0].asset_candidate_reasons, null);
+  const fact = (await readSiteFacts(paths.siteFacts)).rows.find(row => row.kind === 'site.page');
+  assert.equal(fact.link_counts, null);
+  assert.ok(fact.content_sha256, 'the acquired bytes remain identified even when metadata extraction is refused');
+});
+
+test('profile metadata does not publish zero links from an explicitly truncated capture', async () => {
+  const result = await buildSiteProfile({ site: ORIGIN,
+    transport: fakeTransport({}),
+    acquisition: { async fetchPage(url) { return {
+      outcome: 'fetched', final_url: url, http_status: 200, body_truncated: true, html: '<html><body>',
+    }; } },
+  });
+  assert.equal(result.pages[0].outcome, 'unavailable');
+  assert.equal(result.pages[0].reason, 'body_truncated');
+  assert.equal(result.pages[0].asset_candidate_reasons, null);
 });
 
 // ---------------------------------------------------------------------------

@@ -192,10 +192,19 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
   // a legitimate local-only install, reported as a skip rather than a failure.
   const connection = cloudConnection(config, env);
   const origin = connection.origin || null;
+  const savedConnectionMetadata = config.cloud && typeof config.cloud === 'object'
+    && Object.keys(config.cloud).length > 0;
   const record = { at: new Date().toISOString() };
   let probed = false;
   if (!origin) {
-    checks.push({ status: 'skip', name: 'cloud', detail: 'no cloud configured (local-only repository)' });
+    if (savedConnectionMetadata) {
+      checks.push({ status: 'fail', name: 'connection',
+        detail: 'saved cloud metadata is present, but the CLI API connection is not configured',
+        fix: 'supply an API key through AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY, then run `agentlinkops connect` to verify the workspace and project. MCP clients keep their own OAuth credentials' });
+    }
+    checks.push({ status: 'skip', name: 'cloud', detail: savedConnectionMetadata
+      ? 'CLI API origin is missing; MCP access is separate'
+      : 'no cloud configured (local-only repository)' });
   } else {
     const cloud = await probeCloud({ origin, fetchImpl, timeoutMs });
     record.cloud = { ok: cloud.ok, status: cloud.status, ms: cloud.ms };
@@ -215,13 +224,15 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
   // Token: presence, shape, and — only when the cloud just proved reachable — whether the
   // cloud accepts it. The value itself is never printed, hashed or measured here.
   const token = connection.token || null;
-  const source = connection.auth ? 'the private OAuth credential store' : connection.tokenSource ? `the environment (${connection.tokenSource})` : `${config.dirName}/config.json (cloud.token)`;
+  const source = connection.auth ? 'the private OAuth credential store' : connection.storedKey ? `${connection.tokenSource}, saved by agentlinkops connect` : connection.tokenSource ? `the environment (${connection.tokenSource})` : `${config.dirName}/config.json (cloud.token)`;
   if (!token && !connection.auth) {
     if (origin) {
       checks.push({ status: 'fail', name: 'token', detail: 'no token is set; sync and receive need one',
-        fix: 'run agentlinkops connect for the app API-key setup path; supply AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY in the environment' });
+        fix: 'run `npx -y agentlinkops connect` in a terminal and paste an API key from the Agent page, or supply AGENTLINKOPS_API_KEY in the environment' });
     } else {
-      checks.push({ status: 'skip', name: 'token', detail: 'no token (and no cloud configured)' });
+      checks.push({ status: 'skip', name: 'token', detail: savedConnectionMetadata
+        ? 'no CLI API key is set; MCP credentials are managed by the MCP client'
+        : 'no token (and no cloud configured)' });
     }
   } else if (!connection.auth && !TOKEN_SHAPE.test(token)) {
     checks.push({ status: 'fail', name: 'token', detail: `set in ${source} but it does not look like an AgentLinkOps API key (lt_ plus 64 hex characters)`,

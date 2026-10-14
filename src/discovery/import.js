@@ -19,7 +19,7 @@
 //   nothing here turns them into an AgentLinkOps score.
 import { z } from 'zod';
 import { validatePublicUrl, matchesTarget } from '../verifier/url.js';
-import { DISCOVERY_VERSION, DISCOVERY_LIMITS, IMPORT_SUPPLIERS, DiscoveryCandidate, candidateId, sourceQueryTerms } from './contract.js';
+import { DISCOVERY_VERSION, DISCOVERY_LIMITS, IMPORT_SUPPLIERS, ImportTargetBasis, DiscoveryCandidate, candidateId, sourceQueryTerms } from './contract.js';
 
 export class ImportError extends Error {
   constructor(code, status = 400) { super(code); this.name = 'ImportError'; this.code = code; this.status = status; }
@@ -30,6 +30,7 @@ const fail = (code, status) => { throw new ImportError(code, status); };
 export const ImportRow = z.object({
   source_url: z.string().max(4096),
   target_url: z.string().max(4096),
+  target_basis: ImportTargetBasis.optional(),
   anchor: z.string().max(4096).nullish(),
   rel: z.union([z.string().max(1024), z.array(z.string().max(128)).max(32)]).nullish(),
   dofollow: z.boolean().nullish(),
@@ -71,6 +72,16 @@ export function normalizeRow(row, { runId, workspaceId, projectId, supplier, tas
   // A row about someone else's site is not a row about this import's target. Accepting it
   // would quietly widen the run's scope past what its coverage statement describes.
   if (!matchesTarget(destination.url, target, scope)) return { error: 'target_url: outside the scope of this import' };
+  if (value.target_basis === 'user_supplied_target_expectation') {
+    if (supplier !== 'google_search_console')
+      return { error: 'target_basis: a target expectation is supported only for Google Search Console imports' };
+    const expected = validatePublicUrl(target);
+    const siteScope = scope === 'domain' || scope === 'subdomain';
+    const rootExpectation = expected.valid && new URL(expected.url).pathname === '/' && !new URL(expected.url).search;
+    if (!expected.valid || expected.url !== target || (!siteScope && scope !== 'exact')
+      || (siteScope && !rootExpectation) || destination.url !== target)
+      return { error: 'target_basis: the target expectation must match the canonical import target' };
+  }
 
   const dates = {};
   for (const field of ['first_seen', 'last_seen']) {
@@ -101,6 +112,7 @@ export function normalizeRow(row, { runId, workspaceId, projectId, supplier, tas
       source_http_status: null, target_http_status: null, links_count: null,
       provider_metrics: { imported: {
         supplier, supplier_row_id: value.supplier_row_id ?? null,
+        ...(supplier === 'google_search_console' && value.target_basis !== undefined ? { target_basis: value.target_basis } : {}),
         supplier_generated_at: generatedAt, supplier_metrics: value.supplier_metrics ?? null,
       } },
       verification_status: 'not_checked', verified_at: null, observation_id: null, evidence_id: null,

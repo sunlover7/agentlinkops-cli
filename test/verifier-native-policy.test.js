@@ -30,6 +30,49 @@ test('native positive uses existing target/anchor/rel rules and bounded metadata
   assert.equal(JSON.stringify(found).includes('never-export'),false);
 });
 
+test('native Googlebot denial survives sanitizing while Linktrail permission independently authorizes the page',async()=>{
+  const base=await options().renderPage();
+  const googlebot={productToken:'Googlebot',allowed:false,reason:'robots_disallowed',
+    matchedRule:'/profile',crawlDelaySeconds:2};
+  const row={...base.robotsHistory[0],googlebot:{...googlebot,privateMarker:'never-export'}};
+  const result=await verifyLink(input,options({robotsHistory:[row]}));
+  assert.equal(result.state,'present');
+  assert.equal(result.evidence.browser.robotsHistory[0].allowed,true);
+  assert.deepEqual(result.evidence.browser.robotsHistory[0].googlebot,googlebot);
+  assert.equal(JSON.stringify(result).includes('never-export'),false);
+  const denied=await verifyLink(input,options({robotsHistory:[{...row,allowed:false,
+    googlebot:{...googlebot,allowed:true,reason:'robots_allowed',matchedRule:null}}]}));
+  assert.equal(denied.state,'unknown');
+  assert.equal(denied.evidence.complete,false);
+  assert.equal(denied.evidence.renderAttempt.reason,'invalid_render_robots_evidence');
+});
+
+test('native missing and unavailable Googlebot evidence stay unknown without inventing permission',async()=>{
+  const base=await options().renderPage();
+  const legacy=await verifyLink(input,options());
+  assert.equal(legacy.evidence.browser.robotsHistory[0].googlebot,undefined);
+  const googlebot={productToken:'Googlebot',allowed:null,reason:'robots_fetch_failed',
+    matchedRule:null,crawlDelaySeconds:null};
+  const result=await verifyLink(input,options({robotsHistory:[{...base.robotsHistory[0],googlebot}]}));
+  assert.equal(result.state,'present');
+  assert.deepEqual(result.evidence.browser.robotsHistory[0].googlebot,googlebot);
+});
+
+test('malformed native Googlebot evidence refuses a matching anchor',async()=>{
+  const base=await options().renderPage();
+  const googlebot={productToken:'Googlebot',allowed:false,reason:'robots_disallowed',
+    matchedRule:'/profile',crawlDelaySeconds:null};
+  for(const invalid of [null,[],{...googlebot,productToken:'LinktrailBot'},
+    {...googlebot,allowed:'false'},{...googlebot,reason:'private reason\nmarker'},
+    {...googlebot,matchedRule:'x'.repeat(8193)},{...googlebot,crawlDelaySeconds:-1},
+    {...googlebot,crawlDelaySeconds:Infinity}]){
+    const result=await verifyLink(input,options({robotsHistory:[{...base.robotsHistory[0],googlebot:invalid}]}));
+    assert.equal(result.state,'unknown');
+    assert.equal(result.evidence.renderAttempt.reason,'invalid_render_robots_evidence');
+    assert.equal(result.evidence.complete,false);
+  }
+});
+
 test('ready and unready empty native DOM never produce absent or loss',async()=>{
   for(const ready of [true,false]){
     const r=await verifyLink(input,options({ready},page('<p>Biography without link.</p>')));

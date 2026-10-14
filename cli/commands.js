@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { loadConfig, ConfigError } from './config.js';
-import { cloudConnection } from './connection.js';
+import { cloudConnection, DEFAULT_ORIGIN } from './connection.js';
 import { createClient, CloudError } from './client.js';
 import { parseArgs } from './args.js';
 import { NUDGE } from './skill.js';
@@ -24,7 +24,7 @@ const NEXT = {
   INSUFFICIENT_SCOPE: 'This credential lacks a scope the command needs; request it through your connection or a new project-scoped key.',
   NO_CLOUD_ORIGIN: 'Run `agentlinkops connect` or set AGENTLINKOPS_API_URL.',
   INVALID_CLOUD_ORIGIN: 'Cloud commands need an HTTPS origin without a path, for example https://app.agentlinkops.com.',
-  NO_TOKEN: 'Set AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY from a project-scoped key.',
+  NO_TOKEN: 'Run `npx -y agentlinkops connect` once in a terminal and paste an API key from the Agent page; scripts can set AGENTLINKOPS_API_KEY instead.',
   PROVIDER_NOT_CONFIGURED: 'An operator must enable this supplier admission; retrying does not change it.',
   OWNED_DISCOVERY_NOT_CONFIGURED: 'An operator must configure owned discovery; retrying does not change it.',
   IDEMPOTENCY_CONFLICT: 'Reuse an idempotency key only with identical arguments; choose a new key for a new request.',
@@ -34,9 +34,16 @@ export const explain = code => NEXT[code] ?? 'Run `agentlinkops describe NAME` a
 export const resolveName = (commands, name) => commands.find(c => c.name === name) ?? commands.find(c => c.aliases?.includes(name)) ?? null;
 
 // The index: grouped by toolset, one line per command, core and write and admission marked.
+// Both forms drop per-command summaries when the complete index would exceed its token estimate
+// (2,000 for the terminal, 6,000 for JSON); one toolset keeps them, and describe has the rest.
 export function renderIndex(commands, { toolset = null, json = false } = {}) {
   const selected = toolset ? commands.filter(c => c.toolset === toolset) : commands;
-  if (json) return JSON.stringify({ toolsets: toolset ? { [toolset]: CATALOG_TOOLSETS[toolset] } : CATALOG_TOOLSETS, commands: selected.map(c => ({ name: c.name, toolset: c.toolset, tier: c.tier, readOnly: c.readOnly, summary: oneLiner(c.description, 64), ...(c.admissionGated ? { admission: 'gated' } : {}), ...(c.aliases?.length ? { aliases: c.aliases } : {}) })), next: 'Run `agentlinkops describe NAME` for a schema, then `agentlinkops call NAME --args JSON`.' });
+  if (json) {
+    const index = summaries => JSON.stringify({ toolsets: toolset ? { [toolset]: CATALOG_TOOLSETS[toolset] } : CATALOG_TOOLSETS, defaults: { tier: 'deferred' }, commands: selected.map(c => ({ name: c.name, toolset: c.toolset, ...(c.tier === 'deferred' ? {} : { tier: c.tier }), readOnly: c.readOnly, ...(summaries ? { summary: oneLiner(c.description, 40) } : {}), ...(c.admissionGated ? { admission: 'gated' } : {}), ...(c.aliases?.length ? { aliases: c.aliases } : {}) })),
+      next: (summaries ? '' : 'Run `agentlinkops tools TOOLSET` for one-line summaries. ') + 'Run `agentlinkops describe NAME` for a schema, then `agentlinkops call NAME --args JSON`.' });
+    const full = index(true);
+    return Math.round(full.length / 3.6) < 6000 ? full : index(false);
+  }
   const groups = new Map();
   for (const c of selected) (groups.get(c.toolset) ?? groups.set(c.toolset, []).get(c.toolset)).push(c);
   const lines = [];
@@ -46,7 +53,9 @@ export function renderIndex(commands, { toolset = null, json = false } = {}) {
     lines.push('');
   }
   lines.push(`${selected.length} commands${toolset ? ` in ${toolset}` : ''}. describe NAME shows the schema; call NAME --args JSON runs it.`);
-  return lines.join('\n');
+  const full = lines.join('\n');
+  if (Math.round(full.length / 3.6) < 2000) return full;
+  return lines.map(line => line.startsWith('  ') ? line.slice(0, line.indexOf('  ', 2)) : line).join('\n');
 }
 
 // One definition: what a describe_tools call returns, printed for a terminal or as JSON.
@@ -137,12 +146,12 @@ export async function commandsMain(argv, { cwd = process.cwd(), env = process.en
   // Catalog: bundled snapshot, or the live one when asked (needs a configured origin and key).
   let commands = CATALOG_COMMANDS, client = null;
   const connect = () => {
+    // The hosted service unless an origin is configured; the key decides the workspace.
     const connection = cloudConnection(loadConfigSync(), env);
-    if (!connection.origin) throw new CloudError('NO_CLOUD_ORIGIN', 0);
     let origin;
-    try { origin = new URL(connection.origin); } catch { throw new CloudError('INVALID_CLOUD_ORIGIN', 0); }
+    try { origin = new URL(connection.origin || DEFAULT_ORIGIN); } catch { throw new CloudError('INVALID_CLOUD_ORIGIN', 0); }
     if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new CloudError('INVALID_CLOUD_ORIGIN', 0);
-    return createClient({ ...connection, fetchImpl });
+    return createClient({ ...connection, origin: origin.origin, fetchImpl });
   };
   let loaded = null;
   const loadConfigSync = () => loaded;
