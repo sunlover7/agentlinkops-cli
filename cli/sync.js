@@ -72,7 +72,7 @@ export async function pushExpectations(client, entries, state, { projectId, onPr
   for (const entry of entries.filter(item => actions.get(item.id) === 'pause')) {
     const watchId = mapping[entry.id];
     if (!watchId) continue;
-    try { await client.updateWatch(watchId, { status: 'paused' }); retired.push(entry.id); }
+    try { await client.updateWatch(watchId, { status: 'paused', intent: 'retired' }); retired.push(entry.id); }
     catch (error) { failed.push({ id: entry.id, code: error.code, message: error.message }); }
   }
   return { pushed: watched.length, created: created.length, retired: retired.length, failed, watches: mapping, local: plan.filter(row => row.action === 'stay_local').length };

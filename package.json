@@ -1,6 +1,6 @@
 {
   "name": "agentlinkops",
-  "version": "0.6.14",
+  "version": "0.6.16",
   "description": "Backlink checks with dated evidence and portable results, optional repository ledgers, supplier-export imports and sync to AgentLinkOps.",
   "author": "AgentLinkOps (https://agentlinkops.com)",
   "license": "Apache-2.0",
@@ -22,6 +22,8 @@
     "references",
     "scripts",
     ".mcp.json",
+    "PACKS.json",
+    "PACK-ARTIFACT.json",
     ".claude-plugin",
     ".codex-plugin",
     "README.md",
@@ -46,24 +48,21 @@
     "mcp",
     "backlinks",
     "seo",
-    "citation-monitoring",
-    "ai-citations",
     "agent",
     "cli",
     "link-monitoring",
-    "citation-watch",
     "ledger",
     "jsonl"
   ],
   "dependencies": {
-    "@modelcontextprotocol/client": "2.2.0",
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/server": "2.3.1",
     "ipaddr.js": "2.2.0",
     "koffi": "3.3.2",
     "parse5": "8.0.1",
     "turndown": "^7.2.4",
-    "undici": "7.29.1",
-    "zod": "4.6.0"
+    "undici": "7.30.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"

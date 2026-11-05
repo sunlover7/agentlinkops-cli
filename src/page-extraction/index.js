@@ -10,10 +10,10 @@ export const STATIC_TEXT_LIMIT = 512 * 1024;
  * legacy HTML remains caller-supplied evidence, without invented fetch provenance.
  * Static text is not a claim about CSS visibility, iframes or shadow DOM.
  */
-export function extractPage(html, { baseUrl, receipt = null, textLimit = STATIC_TEXT_LIMIT, xRobotsTag = null } = {}) {
+export function extractPage(html, { baseUrl, receipt = null, textLimit = STATIC_TEXT_LIMIT, xRobotsTag = null, landmarkRegions = false, content = false, bounds } = {}) {
   const capture = receipt === null ? null : validateCaptureReceipt(receipt, { finalUrl: baseUrl });
   if (capture && (!['raw_html', 'rendered_dom'].includes(capture.representation) || capture.httpStatus < 200 || capture.httpStatus >= 300)) throw new PageAcquisitionError('capture_invalid');
-  const parsed = parseDocument(html, baseUrl, { includeMetadata: true, textLimit });
+  const parsed = parseDocument(html, baseUrl, { includeMetadata: true, textLimit, landmarkRegions, content, ...(bounds ? { bounds } : {}) });
   return {
     ...parsed,
     directives: pageDirectives(parsed.meta, xRobotsTag),

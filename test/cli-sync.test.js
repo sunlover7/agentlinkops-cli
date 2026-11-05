@@ -57,7 +57,7 @@ test('a retired entry is paused, never deleted', async () => {
   assert.equal(result.pushed, 1, 'a retired entry is not pushed as a watch');
   assert.equal(result.retired, 1);
   // Its observations are the customer's history, and deleting the watch would take them with it.
-  assert.deepEqual(patched, [{ status: 'paused' }]);
+  assert.deepEqual(patched, [{ status: 'paused', intent: 'retired' }]);
 });
 
 test('a row the cloud refuses is reported, and the rest still land', async () => {

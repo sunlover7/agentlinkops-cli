@@ -1,8 +1,10 @@
 ---
 name: agentlinkops-discovery
-description: Research backlink opportunities for the user's product, qualify exact publisher pages, and hand a sourced shortlist to AgentLinkOps import, verification and monitoring. Use for competitor-source research, resource-page prospects or a fresh niche shortlist.
+description: Review saved backlink searches and supplied exports, research backlink opportunities, and qualify exact publisher pages for selected checks or monitoring. Use for saved-result analysis, import review, competitor-source research and prospect shortlists.
 allowed-tools: Read Write Bash(agentlinkops import *) Bash(agentlinkops init *) Bash(agentlinkops add *) Bash(agentlinkops check *) Bash(agentlinkops tools *) Bash(agentlinkops describe *) Bash(agentlinkops call *) WebFetch WebSearch
 ---
+
+For an existing search or supplied export, read [the saved-backlink workflows](references/saved-backlink-workflows.md). They cover full saved-result review, import provenance, selected checks and a reviewable monitoring handoff.
 
 Use the user's existing search, browser and files. Start with their product URL, audience, useful target pages and any excluded publishers. Read the existing ledger or shortlist to avoid repeating work. Choose on-topic competitors as research inputs; competing products are not automatically prospects.
 
@@ -12,6 +14,6 @@ When the user supplies Common Crawl graph data or has a graph tool, use it to fi
 
 Separate editorial opportunities, paid/sponsored offers, restricted programs and unclear terms. Record prices only when a source states them, with the date. Do not infer acceptance from a competitor link or promise a follow link. Do not buy, submit or send outreach merely because a prospect was found.
 
-For the shortlist, retain `source_url`, `target_url`, `discovered_at`, `evidence_url`, `qualification`, `uncertainty` and graph release when used. Keep domain-only leads in research notes until their page is resolved. Use [the discovery handoff](../../references/discovery-handoff.md) to preview an import and verify selected pairs. Wanted opportunities and already-earned links have different intent: checking whether a candidate currently links to the target must not label it earned.
+For the shortlist, retain `source_url`, `target_url`, `discovered_at`, `evidence_url`, `qualification`, `uncertainty` and graph release when used. Keep domain-only leads in research notes until their page is resolved. Use [the discovery handoff](references/portable/references/discovery-handoff.md) to preview an import and verify selected pairs. Standalone archives include the required references and Python helper resources. Install the AgentLinkOps CLI separately and inspect its version and help before using local commands; supplied files remain useful without it. Wanted opportunities and already-earned links have different intent: checking whether a candidate currently links to the target must not label it earned.
 
 If the user requested recurring monitoring, inspect the connected project's limits and the monitoring command schema before enrollment. Keep unknown checks unknown. Record resulting watch IDs and dated evidence; a local check is not a hosted recurring watch. Without cloud access, finish the local shortlist and verification receipt and name the remaining connection step.

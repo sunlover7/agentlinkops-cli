@@ -3,7 +3,7 @@
 // script, the MCP router, the CLI index and the generators all read the same definitions.
 // Rules: docs/technical/AGENT-SURFACE-CONTRACT.md (DP-0036).
 
-export const TOOLSETS = ['monitoring','classification','evidence','rank','licensed','discovery','baseline','library','competitors','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','digests'];
+export const TOOLSETS = ['monitoring','classification','evidence','rank','licensed','discovery','baseline','library','competitors','internal-links','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','campaigns','digests'];
 
 // One line per toolset: what the group is for. Printed by the site brief, the REST index and the
 // catalog snapshot so the same wording reaches every client; a toolset without a summary is a
@@ -12,17 +12,19 @@ export const TOOLSET_SUMMARIES = {
   admission: 'Project rules, URL previews and retained admission decisions.',
   disavow: 'Propose, review and export website disavow rules; check the copy Google holds (handoffs).',
   lifecycle: 'Placement costs, expiry, renewal events and currency reports.',
-  digests: 'Own-address digest preferences, delivery history and exact events.',
+  campaigns: 'Campaign contacts and supplied outreach outcomes.',
+  digests: 'Own-address digest delivery history and exact retained events.',
   monitoring: 'Watch earned links and destination URLs: create, list, update, import, export, recheck.',
-  classification: 'Retained physical link context, attributed labels and quoted model suggestions.',
+  classification: 'Manual link types and tags with retained placement context and metadata.',
   evidence: 'What a check observed: histories, snapshots, change feeds, check jobs, published contacts.',
   rank: 'Synthetic DataForSEO rank schedules and dated history; hosted collection disabled.',
   licensed: 'Licensed source-search evidence and charge custody; operator admission required.',
   discovery: 'Import candidate rows, read stored runs, verify selected candidates, enroll them.',
   baseline: 'Scoped backlink baselines; new live work requires admission in this deployment.',
   library: 'Read and export the coverage-stated opportunity library.',
-  competitors: 'Competitor sets, dated inventories, scheduled refresh, gap and domain-mix reports.',
-  reports: 'Placement chronology, service assurance and backlink reports.',
+  competitors: 'Competitor sets, dated inventories, scheduled refresh and gap reports.',
+  'internal-links': 'Owned-site page inventories, bounded captures, internal-link health and graph evidence.',
+  reports: 'Placement chronology, service assurance, backlink and domain-mix reports.',
   workspace: 'Workspace, projects, usage, members, invitations, scratch-resource cleanup.',
   notifications: 'Email notification preferences, previews, tests and deliveries.',
   webhooks: 'Webhook endpoints, state, secrets and delivery records.',
@@ -66,7 +68,7 @@ export function oneLiner(description, max = 60) {
 export function manifestText(entries, { max = 23 } = {}) {
   const groups = new Map(TOOLSETS.map(t => [t, []]));
   for (const entry of entries) (groups.get(entry.toolset) ?? groups.set(entry.toolset, []).get(entry.toolset)).push(entry);
-  const lines = ['Commands by toolset. exec help / agentlinkops --help. Licensed: operator admission.'];
+  const lines = ['Commands by toolset. exec help / agentlinkops --help.' + (entries.some(entry=>entry.toolset==='licensed') ? ' Licensed: operator admission.' : '')];
   for (const [toolset, members] of groups) {
     if (!members.length) continue;
     lines.push(`\n${toolset}:${TOOLSET_SUMMARIES[toolset] ? ` ${TOOLSET_SUMMARIES[toolset]}` : ''}`);
@@ -146,7 +148,7 @@ export function viewMembers(entries, view) {
   // stays registered and callable there through exec call and by a direct tools/call.
   if (view === 'default') return [];
   if (view === 'code') return [];
-  const m = /^toolset:([a-z]+)(:readonly)?$/.exec(view);
+  const m = /^toolset:([a-z]+(?:-[a-z]+)*)(:readonly)?$/.exec(view);
   if (!m) throw new Error(`Unknown view ${view}`);
   const members = visible.filter(e => e.toolset === m[1] || e.tier === 'core');
   return m[2] ? members.filter(e => e.readOnly) : members;

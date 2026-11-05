@@ -13,7 +13,7 @@ const pick = (row, keys) => Object.fromEntries(keys.filter(key => row[key] !== u
 const attempt = value => value && typeof value === 'object' ? pick(value, ['state','reason','checkedAt','httpStatus','occurrenceCount','checkerVersion']) : value;
 export function conciseObservationState(state) {
   if (!state || typeof state !== 'object') return state ?? {};
-  const out = pick(state, ['state','uncertain','checked_at','reason','confirmedState','lastChangedAt','firstAbsentAt','consecutiveAbsent','nextCheckAt','lastSuccessfulAt','lastHealthyAt','firstUnavailableAt','unavailableCount','retryNotBefore']);
+  const out = pick(state, ['state','wasEverPresent','uncertain','checked_at','reason','confirmedState','lastChangedAt','firstAbsentAt','consecutiveAbsent','nextCheckAt','lastSuccessfulAt','lastHealthyAt','firstUnavailableAt','unavailableCount','retryNotBefore']);
   if (state.latestAttempt !== undefined) out.latestAttempt = attempt(state.latestAttempt);
   if (state.lastSuccessfulObservation !== undefined) out.lastSuccessfulObservation = attempt(state.lastSuccessfulObservation);
   if (state.lastSuccessfulObservationSameAsLatestAttempt !== undefined) out.lastSuccessfulObservationSameAsLatestAttempt = state.lastSuccessfulObservationSameAsLatestAttempt;
@@ -24,7 +24,7 @@ const categoryFields=['category_contract','chosen_category','page_assessment','d
 // An event snapshot (shared/observation-event.js) minus the occurrence list, expectations and
 // signatures: the state, uncertainty, check state, reason, status and timing stay.
 const conciseSnapshot = snapshot => snapshot && typeof snapshot === 'object'
-  ? pick(snapshot, ['state','uncertain','check_state','reason','checked_at','http_status','occurrence_count','occurrences_truncated','source_url','target_url','url','next_check_at','watch_id','target_id'])
+  ? pick(snapshot, ['state','wasEverPresent','uncertain','check_state','reason','checked_at','http_status','occurrence_count','occurrences_truncated','source_url','target_url','url','next_check_at','watch_id','target_id'])
   : snapshot;
 const observationResult = result => result && typeof result === 'object'
   ? { ...pick(result, ['state','reason','checkedAt','httpStatus','checkerVersion','evidence','redirects']), occurrenceCount: result.occurrenceCount ?? result.occurrences?.length ?? 0 }
@@ -35,7 +35,7 @@ const observationResult = result => result && typeof result === 'object'
 export const SHAPES = {
   list_rank_history: { rows: 'items', keeps: ['overview_run_id','slot_at','rank','observed_at','retrieved_at','freshness','outcome','execution','cost'],
     row: r => pick(r, ['overview_run_id','slot_at','rank','observed_at','retrieved_at','freshness','outcome','execution','cost']) },
-  list_link_watches: { rows: 'items', keeps: ['id','workspace_id','project_id','source_url','target_url','status','state','observation_state','next_check_at','local_reference',...categoryFields], row: r => withState(r, ['id','workspace_id','project_id','source_url','target_url','status','state','next_check_at','local_reference',...categoryFields]) },
+  list_link_watches: { rows: 'items', keeps: ['id','workspace_id','project_id','source_url','target_url','status','state','observation_state','next_check_at','local_reference','intent','outreachStatus','lastContactedAt','campaign',...categoryFields], row: r => withState(r, ['id','workspace_id','project_id','source_url','target_url','status','state','next_check_at','local_reference','intent','outreachStatus','lastContactedAt','campaign',...categoryFields]) },
   list_targets: { rows: 'items', keeps: ['id','url','status','state','observation_state','next_check_at'], row: r => withState(r, ['id','url','status','state','next_check_at']) },
   get_target_placements: { rows: 'items', keeps: ['id','source_url','target_url','target_scope','status','state'], row: r => pick(r, ['id','source_url','target_url','target_scope','status','state']) },
   list_check_jobs: { rows: 'items', keeps: ['id','state','type','watch_id','target_id','attempt_count','error_code','created_at','completed_at'], row: r => pick(r, ['id','state','type','watch_id','target_id','attempt_count','error_code','created_at','completed_at']) },

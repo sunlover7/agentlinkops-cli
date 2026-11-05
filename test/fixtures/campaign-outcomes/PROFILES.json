@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "scope": "Synthetic frozen mapped exports; no vendor account, captured private export, webhook or automatic integration is claimed.",
+  "checkedAt": "2026-10-24",
+  "identity": "alo_record_ref is an explicitly retained opaque custom field or source-bound sidecar join. It is never inferred from email, name, row number or publisher domain.",
+  "dates": "actual_event_at and source_event_id are explicit source-bound event fields in these mapped fixtures. Aggregate totals, launch dates, import timestamps and generic last-contact dates are not substituted for reply/bounce dates. Missing fields hold the row.",
+  "hunter": {
+    "source": "https://help.hunter.io/en/articles/8572858-sequences-reporting",
+    "leadExportSource": "https://hunter.io/blog/gen-ai-email-analyst/",
+    "statusSource": "https://hunter.io/api-documentation",
+    "supported": "Selected lead export with explicitly configured stable-reference, status and actual-event-date columns. Aggregate reporting CSV is not a per-prospect outcome input. Successful alone is held."
+  },
+  "lemlist": {
+    "source": "https://help.lemlist.com/en/articles/7219811-export-campaign-results",
+    "identitySource": "https://help.lemlist.com/en/articles/4452746-export-a-list-of-leads",
+    "supported": "Documented sentAtN and repliedAtN step timestamps plus an explicit retained stable-reference/custom-variable column. Opens are ignored."
+  },
+  "instantly": {
+    "source": "https://help.instantly.ai/en/articles/6285719-how-to-download-leads-csv",
+    "supported": "Selected lead export with explicitly configured stable-reference, supplied status and actual-event-date columns. Export column spelling and event coverage must be checked for the selected file; no universal native header format is claimed."
+  },
+  "nonEffects": ["No provider request", "No send", "No sequence enrollment", "No suppression enforcement", "No mailbox access", "No body/reply/contact email in normalized outcome payload", "No independently verified win from provider success"]
+}

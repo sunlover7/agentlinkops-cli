@@ -74,8 +74,8 @@ test('actual CLI persists all acknowledged positions of a 2,003-row upload acros
     const request = requestLog(url, init, calls);
     if (request.method === 'PATCH') {
       assert.equal(request.path, '/v1/watches/wat_retired');
-      assert.deepEqual(request.body, {status: 'paused'});
-      return Response.json({id: 'wat_retired', status: 'paused'});
+      assert.deepEqual(request.body, {status: 'paused', intent: 'retired'});
+      return Response.json({id: 'wat_retired', status: 'paused', intent: 'retired'});
     }
     assert.equal(request.method, 'POST');
     assert.equal(request.path, '/v1/watches/import');

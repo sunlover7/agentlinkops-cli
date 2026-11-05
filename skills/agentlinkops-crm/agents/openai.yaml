@@ -1,6 +1,6 @@
 interface:
   display_name: AgentLinkOps CRM
-  short_description: Manage the AgentLinkOps local backlink and outreach CRM, user-selected disavow lists, branded HTML reports and cloud eve
+  short_description: "Manage local CRM, disavow lists, reports and cloud event sync"
 policy:
   allow_implicit_invocation: true
 dependencies:

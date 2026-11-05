@@ -1,7 +1,7 @@
 {
   "name": "agentlinkops",
-  "version": "0.6.14",
-  "description": "Connect an agent to AgentLinkOps and run backlink work with it: the connect skill (views, the three discovery verbs, evidence rules), local ledger and campaign skills, a portable CRM, the source-cited content pipeline, user-managed disavow lists, HTML reports and monitoring-event sync.",
+  "version": "0.6.16",
+  "description": "Five product skills for AgentLinkOps connection, backlink discovery, campaign preparation, local CRM records and focused linkable assets. Use the customer's own research and sender tools. Optional content and SEO are outside this pack; their separate artifacts await source, rights and dependency qualification.",
   "author": {
     "name": "AgentLinkOps"
   },

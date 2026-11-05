@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "agentlinkops-local-campaign-map-v1",
+  "kind": "link-registry",
+  "projectField": "site",
+  "projectValue": "synthetic-site",
+  "referenceField": "id",
+  "referencePrefix": "registry:",
+  "sourceUrlField": "source_url",
+  "sourceUrlFallbackField": "live_url",
+  "publisherUrlField": "domain",
+  "targetUrl": "https://customer.example/asset",
+  "pull": {"statusField": "link_status", "statusMap": {"won": "live", "lost": "lost"}}
+}

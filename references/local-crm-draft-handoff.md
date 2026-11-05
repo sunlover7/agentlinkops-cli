@@ -7,7 +7,7 @@ This adapter writes an inert body and companion manifest under that project's
 drafts directory. It does not write contacts, replies, suppression, send logs or
 sequence state. Native vendor APIs remain unsupported by this adapter.
 
-Run from the plugin root:
+Resolve example helper paths from the plugin root for shared references, or from the skill directory for a standalone archive's bundled references:
 
 ```sh
 python3 scripts/outreach-crm-draft.py --crm-root /path/to/customer-crm --request request.json --body-file reviewed-body.txt

@@ -84,7 +84,85 @@ function contextFor(node) {
   return textContent(context, 640);
 }
 
-export function parseDocument(html, pageUrl, { includeMetadata = false, textLimit = null } = {}) {
+// Landmark region of a link from its own ancestors in the one parse tree: the
+// nearest main/article/nav/footer/header/aside (or ARIA role), where a template
+// ancestor (navigation, footer, header, aside) wins over a nested main/article.
+// Links inside script/style/template/noscript have no region.
+const LANDMARK_TAGS = new Map([['main', 'main'], ['article', 'main'], ['nav', 'navigation'], ['footer', 'footer'], ['header', 'header'], ['aside', 'aside']]);
+const LANDMARK_ROLES = new Map([['main', 'main'], ['navigation', 'navigation'], ['contentinfo', 'footer'], ['banner', 'header'], ['complementary', 'aside']]);
+const TEMPLATE_REGIONS = new Set(['navigation', 'footer', 'header', 'aside']);
+const NO_REGION = new Set(['script', 'style', 'template', 'noscript']);
+function landmarkRegion(node) {
+  const chain = [];
+  for (let current = node; current; current = current.parentNode) {
+    if (NO_REGION.has(current.tagName)) return 'unknown';
+    chain.push(current);
+  }
+  let region = 'unknown';
+  for (let index = chain.length - 1; index >= 0; index--) {
+    const current = chain[index];
+    if (TEMPLATE_REGIONS.has(region)) break;
+    const role = current.attrs?.find(item => item.name === 'role')?.value;
+    region = LANDMARK_TAGS.get(current.tagName) ?? LANDMARK_ROLES.get(role) ?? region;
+  }
+  return region;
+}
+
+// Parser bounds. The defaults keep a single checked page cheap; a site crawl
+// raises them and keeps the first anchors of a long page instead of failing it
+// (truncateAnchors), reporting linksTruncated so the caller can mark coverage.
+export const PARSE_BOUNDS = Object.freeze({ elements: 25_000, anchors: 1000, parseMs: 500, truncateAnchors: false });
+
+// Main-content paragraphs for mention matching: the outermost paragraph-like
+// blocks in the page's main landmark (or outside every template landmark when
+// the page has none), with the text of links inside them wrapped in U+0002 and
+// U+0003 so a reader-visible passage keeps its words while a mention that is
+// already a link can be told apart.
+const PARAGRAPHS = new Set(['p', 'li', 'blockquote', 'td', 'dd', 'dt', 'figcaption', 'h2', 'h3', 'h4', 'h5', 'h6']);
+export const CONTENT_BLOCK_BOUNDS = Object.freeze({ blocks: 300, blockChars: 1500, totalChars: 24_000, minChars: 30 });
+export const LINK_TEXT_START = '\u0002', LINK_TEXT_END = '\u0003';
+function markedText(block, limit) {
+  let text = '', lastBlock = null, inLink = false;
+  for (const item of walk(block)) {
+    if (item.tagName === 'br') { text += ' '; lastBlock = null; }
+    if (item.nodeName !== '#text' && item.tagName !== 'img') continue;
+    const value = item.nodeName === '#text' ? item.value : attr(item, 'alt');
+    if (!value) continue;
+    let link = false;
+    for (let cursor = item.parentNode; cursor && cursor !== block.parentNode; cursor = cursor.parentNode) if (cursor.tagName === 'a') { link = true; break; }
+    const inner = blockAncestor(item, block);
+    if (lastBlock !== null && inner !== lastBlock) text += ' ';
+    if (link !== inLink) { text += link ? LINK_TEXT_START : LINK_TEXT_END; inLink = link; }
+    text += value; lastBlock = inner;
+    if (text.length > limit * 2) break;
+  }
+  if (inLink) text += LINK_TEXT_END;
+  return normalize(text).slice(0, limit);
+}
+function contentBlocks(nodes) {
+  const bounds = CONTENT_BLOCK_BOUNDS;
+  const hasMain = nodes.some(node => LANDMARK_TAGS.get(node.tagName) === 'main' || LANDMARK_ROLES.get(attr(node, 'role')) === 'main');
+  const blocks = [];
+  let total = 0, truncated = false;
+  for (const node of nodes) {
+    if (!PARAGRAPHS.has(node.tagName)) continue;
+    // A block inside another block, or inside a link (a card whose whole body is
+    // one anchor), is skipped: any words in a linked block are already link text.
+    let nested = false;
+    for (let cursor = node.parentNode; cursor; cursor = cursor.parentNode) if (PARAGRAPHS.has(cursor.tagName) || cursor.tagName === 'a') { nested = true; break; }
+    if (nested) continue;
+    const region = landmarkRegion(node);
+    if (hasMain ? region !== 'main' : region !== 'unknown') continue;
+    const text = markedText(node, bounds.blockChars);
+    if (text.replace(/[\u0002\u0003]/gu, '').length < bounds.minChars) continue;
+    if (blocks.length >= bounds.blocks || total + text.length > bounds.totalChars) { truncated = true; break; }
+    blocks.push(text); total += text.length;
+  }
+  return { blocks, truncated };
+}
+
+export function parseDocument(html, pageUrl, { includeMetadata = false, textLimit = null, landmarkRegions = false, content = false, bounds = PARSE_BOUNDS } = {}) {
+  const limits = { ...PARSE_BOUNDS, ...bounds };
   if (typeof html !== 'string') throw new TypeError('HTML must be a string');
   const errors = [];
   let elements = 0;
@@ -94,12 +172,12 @@ export function parseDocument(html, pageUrl, { includeMetadata = false, textLimi
     ...defaultTreeAdapter,
     createElement(tagName, namespaceURI, attrs) {
       // Bound parser expansion and evidence output independently of body bytes.
-      if (++elements > 25_000 || attrs.length > 256 || performance.now() - parserStart > 500) {
+      if (++elements > limits.elements || attrs.length > 256 || performance.now() - parserStart > limits.parseMs) {
         const error = new Error('document_too_complex');
         error.reason = 'document_too_complex';
         throw error;
       }
-      if ((tagName === 'a' || tagName === 'area') && ++anchorElements > 1000) {
+      if ((tagName === 'a' || tagName === 'area') && ++anchorElements > limits.anchors && !limits.truncateAnchors) {
         const error = new Error('too_many_link_occurrences');
         error.reason = 'too_many_link_occurrences';
         throw error;
@@ -180,8 +258,10 @@ export function parseDocument(html, pageUrl, { includeMetadata = false, textLimi
       }
     }
   }
+  let anchorsSeen = 0, linksTruncated = false;
   for (const node of nodes) {
     if (!['a', 'area'].includes(node.tagName)) continue;
+    if (++anchorsSeen > limits.anchors) { linksTruncated = true; break; }
     const href = attr(node, 'href');
     if (href === undefined) continue;
     if (href.length > 8192) {
@@ -201,9 +281,11 @@ export function parseDocument(html, pageUrl, { includeMetadata = false, textLimi
       context: contextFor(node),
       locator: location ? { line: location.startLine, column: location.startCol, offset: location.startOffset } : null,
       visibility: 'not_rendered',
+      ...(landmarkRegions ? { region: landmarkRegion(node) } : {}),
     });
   }
-  const result = { links, meta, title, baseUrl, canonical, hasScript, hasPasswordInput, hasChallengeScript, visibleText, incomplete: errors.length > 0, parseErrors: errors };
+  const result = { links, linksTruncated, meta, title, baseUrl, canonical, hasScript, hasPasswordInput, hasChallengeScript, visibleText, incomplete: errors.length > 0, parseErrors: errors };
+  if (content) result.content = contentBlocks(nodes);
   if (includeMetadata) {
     const description = nodes.find(node => node.tagName === 'meta' && (attr(node, 'name') ?? '').toLowerCase() === 'description');
     result.metadata = {

@@ -3,7 +3,23 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
-## 0.6.14 (unreleased)
+## 0.6.16 (unreleased)
+
+- First npm release since 0.6.13. It carries the source changes recorded below for 0.6.14 and 0.6.15, including the refusal of an activity state written by a newer CLI.
+- The agent reference separates hosted command discovery from installed local CLI features. Refreshing the catalog does not install a newer CLI; an upgrade must use a version available through the customer's chosen channel.
+- The campaigns skill no longer points to AI citation panels. AI citation measurement is not part of the AgentLinkOps offer. The local `agentlinkops citation` commands stay for existing panels. The README keeps a short note about them, and the package keywords drop the citation terms.
+- Update the MCP client and server SDKs to 2.3.1, undici to 7.30.1 and zod to 4.6.7. The production dependency audit of the 0.6.16 candidate flagged the earlier versions for published security advisories.
+- The default plugin and npm build contain exactly five product skills: connect, discovery, campaigns, CRM and assets. Individual archives include required references and Python resources. The separate optional content target remains held on source-rights and dependency qualification; older optional artifacts and customer selections are preserved.
+- CLI setup keeps its connection-only default and additive selections. Selecting a separate optional pack does not configure MCP or require the connection skill.
+- The recipe catalog (1.0.11) adds the planned internal-link improvement workflow with explicit evidence, permissions, effects and recovery. The campaign preparation reference adds ranked ideas and version-bound review, and separates prospect saving from verification and monitoring. These source changes retain their unrun qualification gates.
+
+## 0.6.15 (2026-10-19, source only; not published to npm)
+
+- List 152 hosted customer commands in 13 toolsets while webhook delivery is off. Keep operator commands out of customer discovery. Hosted citation and AI classification automation commands remain callable by known name for compatibility, with existing access checks.
+- Keep manual link types, tags, placement metadata and history available. The free local citation panel and its CLI workflows remain listed.
+- Use the same 0.6.15 identity for the CLI, plugin and generated agent reference. npm's previous published version was 0.6.13; 0.6.14 was already used in public source and agent references but was never published to npm.
+
+## 0.6.14 (source only; not published to npm)
 
 - Connect the CLI without environment variables or IDs. `agentlinkops connect` asks for an API key from the Agent page, checks it, and saves it outside the repository: in the macOS Keychain, or in a mode 600 file under `~/.agentlinkops/keys` on Linux. The key names its workspace. With a ledger in the folder, `connect` maps the ledger to the workspace's only website, or prints one command per website to choose from.
 - Send cloud commands to `https://app.agentlinkops.com` when no origin is configured. Without a key, `call` now says to run `connect` instead of failing with `NO_CLOUD_ORIGIN`.
@@ -16,7 +32,7 @@ plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 - Add `chronology pull` for saved placement history on compatible hosted versions and `chronology export` for frozen local pages. Exports retain denied origins, history gaps and partial paging.
 - Preserve existing frozen version-two reports and reject exports that would replace an input or existing file.
 
-## 0.6.12 (2026-10-07)
+## 0.6.12 (2026-10-07, source only; not published to npm)
 
 - Check every watch import result before updating sync mappings or reporting progress. Reject incomplete, duplicate or out-of-range results without resending the request.
 - Show inspection and read-only cursor recovery steps after a sync timeout or lost connection. Keep the project ledger and history while the write outcome is unknown.

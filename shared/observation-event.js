@@ -6,7 +6,7 @@ export function eventSnapshot(state) {
     rel: (item.rel || []).slice(0, 20),
   }));
   return {
-    schema_version: 1, target_scope: state.target_scope,
+    schema_version: 1, display_state: state.pipeline?.intent==='prospect' && !state.wasEverPresent ? 'prospect' : ['confirmed_missing','suspected_missing'].includes(state.state) && !state.wasEverPresent ? 'unverified' : state.state||'unknown', was_ever_present:state.wasEverPresent === true, intent:state.pipeline?.intent??'earned', target_scope: state.target_scope,
     check_state: latest.state ?? 'unknown', link_signature: latest.linkSignature ?? null,
     checker_version: latest.evidence?.checkerVersion ?? null,
     // Hash the captured document, not the enclosing R2 receipt object. Older events

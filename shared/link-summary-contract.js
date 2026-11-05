@@ -3,8 +3,8 @@ import {z} from 'zod';
 const count=z.number().int().nonnegative();
 const at=z.string().nullable();
 // last_checked_at is the oldest latest check among active links (every one was checked since);
-// latest_check_at is the newest. went_missing counts never-seen links that turned Missing.
-const statusCounts={links:count,live:count,missing:count,couldnt_check:count,paused:count,not_checked_yet:count,last_checked_at:at,latest_check_at:at.optional()};
+// latest_check_at is the newest. Missing changes require historical presence evidence.
+const statusCounts={prospect:count.optional(),by_intent:z.record(z.string(),count).optional(),by_outreach_status:z.record(z.string(),count).optional(),links:count,live:count,missing:count,couldnt_check:count,paused:count,not_checked_yet:count,last_checked_at:at,latest_check_at:at.optional()};
 export const linkSummaryWebsite=z.looseObject({project_id:z.string(),domain:z.string().nullable(),name:z.string().nullable(),...statusCounts,found:count.nullable(),back:count.nullable().optional(),lost:count.nullable(),went_missing:count.nullable().optional()});
 export const linkSummaryResponse=z.looseObject({
   schema_version:z.literal(1),workspace_id:z.string(),project_id:z.string().nullable(),as_of:z.string(),

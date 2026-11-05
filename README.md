@@ -1,5 +1,9 @@
 # agentlinkops
 
+<!-- generated:customer-catalog begin -->
+Pack version 0.6.16. 156 commands in 13 toolsets.
+<!-- generated:customer-catalog end -->
+
 A backlink ledger that lives in your repository. `agentlinkops check` fetches a source page,
 looks for the link you declared and records an observation with the HTTP status, redirect
 chain, robots posture and a SHA-256 of the fetched bytes. Page HTML never enters the repository.
@@ -30,7 +34,8 @@ the installed version's help before selecting guidance.
    `https://app.agentlinkops.com/mcp` as a remote HTTP MCP server in your client.
    On a version whose help supports selection, use `agentlinkops agent setup --skill ID`
    or `--recipe ID` for optional guidance; repeat either flag for several choices.
-   Choose `--all-skills` only for the complete pack. Customer instructions and records
+   Choose `--all-skills` only for this product pack's skills. Separate optional packs
+   require `--pack DIR`. Customer instructions and records
    remain the customer's choice.
 
    Preview `agentlinkops agent remove --recipe ID` or `--skill ID` before adding
@@ -172,43 +177,12 @@ Hosted access opens in stages: anyone can create an account at https://app.agent
 and an account outside the pilot is told it is waiting for access. The hosted checks, evidence store
 and MCP server are a separate service and are not part of this package.
 
-## Citation watches
+## Citation commands
 
-An AI citation is a placement: a reference to your asset on a surface you do not control,
-re-decided by the model on every ask. So the CLI watches it the way it watches a link: a prompt
-panel, run against engine APIs on cadence, with dated evidence and honest statistics. A citation
-is never reported as "removed": each epoch states the citation rate with a Wilson interval and
-its sample size, classified against the previous epoch as declined, grown or
-not_distinguishable, or `insufficient_data` when n is too thin to interpret.
-
-```sh
-agentlinkops citation panel --domain example.com --brand Example --out panel.json
-agentlinkops citation run panel.json --max-usd 1.00
-```
-
-New panels use the free mock engine. A live engine requires its own configuration and credentials;
-missing credentials never select mock results. The JSON panel contains `targets`, `prompts`,
-`engines`, optional `samples` and `maxUsd`. Answer snapshots live in
-`.agentlinkops/citations/evidence/`; observation and epoch ledgers live at the `.agentlinkops/` root.
-The runner reserves estimated cost before each call and retry. A reported supplier
-overrun stops later calls; estimates do not enforce a provider invoice cap. A budget
-abort leaves a partial-epoch receipt and exit code 2. A cell
-that declined with complete evidence exits 1, like an expected link observed absent.
-
-Browser measurement requires `AGENTLINKOPS_PROXY_URL` and refuses direct fallback.
-For an explicitly authorized direct diagnostic, set `AGENTLINKOPS_BROWSER_EGRESS=direct-diagnostic`
-and leave the proxy unset. The standard URL proxy provides no actual usage meter;
-its cost remains an estimate. Browser login and live account acceptance are separate.
-
-Browser epochs retain supplied usage and cleanup receipts in
-`.agentlinkops/citations/egress/<epochId>.jsonl`. Unknown meter values stay null. A missing
-final record means the journal is incomplete; it does not establish complete costs or cleanup.
-Journals stop at 10,000 records or 8 MiB, and a failed write stops further samples.
-
-Frozen inventories and evidence uploads check files against their retained observation hashes.
-Historical hashes verify the recorded answer fields and screenshot filename; they do not prove
-when an answer was captured or authenticate old screenshot pixels. Hosted uploads retain a
-separate hash of the exact uploaded file bytes.
+The local `agentlinkops citation` commands stay in this package for existing panels.
+AI citation measurement is not part of the AgentLinkOps offer, and the hosted service does
+not list citation commands for customers. `agentlinkops citation help` describes the local
+commands.
 
 ## Environment variables
 
@@ -229,13 +203,24 @@ ledger directory are still accepted with a one-line notice on stderr until 2026-
 ## Agent plugin
 
 The package doubles as a plugin: `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`
-point at `skills/`, which holds the connect, CRM, campaign and asset skills plus the
-content-pipeline skills, with templates in `templates/` and contracts in `references/`.
-`agentlinkops agent setup` installs the same skills for any detected client, and the discovery
-index at `https://agentlinkops.com/.well-known/agent-skills/index.json` serves them to
-`npx skills add` (the content pipeline sits behind `https://agentlinkops.com/content`). Node.js
-runs the ledger CLI; Python 3.10 or later runs the optional CRM helper and the watermark
-scanner.
+point at five product skills in `skills/`: connect, discovery, campaigns, CRM and assets.
+`agentlinkops agent setup` keeps the connection-only default; `--skill` and `--recipe`
+add explicit selections. `--all-skills` selects this pack's five skills. Upgrades retain
+older optional selections and customer edits until explicit removal.
+
+The separate optional content pack contains builder, humanizer, text cleanup,
+internal-linking and pre-publish guidance. Its source-rights and portable-dependency
+qualification remain unresolved; the product build preserves its
+older published index and archives without qualifying them. When a separately qualified
+pack is available, `--pack DIR` selects its local skills directory. An optional pack alone
+does not configure AgentLinkOps MCP. The existing product discovery index and content
+index paths remain unchanged.
+
+Each standalone product archive includes its required references and Python resources.
+Its dependency receipt declares the separately installed CLI, selected recipes and
+customer tools. Node.js runs the CLI; Python 3.10 or later runs the optional CRM helper.
+Inspect the installed version and help before using a local feature. Refreshing the
+hosted command catalog does not install a newer CLI.
 
 ## What it does not do
 
