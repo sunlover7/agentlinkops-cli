@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "pack": "product",
+  "skills": [
+    "agentlinkops-connect",
+    "agentlinkops-discovery",
+    "agentlinkops-campaigns",
+    "agentlinkops-crm",
+    "agentlinkops-assets"
+  ],
+  "defaultCliSkills": [
+    "agentlinkops-connect"
+  ],
+  "mcp": true,
+  "contractSha256": "e3d29a169dd1ecae2db26b22ab666419c4057e84831653df655f04ae61725e93"
+}

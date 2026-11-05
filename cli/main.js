@@ -2,6 +2,7 @@ import {projectPlacements} from './placement-projection.js';
 import {chronologyMain} from './chronology.js';
 import { acquireSyncLock } from './sync-lock.js';
 import {lifecycleMain} from './lifecycle.js';
+import {campaignMain,CAMPAIGN_CLI_HELP} from './campaign-bridge.js';
 import {admissionMain} from './admission.js';
 import { commandsMain } from './commands.js';
 import { disavowMain } from './disavow.js';
@@ -23,7 +24,7 @@ import { checkToFile, adoptLocalResult } from './local-result.js';
 import { disagreements, transitions } from './status.js';
 import { readImport, parseMap } from './import.js';
 import { freezeDataset, renderReport, datasetDigest } from './report.js';
-import { createClient, CloudError } from './client.js';
+import { createClient, CloudError, CLI_VERSION } from './client.js';
 import { cloudConnection, connectKey, connectMain, keySetup } from './connection.js';
 import { createKeyStore, withStoredKeys } from './key-store.js';
 import { askSecret } from './prompt.js';
@@ -48,6 +49,8 @@ import { citationMain } from './citation.js';
 
 const USAGE = `agentlinkops — a backlink ledger that lives in your repository
 
+  agentlinkops --version              print the installed CLI version
+
   agentlinkops skill [--url|--list [--json]|NAME]  read the agent reference or a named skill
                                             before the first AgentLinkOps call
   agentlinkops init                   create .agentlinkops/ here
@@ -59,8 +62,9 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops chronology pull --watch-id ID [--limit N] [--cursor TOKEN] [--all] [--out FILE]
   agentlinkops chronology export --pages FILE [--submissions FILE] [--out FILE]
   agentlinkops index pull --watch-id ID [--limit N] [--before ID]
+  agentlinkops campaign plan|apply|reconcile|rollback|pull-plan|pull-apply|pull-rollback|outcomes-plan|outcomes-apply
+                                            preview and reconcile portable campaign records; no sending or automatic checks
   agentlinkops lifecycle get|update|clear|renew|report
-  agentlinkops admission list|add|update|remove|evaluate|reevaluate|receipt --project ID
   agentlinkops disavow list|history|propose|import|export|approve|reject|delete
   agentlinkops index import FILE | export [--out FILE] | csv URLS.csv [--out FILE]
   agentlinkops index submissions-import FILE | submissions-export --project-id ID [--out FILE]
@@ -169,6 +173,8 @@ export async function main(argv = process.argv.slice(2), options) {
   const { cwd = process.cwd(), out = console.log, err = console.error, fetchImpl = globalThis.fetch, localFetchImpl = null, afterHistoryPersisted, afterStatePersisted, signal,
     keyStore = executable ? createKeyStore() : null,
     ask = executable && process.stdin.isTTY === true && process.stderr.isTTY === true ? askSecret : null } = options ?? {};
+  if (argv.length === 1 && argv[0] === '--version') { out(CLI_VERSION); return 0; }
+  if (argv[0] === 'campaign' && argv.length===2 && ['--help','help'].includes(argv[1])) { out(CAMPAIGN_CLI_HELP); return 0; }
   const env = withStoredKeys(options?.env ?? process.env, keyStore);
   if (argv[0] === 'gsc-links') return await gscLinksMain(argv, { cwd, out });
   // Citation watches keep their own files under .agentlinkops/citations/ and never
@@ -185,6 +191,7 @@ export async function main(argv = process.argv.slice(2), options) {
   try {
     if (args['recover-cursors'] !== undefined && (command !== 'sync' || args['recover-cursors'] !== true || args['pull-only'] !== true || args['push-only']))
       throw new ConfigError('Cursor recovery requires agentlinkops sync --pull-only --recover-cursors; it performs no remote writes.');
+    if (command === 'campaign') return await campaignMain(args,{cwd,env,fetchImpl,out});
     if (command === 'lifecycle') return await lifecycleMain(args,{cwd,env,fetchImpl,out,err});
     if (command === 'admission') { const config=await loadConfig({cwd}); return await admissionMain(argv.slice(1),{client:createClient({...cloudConnection(config,env),fetchImpl}),out,err}); }
     if (command === 'disavow') return await disavowMain(args,{cwd,env,fetchImpl,out});

@@ -1,6 +1,6 @@
 interface:
   display_name: AgentLinkOps Connect
-  short_description: How to use AgentLinkOps correctly through its MCP tools, the agentlinkops CLI or HTTP; read before the first call.
+  short_description: "Read before using AgentLinkOps via MCP, CLI or HTTP"
 policy:
   allow_implicit_invocation: true
 dependencies:

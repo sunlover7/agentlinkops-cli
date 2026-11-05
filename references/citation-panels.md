@@ -1,5 +1,7 @@
 # Citation panels
 
+Status: AI citation measurement is not part of the AgentLinkOps offer. No default skill links to this page, and the hosted service lists no citation commands for customers. This reference covers the local `agentlinkops citation` commands, which stay in the CLI for existing panels.
+
 A panel records the questions, target sites, engines and sample budget for a citation check. Start with questions your audience has actually asked. Keep each question's source and collection date in your own research notes. Search Console queries, support conversations and public discussion threads can help when you already have access; the panel builder does not fetch or validate them.
 
 Create an editable draft without calling a provider:

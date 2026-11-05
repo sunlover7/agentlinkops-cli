@@ -1,0 +1,3 @@
+alo_record_ref,Lead status,actual_event_at,source_event_id,Email
+lead-fixture-1,Contacted,2026-10-24T12:00:00Z,instantly-fixture-event-1,synthetic@publisher.example
+lead-fixture-1,Completed,2026-10-24T12:20:00Z,instantly-fixture-event-2,synthetic@publisher.example

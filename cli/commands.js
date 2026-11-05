@@ -5,7 +5,7 @@ import { cloudConnection, DEFAULT_ORIGIN } from './connection.js';
 import { createClient, CloudError } from './client.js';
 import { parseArgs } from './args.js';
 import { NUDGE } from './skill.js';
-import { CATALOG_COMMANDS, CATALOG_TOOLSETS } from './catalog.js';
+import { CATALOG_COMMANDS, CATALOG_VERSION, CATALOG_TOOLSETS } from './catalog.js';
 import { oneLiner } from '../src/tool-views.js';
 import { resolveSchemaPath, listAvailablePaths } from '../shared/exec-grammar.js';
 
@@ -39,7 +39,7 @@ export const resolveName = (commands, name) => commands.find(c => c.name === nam
 export function renderIndex(commands, { toolset = null, json = false } = {}) {
   const selected = toolset ? commands.filter(c => c.toolset === toolset) : commands;
   if (json) {
-    const index = summaries => JSON.stringify({ toolsets: toolset ? { [toolset]: CATALOG_TOOLSETS[toolset] } : CATALOG_TOOLSETS, defaults: { tier: 'deferred' }, commands: selected.map(c => ({ name: c.name, toolset: c.toolset, ...(c.tier === 'deferred' ? {} : { tier: c.tier }), readOnly: c.readOnly, ...(summaries ? { summary: oneLiner(c.description, 40) } : {}), ...(c.admissionGated ? { admission: 'gated' } : {}), ...(c.aliases?.length ? { aliases: c.aliases } : {}) })),
+    const index = summaries => JSON.stringify({ version:CATALOG_VERSION,count:selected.length,toolsets: toolset ? { [toolset]: CATALOG_TOOLSETS[toolset] } : CATALOG_TOOLSETS, defaults: { tier: 'deferred' }, commands: selected.map(c => ({ name: c.name, toolset: c.toolset, ...(c.tier === 'deferred' ? {} : { tier: c.tier }), readOnly: c.readOnly, ...(summaries ? { summary: oneLiner(c.description, 40) } : {}), ...(c.admissionGated ? { admission: 'gated' } : {}), ...(c.aliases?.length ? { aliases: c.aliases } : {}) })),
       next: (summaries ? '' : 'Run `agentlinkops tools TOOLSET` for one-line summaries. ') + 'Run `agentlinkops describe NAME` for a schema, then `agentlinkops call NAME --args JSON`.' });
     const full = index(true);
     return Math.round(full.length / 3.6) < 6000 ? full : index(false);

@@ -1,8 +1,8 @@
 # Local CRM contract
 
 Version 0.2.0; SQLite schema version 4. Python 3.10+ is the only prerequisite.
-Examples assume the working directory is this plugin root. Resolve paths from
-the installed plugin location when running from a skill. Choose a database
+Resolve example helper paths from the plugin root for shared references, or from
+the skill directory for a standalone archive's bundled references. Choose a database
 path in the user's working directory, outside the replaceable plugin cache.
 
 ```sh

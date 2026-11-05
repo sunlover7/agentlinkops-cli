@@ -12,13 +12,15 @@ The plan and check behavior above retains the CLI review from September 20, 2026
 
 ## Optional writing and review guidance
 
-Use the customer's chosen source, editorial and review process. Selecting a recipe does not select the packaged content skills. If the customer chooses that pack's writing method, explicitly select each required stage:
+Use the customer's chosen source, editorial and review process. Selecting a recipe does not select the packaged content skills. The product pack contains five product skills. The separate optional content pack retains unresolved source rights and portable dependencies; the product build does not rebuild or qualify its older published artifacts. Preserve existing customer-selected writing skills and their policy. Do not treat `--all-skills` on the product pack as selecting content.
+
+When a separately qualified content pack is available and the customer chooses it, point `--pack` at its installed skills directory and select the required stages. `CONTENT_SKILLS_DIR` below means that customer-selected local directory, not a download URL:
 
 ```sh
-agentlinkops agent setup --skill source-cited-content-builder --skill source-cited-humanizer --skill content-defingerprinting --skill internal-linking-optimizer --skill pre-publish-review
+agentlinkops agent setup --pack "$CONTENT_SKILLS_DIR" --skill source-cited-content-builder --skill source-cited-humanizer --skill content-defingerprinting --skill internal-linking-optimizer --skill pre-publish-review
 ```
 
-Alternatively, choose `agentlinkops agent setup --all-skills` when the customer wants the complete pack. Read the selected skills and follow their own rules, including the separate editorial pass and final-text scan. Keep reviews tied to the actual revision and message or page format. A missing or unrun required review leaves that review incomplete; recipe selection, installation or a green build does not pass it.
+Read the selected skills and follow their own rules, including the separate editorial pass and final-text scan. Keep reviews tied to the actual revision and message or page format. A missing or unrun required review leaves that review incomplete; recipe selection, installation or a green build does not pass it. Installing an optional pack alone does not configure AgentLinkOps MCP or sign in to an account.
 
 ## Optional continuations
 

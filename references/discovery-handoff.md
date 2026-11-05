@@ -29,4 +29,4 @@ The local check includes wanted entries; `--all` rechecks the selected rows even
 
 For an already connected workspace, `agentlinkops tools monitoring` and `agentlinkops describe monitor_link` expose the current hosted contract. Inspect project IDs and usage first. Enroll selected source/target pairs only when recurring monitoring is within the user's request; record the returned watch IDs. A successful import or local check alone does not create a recurring hosted job.
 
-The [campaign skill](../skills/agentlinkops-campaigns/SKILL.md) handles subsequent campaign judgment. The [CRM reference](cli.md) covers optional records when the user needs contacts and activities beside the ledger. Outreach stays in the user's chosen tool and requires their instruction.
+Use the customer's brief and evidence to decide the next campaign step. For additional guidance, select `agentlinkops agent setup --skill agentlinkops-campaigns` and read that installed skill. The [CRM reference](cli.md) covers optional records when the user needs contacts and activities beside the ledger. Outreach stays in the user's chosen tool and requires their instruction.

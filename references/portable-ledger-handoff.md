@@ -36,15 +36,16 @@ Keep a distinct output for a new snapshot; this is a dated artifact, not a monit
 
 Read the saved JSON back before claiming persistence. Its destination outcome is
 `not_attempted`, and `send_eligible` remains false on every row. Passing this helper
-does not prove a CRM import or sequencer readback. Follow the
-[qualified campaign handoff](recipes/qualified-campaign-handoff.md) for explicit
-mapping, original-operation reconciliation and destination readback. After a
-response-lost import, preserve its actual operation identity and unknown outcome;
-do not replace it with this file's operation ID or repeat a create to repair an
-artifact error. [Placement reconciliation](recipes/placement-reconciliation.md)
-keeps monitoring facts apart from sent/replied/suppressed records.
+does not prove a CRM import or sequencer readback. Before a destination write,
+retain the exact mapping and request, then read the destination back when authorized.
+After a response-lost import, preserve its actual operation identity and unknown
+outcome; do not replace it with this file's operation ID or repeat a create to
+repair an artifact error. Keep monitoring facts apart from sent/replied/suppressed
+records. For additional guidance, select `agentlinkops agent setup --recipe qualified-campaign-handoff`
+or `agentlinkops agent setup --recipe placement-reconciliation` and read the selected
+recipe. Neither is required to prepare this local file.
 
-Package invocation assumes the plugin's root directory. Local source invocation
-uses toolkit/plugin/agentlinkops/scripts/portable-handoff.py. Unsupported native
+Resolve example helper paths from the plugin root for shared references, or from
+the skill directory for a standalone archive's bundled references. Unsupported native
 vendors, mailbox access and automatic suppression synchronization remain outside
 this helper. No account, credential or send action is installed by it.

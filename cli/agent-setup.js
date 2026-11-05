@@ -33,6 +33,7 @@ export const SERVER_NAME = "agentlinkops";
 const RECEIPT = ".agentlinkops/agent-setup.json";
 const SHARED = Symbol("package siblings");
 const SELECTION = Symbol("selected payloads");
+const ARTIFACT = Symbol("pack artifact contract");
 const CORE_SKILL = "agentlinkops-connect";
 const selectionIds = (value, flag) => {
   const ids = value === undefined ? [] : [].concat(value);
@@ -189,6 +190,38 @@ export async function readPack(dir) {
       "Skill package exceeds the 10000-file/32MiB install bound.",
     );
   Object.defineProperty(skills, SHARED, { value: siblings });
+  await safePath(join(dir, "..", "PACK-ARTIFACT.json"));
+  await safePath(join(dir, "..", "PACKS.json"));
+  const artifactBytes = await bytesAt(join(dir, "..", "PACK-ARTIFACT.json"));
+  const contractBytes = await bytesAt(join(dir, "..", "PACKS.json"));
+  if (artifactBytes || contractBytes) {
+    let artifact, contract;
+    try {
+      contract = JSON.parse(contractBytes);
+      // The maintained source tree has PACKS but no generated artifact receipt.
+      // Its explicit default still uses additive product selection; missing
+      // generated metadata must not restore the old prune-everything mode.
+      artifact = artifactBytes ? JSON.parse(artifactBytes) : {
+        schemaVersion:1,pack:contract.defaultPack,skills:contract.packs?.[contract.defaultPack]?.skills,
+        defaultCliSkills:contract.packs?.[contract.defaultPack]?.defaultCliSkills,
+        mcp:contract.packs?.[contract.defaultPack]?.mcp,contractSha256:sha256(JSON.stringify(contract)),
+        selectionSource:'maintained manifest; no generated artifact qualification',
+      };
+    } catch { throw new ConfigError("The selected pack metadata is unavailable or invalid."); }
+    const selected = contract?.packs?.[artifact?.pack];
+    if (!artifact || artifact.schemaVersion !== 1 || contract?.schemaVersion !== 1 || !["product", "content"].includes(artifact.pack)
+        || !selected || selected.sourcePolicy !== (artifact.pack === "product" ? "maintained-product-source" : "reviewed-portable-source")
+        || artifact.contractSha256 !== sha256(JSON.stringify(contract))
+        || !Array.isArray(artifact.skills) || !Array.isArray(artifact.defaultCliSkills)
+        || !isDeepStrictEqual(artifact.skills, selected.skills) || !isDeepStrictEqual([...artifact.skills].sort(), Object.keys(skills).sort())
+        || !isDeepStrictEqual(artifact.defaultCliSkills, selected.defaultCliSkills) || artifact.mcp !== selected.mcp
+        || artifact.mcp !== (artifact.pack === "product")
+        || !isDeepStrictEqual(artifact.defaultCliSkills, artifact.pack === "product" ? [CORE_SKILL] : [])
+        || artifact.defaultCliSkills.some(id => !Object.hasOwn(skills,id))
+        || artifact.skills.some(id => contract.dependencies?.[id]?.unresolved?.length))
+      throw new ConfigError("The selected pack metadata disagrees with its files or source hold.");
+    Object.defineProperty(skills, ARTIFACT, {value:artifact});
+  }
   return skills;
 }
 
@@ -197,12 +230,20 @@ export async function readPack(dir) {
 export function selectPack(pack, { skills = [], recipes = [], all = false } = {}) {
   if (all && (skills.length || recipes.length))
     throw new ConfigError("Choose --all-skills or named --skill/--recipe selections.");
-  if (!Object.hasOwn(pack, CORE_SKILL) || !pack[CORE_SKILL]["SKILL.md"]?.bytes.length)
+  const artifact = pack[ARTIFACT], connects = artifact?.mcp !== false;
+  if (connects && (!Object.hasOwn(pack, CORE_SKILL) || !pack[CORE_SKILL]["SKILL.md"]?.bytes.length))
     throw new ConfigError("The core connection skill is missing from the package.");
-  if (!pack[CORE_SKILL]["references/agentlinkops.md"]?.bytes.length)
+  if (connects && !pack[CORE_SKILL]["references/agentlinkops.md"]?.bytes.length)
     throw new ConfigError("The core connection reference is missing from the package.");
-  if (all) return { pack, selection: { mode: "all", skills: Object.keys(pack), recipes: [] } };
-  const selected = new Set([CORE_SKILL, ...skills]);
+  if (all) {
+    // A new product-only artifact must not prune optional payloads installed by
+    // an older mixed bundle. Legacy packs retain their existing explicit mode.
+    if (artifact) Object.defineProperty(pack, SELECTION, {value:true});
+    return { pack, selection: { mode: "all", skills: Object.keys(pack), recipes: [] } };
+  }
+  const selected = new Set([...(artifact?.defaultCliSkills ?? [CORE_SKILL]), ...skills]);
+  if (!connects && (!selected.size || recipes.length))
+    throw new ConfigError("Select optional pack skills with --skill ID or --all-skills; product recipes are a separate selection.");
   const siblings = pack[SHARED] ?? {};
   let catalog = null;
   if (recipes.length) {
@@ -241,6 +282,7 @@ export function selectPack(pack, { skills = [], recipes = [], all = false } = {}
   }
   Object.defineProperty(result, SHARED, { value: support });
   Object.defineProperty(result, SELECTION, { value: true });
+  if (artifact) Object.defineProperty(result, ARTIFACT, {value:artifact});
   return { pack: result, selection: { mode: "selected", skills: [...selected], recipes: chosenRecipes } };
 }
 
@@ -1112,9 +1154,9 @@ export async function agentMain(
       scope,
       receipt,
     });
-    for (const path of skills.desired) desired.add(path);
-    for (const path of skills.roots) selectedRoots.add(path);
-    const mcp = await planMcp(client, { cwd, home, origin, scope });
+    const mcp = pack[ARTIFACT]?.mcp === false
+      ? {action:"not selected",file:null,url:null}
+      : await planMcp(client, { cwd, home, origin, scope });
     const entry = {
       id: client.id,
       name: client.name,
@@ -1133,6 +1175,19 @@ export async function agentMain(
         ...(mcp.snippet ? { snippet: mcp.snippet } : {}),
       },
     };
+    // Autodetection is a convenience, not one shared permission boundary. Leave a
+    // conflicting client's files and receipt ownership alone while installing
+    // independent clients. An explicit multi-client selection remains atomic.
+    if (!only && (skills.conflicts.length || mcp.action === "conflict")) {
+      entry.skipped = true;
+      if (mcp.action === "write") entry.mcp.action = "not applied";
+      if (mcp.action === "conflict") report.next.push(`${client.name}: ${mcp.note}`);
+      for (const c of skills.conflicts) report.next.push(`${client.name}: ${c.target} ${c.note}`);
+      report.clients.push(entry);
+      continue;
+    }
+    for (const path of skills.desired) desired.add(path);
+    for (const path of skills.roots) selectedRoots.add(path);
     for (const item of skills.install) {
       operations.set(item.target, {
         path: item.target,
@@ -1194,9 +1249,11 @@ export async function agentMain(
   const conflicts = report.clients.some(
     (c) => c.skills.conflicts.length || c.mcp.action === "conflict",
   );
+  const readyClients = report.clients.filter(c => !c.skipped);
+  const blocked = conflicts && (Boolean(only) || readyClients.length === 0);
   if (
     !report.dryRun &&
-    !conflicts &&
+    !blocked &&
     (operations.size || ownershipChanged || !receipt)
   ) {
     const oldReceipt = await bytesAt(paths.receipt),
@@ -1206,7 +1263,7 @@ export async function agentMain(
             installedAt: now(),
             origin,
             scope,
-            clients: report.clients.map((c) => c.id),
+            clients: readyClients.map((c) => c.id),
             lastSetupSelection: selection,
             files: ownedFiles,
             mcp: ownedMcp,
@@ -1228,7 +1285,7 @@ export async function agentMain(
     for (const c of report.clients)
       if (c.mcp.action === "planned") c.mcp.action = "written";
   }
-  if (conflicts) {
+  if (blocked) {
     report.pruned = [];
     report.next.push(
       "Conflicts prevented all installation writes. Resolve them and retry.",
@@ -1238,28 +1295,36 @@ export async function agentMain(
       if (c.mcp.action === "planned") c.mcp.action = "not applied";
     }
   }
-  if (!conflicts) {
+  if (conflicts && !blocked) report.next.push(
+    report.dryRun
+      ? "Conflicting clients would be skipped; other clients can be installed."
+      : "Conflicting clients were skipped; other clients were installed. Retry a skipped client with --client ID after resolving its conflicts.",
+  );
+  const connects = pack[ARTIFACT]?.mcp !== false;
+  if (!blocked && connects) {
     // The plain next step: where the sign-in happens, then where to approve it.
-    for (const c of report.clients)
+    for (const c of readyClients)
       report.next.push(c.id === "claude-code"
         ? `Claude Code: open it${scope === "project" ? " in this folder" : ""}, run /mcp, select ${SERVER_NAME} and choose Authenticate.`
         : `${c.name}: sign in when it first connects to ${SERVER_NAME}; the client opens the sign-in page.`);
     report.next.push(`Then approve the agent's request on the Agent page: ${origin}/#/access`);
   }
-  const offerCli = !json && !report.dryRun && !conflicts && typeof connectCli === "function";
-  report.next.push(
+  const offerCli = connects && !json && !report.dryRun && !blocked && typeof connectCli === "function";
+  if (connects) report.next.push(
     `For a chosen hosted task, sign in through the client's MCP OAuth flow. Local supplied-link checks require no AgentLinkOps account; ${offerCli
       ? "this command stores a credential only if you paste a CLI key below."
       : "no credential was stored by this command."}`,
   );
-  const cliReady = ["AGENTLINKOPS_API_KEY", "AGENTLINKOPS_TOKEN", "LINKTRAIL_API_KEY", "LINKTRAIL_TOKEN"].some((name) => env[name]) ||
-    !!env[STORED_KEY]?.(origin);
-  if (!cliReady && !offerCli)
+  const cliReady = connects && (["AGENTLINKOPS_API_KEY", "AGENTLINKOPS_TOKEN", "LINKTRAIL_API_KEY", "LINKTRAIL_TOKEN"].some((name) => env[name]) ||
+    !!env[STORED_KEY]?.(origin));
+  if (connects && !cliReady && !offerCli)
     report.next.push(`To use the agentlinkops CLI too, run \`npx -y agentlinkops connect\` in a terminal and paste an API key from ${origin}/#/access.`);
   if (report.retainedExisting.length)
     report.next.push("Earlier payloads outside this selection were retained. Preview agent remove --skill ID or --recipe ID to remove them explicitly.");
-  report.next.push("Optional skills and recipes: agent setup --skill ID or --recipe ID; --all-skills installs the complete pack.");
-  report.next.push(NUDGE);
+  report.next.push(connects
+    ? "Select available product skills or recipes with --skill ID or --recipe ID. --all-skills installs this pack's skills; separate optional packs require --pack DIR."
+    : "This optional selection does not configure AgentLinkOps MCP. Use --pack DIR and --skill ID or --all-skills to select its available skills.");
+  if (connects) report.next.push(NUDGE);
   out(json ? JSON.stringify(report, null, 2) : renderSetup(report));
   if (offerCli) await connectCli(origin);
   return report.clients.some(

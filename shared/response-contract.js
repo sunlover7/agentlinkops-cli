@@ -1,6 +1,12 @@
+import {onboardingResponse} from './onboarding.js';
+import {internalLinkPreviewOutput,internalLinkSnapshotOutput,internalLinkListOutput,internalLinkQueryOutput} from './internal-links-contract.js';
+import {profileHistoryOutput,profileHistoryRecordsOutput} from './analytics-history-contract.js';
 import {classificationMetadataResponse,classificationMetadataWriteResponse,classificationMetadataOccurrenceResponse,classificationResponse,classificationHistoryResponse,classificationQuoteResponse,classificationJobResponse} from './classification-contract.js';
 import {chronologyResponse,assuranceResponse} from './monitoring-read-contract.js';
 import {lifecycleOutput} from './lifecycle-contract.js';
+import {contactResponses} from './contact-record-contract.js';
+import {prospectResponses} from './campaign-prospect-contract.js';
+import {campaignOutcomeResponses} from './campaign-outcome-contract.js';
 import {searchConnectionsResponse,searchRowsResponse,searchSyncResponse,searchPropertiesResponse,searchStartResponse,searchConnection,searchImportResponse} from './search-connection-contract.js';
 import {linkSummaryResponse} from './link-summary-contract.js';
 import {linkCategoryFields,linkLabelledWatchResponse,linkLabelledWatchesResponse} from './link-category-contract.js';
@@ -20,7 +26,7 @@ export const eventFeedResponse=z.looseObject({events:z.array(observationEvent),n
 export const linkChangeReportResponse=z.looseObject({schema_version:z.literal(1),workspace_id:z.string(),project_id:z.string(),coverage_scope:z.literal('retained_event_feed'),
   from:z.string(),as_of:z.string(),through_sequence:z.number().int().nonnegative(),count:z.number().int().nonnegative(),
   limit:z.literal(500),truncated:z.boolean(),complete:z.boolean(),retention_limited:z.boolean(),scan_limit:z.literal(10000),scan_limited:z.boolean(),
-  events:z.array(z.looseObject({id:z.string(),workspace_id:z.string(),project_id:z.string(),type:z.enum(['placement_acquired','placement_recovered','placement_lost']),created_at:z.string()})).max(500)});
+  events:z.array(z.looseObject({id:z.string(),workspace_id:z.string(),project_id:z.string(),type:z.enum(['placement_acquired','placement_recovered','placement_lost','prospect_won']),created_at:z.string()})).max(500)});
 export const usageResponse=z.looseObject({
   workspace_id:z.string(),period:z.string().regex(/^\d{4}-\d{2}$/),plan:z.string(),
   check_reservations:z.looseObject({reserved:z.number().nonnegative(),consumed:z.number().nonnegative(),released:z.number().nonnegative()}),
@@ -49,12 +55,20 @@ export const candidateMonitoringResponse=z.looseObject({
 });
 /** Network boundary shared by the console and command adapters. Unknown fields survive evolution. */
 export function restResponseContract(path,method='GET') {
+  const contactCommand=path.split('?')[0].match(/^\/v1\/commands\/([^/]+)$/)?.[1];
+  const campaignResponse=prospectResponses[contactCommand]??campaignOutcomeResponses[contactCommand]??contactResponses[contactCommand];
+  if(method==='POST'&&campaignResponse)return campaignResponse;
   if(/^\/v1\/projects\/[^/]+\/classification-metadata(?:\/(definitions|settings|occurrences))?(?:\?|$)/.test(path))return method==='GET'?(path.split('?')[0].endsWith('/occurrences')?classificationMetadataOccurrenceResponse:classificationMetadataResponse):classificationMetadataWriteResponse;
   if(/^\/v1\/watches\/[^/]+\/classification\/history(?:\?|$)/.test(path))return classificationHistoryResponse;
   if(/^\/v1\/watches\/[^/]+\/classification\/quote(?:\?|$)/.test(path))return classificationQuoteResponse;
   if(/^\/v1\/watches\/[^/]+\/classification\/(?:classify|jobs\/[^/?]+(?:\/reconcile)?)(?:\?|$)/.test(path))return classificationJobResponse;
   if(/^\/v1\/watches\/[^/]+\/classification(?:\/prepare)?(?:\?|$)/.test(path))return classificationResponse;
   const pathname=path.split('?')[0];
+  if(pathname==='/v1/onboarding')return onboardingResponse;
+  if(pathname==='/v1/internal-links/preview'&&method==='POST')return internalLinkPreviewOutput;
+  if(pathname==='/v1/internal-links/snapshots')return method==='GET'?internalLinkListOutput:internalLinkSnapshotOutput;
+  if(/^\/v1\/internal-links\/snapshots\/[^/]+\/query$/.test(pathname))return internalLinkQueryOutput;
+  if(/^\/v1\/internal-links\/snapshots\/[^/]+(?:\/process)?$/.test(pathname))return internalLinkSnapshotOutput;
   if(method==='PUT' && /^\/v1\/watches\/[^/]+\/type$/.test(pathname))return linkLabelledWatchResponse;
   if(method==='POST' && pathname==='/v1/watches/bulk-labels')return linkLabelledWatchesResponse;
   if(['POST','DELETE'].includes(method) && /^\/v1\/watches\/[^/]+\/tags(?:\/[^/]+)?$/.test(pathname))return linkLabelledWatchesResponse;
@@ -80,6 +94,8 @@ export function restResponseContract(path,method='GET') {
   if(['/v1/targets','/v1/projects'].includes(pathname))return pageResponse;
   if(pathname==='/v1/usage')return usageResponse;
   if(pathname==='/v1/reports/link-changes')return linkChangeReportResponse;
+  if(pathname==='/v1/reports/history')return profileHistoryOutput;
+  if(pathname==='/v1/reports/history/records')return profileHistoryRecordsOutput;
   if(pathname==='/v1/reports/summary')return linkSummaryResponse;
   if(['/v1/events','/v1/target-events'].includes(pathname))return eventFeedResponse;
   if(/^\/v1\/(?:jobs|target-jobs)\/[^/]+$/.test(pathname))return jobResponse;

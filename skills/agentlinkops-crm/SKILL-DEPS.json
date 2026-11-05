@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "skill": "agentlinkops-crm",
+  "pack": "product",
+  "contractSha256": "e3d29a169dd1ecae2db26b22ab666419c4057e84831653df655f04ae61725e93",
+  "sourceManifest": [
+    {
+      "path": "references/cli.md",
+      "sha256": "7b665f9d9b60cdab1f0238b71500f8389e0a6df4ea9777db69af6627a000a766"
+    },
+    {
+      "path": "references/disavow.md",
+      "sha256": "f8a2ad2c779e15547c6cf6a199b1d4af18ad2ef2c0aa8f27094c00f366c55aaa"
+    },
+    {
+      "path": "references/local-crm-draft-handoff.md",
+      "sha256": "4fb6f0bc9caf5e4ba79250ea41d4588f9d504b04c63d7e388d8e471b850924b7"
+    },
+    {
+      "path": "references/portable-ledger-handoff.md",
+      "sha256": "fa4c3c7efea90dd8007e5ba25e4dbb67bfafa8963d91000eb3d58da61b1d9db6"
+    },
+    {
+      "path": "references/reports.md",
+      "sha256": "361ea12f145daf15c30d35cfaec3f41bfa677fee9c5eabf7dc10b6004cbe617e"
+    },
+    {
+      "path": "scripts/agentlinkops.py",
+      "sha256": "91d541768f95e17c059396624c153ca86395bccfc565a8bf3470e2e006404e28"
+    },
+    {
+      "path": "scripts/disavow.py",
+      "sha256": "cae36ad7d9e4aef27510975b4c15a66e5649250f6e76df7ca2bfb025a696432e"
+    },
+    {
+      "path": "scripts/migrations/001_crm.sql",
+      "sha256": "049fbd38b05c5b8dbab00b6ebee5342b8ed5cf48f65fe6cc1bbf41330ceedf54"
+    },
+    {
+      "path": "scripts/migrations/002_cloud_events.sql",
+      "sha256": "9040c607408ffd9a168bb3c30431846ddbc7a3429b2a30ba3ecafd4048ccc0c3"
+    },
+    {
+      "path": "scripts/migrations/003_disavow.sql",
+      "sha256": "ff47da734afaff5ab364dc0ae53c3db58254d0a30ca5250de8172a67f8ec2772"
+    },
+    {
+      "path": "scripts/migrations/004_placement_costs.sql",
+      "sha256": "e25732a3abd95d54320984068d9a4242ee2d0b89f6c70330a24f63bd0a3671a2"
+    },
+    {
+      "path": "scripts/outreach-crm-draft.py",
+      "sha256": "f673603b4be3f20df44a9531191241ae2c2e44881b9d82f8fa42fba7c327da7a"
+    },
+    {
+      "path": "scripts/portable-handoff.py",
+      "sha256": "c4aa4036b41f840bf4eebfbff1e8a6b441f2706d09e027d7eb4f746f4f7eee0d"
+    },
+    {
+      "path": "scripts/report.py",
+      "sha256": "c7088c3314d0453d62e8a70f0c80f535b219b2ea127ca7d1c0731b216a9cb602"
+    },
+    {
+      "path": "skills/agentlinkops-crm/SKILL.md",
+      "sha256": "c1131f7abfb76229a9346e7c9ff9cf71e580a540e11bc2caeba969d31235802a"
+    },
+    {
+      "path": "skills/agentlinkops-crm/agents/openai.yaml",
+      "sha256": "692201114c28fa70250fae09230d15fb182b1e1b3ce84f737bec1773b3fd68b1"
+    },
+    {
+      "path": "templates/campaigns.v1.json",
+      "sha256": "768e1610d64b82a4e5872c301eb2a537705821b2f01e9f2265c8056f7da4a496"
+    }
+  ],
+  "members": [
+    {
+      "path": "SKILL.md",
+      "sha256": "1ac0d2c4a1a1c0b0f1f18302577656d6f3e8e22c7329ecba92b3951e78715867"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "sha256": "692201114c28fa70250fae09230d15fb182b1e1b3ce84f737bec1773b3fd68b1"
+    },
+    {
+      "path": "references/portable/references/cli.md",
+      "sha256": "55ad759a920ed5bb683b0354739b7a929a0d733e987c6164977ea466ff606955"
+    },
+    {
+      "path": "references/portable/references/disavow.md",
+      "sha256": "47b4b335f7695209ad0758fc19f3b23b38792032a6850277e563a9b7d80eabf1"
+    },
+    {
+      "path": "references/portable/references/local-crm-draft-handoff.md",
+      "sha256": "b8e027add77f9bbd3c71990a8b3d8ec45e99ceae2b7f0d8eb33697cfcd0eae82"
+    },
+    {
+      "path": "references/portable/references/portable-ledger-handoff.md",
+      "sha256": "0942083b6d9c0c9604623536a7e7b9c44341c7cc5bfde74fa9abdffbf2fbcf62"
+    },
+    {
+      "path": "references/portable/references/reports.md",
+      "sha256": "4fc4791d03c7497f0193fb3d6b4114095aad4d551bb063c8c9e9c485f0c8ca56"
+    },
+    {
+      "path": "references/portable/scripts/agentlinkops.py",
+      "sha256": "91d541768f95e17c059396624c153ca86395bccfc565a8bf3470e2e006404e28"
+    },
+    {
+      "path": "references/portable/scripts/disavow.py",
+      "sha256": "cae36ad7d9e4aef27510975b4c15a66e5649250f6e76df7ca2bfb025a696432e"
+    },
+    {
+      "path": "references/portable/scripts/migrations/001_crm.sql",
+      "sha256": "049fbd38b05c5b8dbab00b6ebee5342b8ed5cf48f65fe6cc1bbf41330ceedf54"
+    },
+    {
+      "path": "references/portable/scripts/migrations/002_cloud_events.sql",
+      "sha256": "9040c607408ffd9a168bb3c30431846ddbc7a3429b2a30ba3ecafd4048ccc0c3"
+    },
+    {
+      "path": "references/portable/scripts/migrations/003_disavow.sql",
+      "sha256": "ff47da734afaff5ab364dc0ae53c3db58254d0a30ca5250de8172a67f8ec2772"
+    },
+    {
+      "path": "references/portable/scripts/migrations/004_placement_costs.sql",
+      "sha256": "e25732a3abd95d54320984068d9a4242ee2d0b89f6c70330a24f63bd0a3671a2"
+    },
+    {
+      "path": "references/portable/scripts/outreach-crm-draft.py",
+      "sha256": "f673603b4be3f20df44a9531191241ae2c2e44881b9d82f8fa42fba7c327da7a"
+    },
+    {
+      "path": "references/portable/scripts/portable-handoff.py",
+      "sha256": "c4aa4036b41f840bf4eebfbff1e8a6b441f2706d09e027d7eb4f746f4f7eee0d"
+    },
+    {
+      "path": "references/portable/scripts/report.py",
+      "sha256": "c7088c3314d0453d62e8a70f0c80f535b219b2ea127ca7d1c0731b216a9cb602"
+    },
+    {
+      "path": "references/portable/templates/campaigns.v1.json",
+      "sha256": "768e1610d64b82a4e5872c301eb2a537705821b2f01e9f2265c8056f7da4a496"
+    }
+  ],
+  "edges": [
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/references/disavow.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/references/reports.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/cli.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/disavow.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/disavow.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/disavow.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/disavow.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/disavow.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/local-crm-draft-handoff.md",
+      "target": "references/portable/scripts/outreach-crm-draft.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/local-crm-draft-handoff.md",
+      "target": "references/portable/scripts/outreach-crm-draft.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/portable-ledger-handoff.md",
+      "target": "references/portable/scripts/portable-handoff.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/reports.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/references/reports.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/scripts/agentlinkops.py",
+      "target": "references/portable/scripts/disavow.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/scripts/agentlinkops.py",
+      "target": "references/portable/scripts/migrations/001_crm.sql",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/scripts/agentlinkops.py",
+      "target": "references/portable/scripts/report.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/scripts/agentlinkops.py",
+      "target": "references/portable/templates/campaigns.v1.json",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/scripts/outreach-crm-draft.py",
+      "target": "references/portable/scripts/portable-handoff.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "references/portable/scripts/outreach-crm-draft.py",
+      "target": "references/portable/scripts/portable-handoff.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "../../references/recipes/placement-reconciliation.md",
+      "kind": "optional-selected",
+      "selection": "agentlinkops agent setup --recipe placement-reconciliation"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/references/cli.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/references/cli.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/references/disavow.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/references/local-crm-draft-handoff.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/references/portable-ledger-handoff.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/references/reports.md",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/scripts/agentlinkops.py",
+      "kind": "required-bundled"
+    },
+    {
+      "from": "SKILL.md",
+      "target": "references/portable/scripts/outreach-crm-draft.py",
+      "kind": "required-bundled"
+    }
+  ],
+  "externalRuntime": [
+    {
+      "kind": "external-runtime",
+      "id": "agentlinkops-cli",
+      "commands": [
+        "agentlinkops",
+        "linktrail",
+        "node cli/agentlinkops.mjs"
+      ],
+      "availability": "Install separately for a standalone skill; inspect the installed version and help before using a local command. Hosted discovery does not install local CLI features."
+    },
+    {
+      "kind": "external-runtime",
+      "id": "python-standard-library",
+      "minimumVersion": "3.10",
+      "imports": [
+        "argparse",
+        "contextlib",
+        "csv",
+        "datetime",
+        "decimal",
+        "errno",
+        "fcntl",
+        "hashlib",
+        "html",
+        "importlib",
+        "io",
+        "ipaddress",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "stat",
+        "sys",
+        "tempfile",
+        "time",
+        "urllib"
+      ]
+    },
+    {
+      "kind": "external-runtime",
+      "id": "agentlinkops-hosted-mcp",
+      "availability": "Hosted commands require separately connected customer access and current catalog exposure. Installing a skill alone does not establish access."
+    }
+  ],
+  "privateExcluded": [
+    "private Fleet/account files",
+    "customer records and credentials",
+    "unselected or uncleared publisher material"
+  ],
+  "coverage": "Assembler records source hashes; independent archive verification recomputes required members, supported links/imports and declared resources. Optional selections and external runtimes remain separate."
+}

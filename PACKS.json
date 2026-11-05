@@ -1,0 +1,591 @@
+{
+  "schemaVersion": 1,
+  "defaultPack": "product",
+  "packs": {
+    "product": {
+      "artifactName": "agentlinkops",
+      "skills": [
+        "agentlinkops-connect",
+        "agentlinkops-discovery",
+        "agentlinkops-campaigns",
+        "agentlinkops-crm",
+        "agentlinkops-assets"
+      ],
+      "selection": "default-plugin",
+      "sourcePolicy": "maintained-product-source",
+      "defaultCliSkills": [
+        "agentlinkops-connect"
+      ],
+      "mcp": true,
+      "indexPath": ".well-known/agent-skills/index.json",
+      "archiveIndex": "index.json"
+    },
+    "content": {
+      "artifactName": "agentlinkops-content",
+      "skills": [
+        "source-cited-content-builder",
+        "source-cited-humanizer",
+        "content-defingerprinting",
+        "internal-linking-optimizer",
+        "pre-publish-review"
+      ],
+      "selection": "explicit-only",
+      "sourcePolicy": "held",
+      "holdReasons": [
+        "Existing optional source provenance/rights gaps remain open.",
+        "Required portable content-quality dependencies are not yet qualified."
+      ],
+      "defaultCliSkills": [],
+      "mcp": false,
+      "indexPath": "content/.well-known/agent-skills/index.json",
+      "archiveIndex": "content/index.json"
+    },
+    "seo": {
+      "artifactName": null,
+      "skills": [],
+      "selection": "unselected",
+      "sourcePolicy": "held",
+      "holdReasons": [
+        "No curated source selection with reviewed rights and dependencies is adopted."
+      ],
+      "defaultCliSkills": [],
+      "mcp": false
+    }
+  },
+  "dependencies": {
+    "agentlinkops-connect": {
+      "requiredBundled": [],
+      "optionalSelected": [
+        {
+          "kind": "optional-selected",
+          "from": "skills/agentlinkops-connect/SKILL.md",
+          "target": "references/recipes/",
+          "selection": "agentlinkops agent setup --recipe"
+        }
+      ],
+      "externalRuntime": [
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-cli",
+          "commands": [
+            "agentlinkops",
+            "linktrail",
+            "node cli/agentlinkops.mjs"
+          ],
+          "availability": "Install separately for a standalone skill; inspect the installed version and help before using a local command. Hosted discovery does not install local CLI features."
+        },
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-hosted-mcp",
+          "availability": "Hosted commands require separately connected customer access and current catalog exposure. Installing a skill alone does not establish access."
+        }
+      ],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "customer records and credentials",
+        "unselected or uncleared publisher material"
+      ],
+      "requiredOwn": [
+        "SKILL.md",
+        "agents/openai.yaml",
+        "references/agentlinkops.md",
+        "references/placement-workflows.md"
+      ]
+    },
+    "agentlinkops-discovery": {
+      "requiredBundled": [
+        "references/cli.md",
+        "references/disavow.md",
+        "references/reports.md",
+        "scripts/agentlinkops.py",
+        "scripts/disavow.py",
+        "scripts/report.py",
+        "scripts/migrations/001_crm.sql",
+        "scripts/migrations/002_cloud_events.sql",
+        "scripts/migrations/003_disavow.sql",
+        "scripts/migrations/004_placement_costs.sql",
+        "templates/campaigns.v1.json",
+        "references/discovery-handoff.md"
+      ],
+      "optionalSelected": [
+        {
+          "kind": "optional-selected",
+          "from": "references/discovery-handoff.md",
+          "target": "skills/agentlinkops-campaigns/SKILL.md",
+          "selection": "agentlinkops agent setup --skill agentlinkops-campaigns"
+        }
+      ],
+      "externalRuntime": [
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-cli",
+          "commands": [
+            "agentlinkops",
+            "linktrail",
+            "node cli/agentlinkops.mjs"
+          ],
+          "availability": "Install separately for a standalone skill; inspect the installed version and help before using a local command. Hosted discovery does not install local CLI features."
+        },
+        {
+          "kind": "external-runtime",
+          "id": "python-standard-library",
+          "minimumVersion": "3.10",
+          "imports": [
+            "argparse",
+            "contextlib",
+            "csv",
+            "datetime",
+            "decimal",
+            "errno",
+            "fcntl",
+            "hashlib",
+            "html",
+            "importlib",
+            "io",
+            "ipaddress",
+            "json",
+            "os",
+            "pathlib",
+            "re",
+            "sqlite3",
+            "stat",
+            "sys",
+            "tempfile",
+            "time",
+            "urllib"
+          ]
+        },
+        {
+          "kind": "external-runtime",
+          "id": "customer-search-browser",
+          "availability": "Use supplied files when a search or browser tool is unavailable; a graph download or paid provider is not required."
+        },
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-hosted-mcp",
+          "availability": "Hosted commands require separately connected customer access and current catalog exposure. Installing a skill alone does not establish access."
+        }
+      ],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "customer records and credentials",
+        "unselected or uncleared publisher material"
+      ],
+      "resourceBindings": [
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT.parent / \"templates\" / \"campaigns.v1.json\")",
+          "target": "templates/campaigns.v1.json"
+        },
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT / \"migrations\").glob(\"[0-9][0-9][0-9]_*.sql\")",
+          "target": "scripts/migrations/001_crm.sql"
+        }
+      ],
+      "resourceDirectories": [
+        "scripts/migrations"
+      ],
+      "requiredOwn": [
+        "SKILL.md",
+        "references/saved-backlink-workflows.md"
+      ]
+    },
+    "agentlinkops-campaigns": {
+      "requiredBundled": [
+        "references/cli.md",
+        "references/disavow.md",
+        "references/reports.md",
+        "scripts/agentlinkops.py",
+        "scripts/disavow.py",
+        "scripts/report.py",
+        "scripts/migrations/001_crm.sql",
+        "scripts/migrations/002_cloud_events.sql",
+        "scripts/migrations/003_disavow.sql",
+        "scripts/migrations/004_placement_costs.sql",
+        "templates/campaigns.v1.json"
+      ],
+      "optionalSelected": [
+        {
+          "kind": "optional-selected",
+          "from": "skills/agentlinkops-campaigns/SKILL.md",
+          "target": "skills/agentlinkops-discovery/SKILL.md",
+          "selection": "agentlinkops agent setup --skill agentlinkops-discovery"
+        },
+        {
+          "kind": "optional-selected",
+          "from": "skills/agentlinkops-campaigns/SKILL.md",
+          "target": "references/recipes/qualified-campaign-handoff.md",
+          "selection": "agentlinkops agent setup --recipe qualified-campaign-handoff"
+        }
+      ],
+      "externalRuntime": [
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-cli",
+          "commands": [
+            "agentlinkops",
+            "linktrail",
+            "node cli/agentlinkops.mjs"
+          ],
+          "availability": "Install separately for a standalone skill; inspect the installed version and help before using a local command. Hosted discovery does not install local CLI features."
+        },
+        {
+          "kind": "external-runtime",
+          "id": "python-standard-library",
+          "minimumVersion": "3.10",
+          "imports": [
+            "argparse",
+            "contextlib",
+            "csv",
+            "datetime",
+            "decimal",
+            "errno",
+            "fcntl",
+            "hashlib",
+            "html",
+            "importlib",
+            "io",
+            "ipaddress",
+            "json",
+            "os",
+            "pathlib",
+            "re",
+            "sqlite3",
+            "stat",
+            "sys",
+            "tempfile",
+            "time",
+            "urllib"
+          ]
+        },
+        {
+          "kind": "external-runtime",
+          "id": "customer-search-browser-sender",
+          "availability": "Discover the customer-selected tools and permissions. Supplied candidates and draft files remain usable without hosted access or a sender."
+        },
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-hosted-mcp",
+          "availability": "Hosted commands require separately connected customer access and current catalog exposure. Installing a skill alone does not establish access."
+        }
+      ],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "customer records and credentials",
+        "unselected or uncleared publisher material"
+      ],
+      "resourceBindings": [
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT.parent / \"templates\" / \"campaigns.v1.json\")",
+          "target": "templates/campaigns.v1.json"
+        },
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT / \"migrations\").glob(\"[0-9][0-9][0-9]_*.sql\")",
+          "target": "scripts/migrations/001_crm.sql"
+        }
+      ],
+      "resourceDirectories": [
+        "scripts/migrations"
+      ],
+      "requiredOwn": [
+        "SKILL.md",
+        "agents/openai.yaml",
+        "references/first-campaign.md",
+        "references/mailbox-campaign.md"
+      ]
+    },
+    "agentlinkops-crm": {
+      "requiredBundled": [
+        "references/cli.md",
+        "references/disavow.md",
+        "references/reports.md",
+        "scripts/agentlinkops.py",
+        "scripts/disavow.py",
+        "scripts/report.py",
+        "scripts/migrations/001_crm.sql",
+        "scripts/migrations/002_cloud_events.sql",
+        "scripts/migrations/003_disavow.sql",
+        "scripts/migrations/004_placement_costs.sql",
+        "templates/campaigns.v1.json",
+        "references/portable-ledger-handoff.md",
+        "references/local-crm-draft-handoff.md",
+        "scripts/portable-handoff.py",
+        "scripts/outreach-crm-draft.py"
+      ],
+      "optionalSelected": [
+        {
+          "kind": "optional-selected",
+          "from": "skills/agentlinkops-crm/SKILL.md",
+          "target": "references/recipes/placement-reconciliation.md",
+          "selection": "agentlinkops agent setup --recipe placement-reconciliation"
+        },
+        {
+          "kind": "optional-selected",
+          "from": "references/portable-ledger-handoff.md",
+          "target": "references/recipes/qualified-campaign-handoff.md",
+          "selection": "agentlinkops agent setup --recipe qualified-campaign-handoff"
+        },
+        {
+          "kind": "optional-selected",
+          "from": "references/portable-ledger-handoff.md",
+          "target": "references/recipes/placement-reconciliation.md",
+          "selection": "agentlinkops agent setup --recipe placement-reconciliation"
+        }
+      ],
+      "externalRuntime": [
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-cli",
+          "commands": [
+            "agentlinkops",
+            "linktrail",
+            "node cli/agentlinkops.mjs"
+          ],
+          "availability": "Install separately for a standalone skill; inspect the installed version and help before using a local command. Hosted discovery does not install local CLI features."
+        },
+        {
+          "kind": "external-runtime",
+          "id": "python-standard-library",
+          "minimumVersion": "3.10",
+          "imports": [
+            "argparse",
+            "contextlib",
+            "csv",
+            "datetime",
+            "decimal",
+            "errno",
+            "fcntl",
+            "hashlib",
+            "html",
+            "importlib",
+            "io",
+            "ipaddress",
+            "json",
+            "os",
+            "pathlib",
+            "re",
+            "sqlite3",
+            "stat",
+            "sys",
+            "tempfile",
+            "time",
+            "urllib"
+          ]
+        },
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-hosted-mcp",
+          "availability": "Hosted commands require separately connected customer access and current catalog exposure. Installing a skill alone does not establish access."
+        }
+      ],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "customer records and credentials",
+        "unselected or uncleared publisher material"
+      ],
+      "resourceBindings": [
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT.parent / \"templates\" / \"campaigns.v1.json\")",
+          "target": "templates/campaigns.v1.json"
+        },
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT / \"migrations\").glob(\"[0-9][0-9][0-9]_*.sql\")",
+          "target": "scripts/migrations/001_crm.sql"
+        }
+      ],
+      "resourceDirectories": [
+        "scripts/migrations"
+      ],
+      "requiredOwn": [
+        "SKILL.md",
+        "agents/openai.yaml"
+      ],
+      "pythonDynamicFiles": [
+        {
+          "from": "scripts/outreach-crm-draft.py",
+          "expression": "importlib.util.spec_from_file_location('portable_handoff', Path(__file__).with_name('portable-handoff.py'))",
+          "target": "scripts/portable-handoff.py"
+        }
+      ]
+    },
+    "agentlinkops-assets": {
+      "requiredBundled": [
+        "references/cli.md",
+        "references/disavow.md",
+        "references/reports.md",
+        "scripts/agentlinkops.py",
+        "scripts/disavow.py",
+        "scripts/report.py",
+        "scripts/migrations/001_crm.sql",
+        "scripts/migrations/002_cloud_events.sql",
+        "scripts/migrations/003_disavow.sql",
+        "scripts/migrations/004_placement_costs.sql",
+        "templates/campaigns.v1.json"
+      ],
+      "optionalSelected": [
+        {
+          "kind": "optional-selected",
+          "from": "skills/agentlinkops-assets/SKILL.md",
+          "target": "references/recipes/sourced-linkable-asset.md",
+          "selection": "agentlinkops agent setup --recipe sourced-linkable-asset"
+        },
+        {
+          "kind": "optional-selected",
+          "from": "skills/agentlinkops-assets/SKILL.md",
+          "target": "references/recipes/internal-link-improvement.md",
+          "selection": "agentlinkops agent setup --recipe internal-link-improvement"
+        }
+      ],
+      "externalRuntime": [
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-cli",
+          "commands": [
+            "agentlinkops",
+            "linktrail",
+            "node cli/agentlinkops.mjs"
+          ],
+          "availability": "Install separately for a standalone skill; inspect the installed version and help before using a local command. Hosted discovery does not install local CLI features."
+        },
+        {
+          "kind": "external-runtime",
+          "id": "python-standard-library",
+          "minimumVersion": "3.10",
+          "imports": [
+            "argparse",
+            "contextlib",
+            "csv",
+            "datetime",
+            "decimal",
+            "errno",
+            "fcntl",
+            "hashlib",
+            "html",
+            "importlib",
+            "io",
+            "ipaddress",
+            "json",
+            "os",
+            "pathlib",
+            "re",
+            "sqlite3",
+            "stat",
+            "sys",
+            "tempfile",
+            "time",
+            "urllib"
+          ]
+        },
+        {
+          "kind": "external-runtime",
+          "id": "agentlinkops-hosted-mcp",
+          "availability": "Hosted commands require separately connected customer access and current catalog exposure. Installing a skill alone does not establish access."
+        }
+      ],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "customer records and credentials",
+        "unselected or uncleared publisher material"
+      ],
+      "resourceBindings": [
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT.parent / \"templates\" / \"campaigns.v1.json\")",
+          "target": "templates/campaigns.v1.json"
+        },
+        {
+          "from": "scripts/agentlinkops.py",
+          "expression": "(ROOT / \"migrations\").glob(\"[0-9][0-9][0-9]_*.sql\")",
+          "target": "scripts/migrations/001_crm.sql"
+        }
+      ],
+      "resourceDirectories": [
+        "scripts/migrations"
+      ],
+      "requiredOwn": [
+        "SKILL.md",
+        "agents/openai.yaml"
+      ]
+    },
+    "source-cited-content-builder": {
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ],
+      "unresolved": [
+        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
+      ],
+      "requiredOwn": [
+        "SKILL.md"
+      ]
+    },
+    "source-cited-humanizer": {
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ],
+      "unresolved": [
+        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
+      ],
+      "requiredOwn": [
+        "SKILL.md"
+      ]
+    },
+    "content-defingerprinting": {
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ],
+      "unresolved": [
+        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
+      ],
+      "requiredOwn": [
+        "SKILL.md"
+      ]
+    },
+    "internal-linking-optimizer": {
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ],
+      "unresolved": [
+        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
+      ],
+      "requiredOwn": [
+        "SKILL.md"
+      ]
+    },
+    "pre-publish-review": {
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ],
+      "unresolved": [
+        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
+      ],
+      "requiredOwn": [
+        "SKILL.md"
+      ]
+    }
+  }
+}

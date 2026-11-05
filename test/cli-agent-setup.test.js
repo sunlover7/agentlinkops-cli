@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import {
   agentMain,
   locatePack,
@@ -1006,11 +1007,11 @@ async function minimalFixture(t) {
 const absent = async (path) => assert.equal(await stat(path).catch(() => null), null);
 const receiptAt = (f) => join(f.cwd, '.agentlinkops', 'agent-setup.json');
 
-async function installerOwnedSnapshot(f) {
+async function installerOwnedSnapshot(f, customerRecordPaths = ['ledger.json']) {
   const receipt = JSON.parse(await readFile(receiptAt(f), 'utf8'));
   const paths = new Set([
     receiptAt(f), ...Object.keys(receipt.files), ...Object.keys(receipt.mcp ?? {}),
-    join(f.cwd, 'AGENTS.md'), join(f.cwd, 'ledger.json'),
+    join(f.cwd, 'AGENTS.md'), ...customerRecordPaths.map(path => join(f.cwd, path)),
   ]);
   return Object.fromEntries(await Promise.all([...paths].map(async path => [path, await readFile(path, 'utf8')])));
 }
@@ -1332,15 +1333,9 @@ async function maintainedRecipePack() {
   const source = join(root, 'toolkit', 'plugin', 'agentlinkops', 'skills');
   const sourcePresent = await stat(source).catch(() => null);
   const packDir = sourcePresent ? source : join(root, 'skills');
-  // Writing stages are assembled from their maintained content sources; the raw
-  // product toolkit contains only the five product skills. The committed package's
-  // skills tree is that assembly (build-oss-package.test proves it equals a fresh
-  // build), so a checkout needs no earlier plugin build into dist/. Packaged tests
-  // use their own complete skills tree, without consulting the product checkout.
-  const assembledPackDir = sourcePresent ? join(root, 'packages', 'agentlinkops-cli', 'skills') : packDir;
   const recipesDir = join(packDir, '..', 'references', 'recipes');
   const catalog = JSON.parse(await readFile(join(recipesDir, 'catalog.json'), 'utf8'));
-  return { packDir, assembledPackDir, recipesDir, catalog };
+  return { packDir, recipesDir, catalog };
 }
 
 const optionalWritingStages = [
@@ -1399,7 +1394,7 @@ test('actual default core-only instructions have installed mandatory references 
 test('each maintained recipe alone installs its exact body and core plus associated skill without absent publisher requirements', async (t) => {
   const { packDir, recipesDir, catalog } = await maintainedRecipePack();
   assert.deepEqual(catalog.recipes.map(row => row.id).sort(), [
-    'placement-reconciliation', 'qualified-campaign-handoff', 'site-context-brief', 'sourced-linkable-asset',
+    'internal-link-improvement', 'placement-reconciliation', 'qualified-campaign-handoff', 'site-context-brief', 'sourced-linkable-asset',
   ]);
   const allSkills = Object.keys(await readPack(packDir));
   for (const row of catalog.recipes) {
@@ -1434,7 +1429,7 @@ test('each maintained recipe alone installs its exact body and core plus associa
 });
 
 test('maintained assets and campaigns keep customer processes and records while writing stages and continuations are selected separately', async (t) => {
-  const { packDir, assembledPackDir } = await maintainedRecipePack();
+  const { packDir } = await maintainedRecipePack();
   const f = { ...await fixture(t), packDir, minimal: true };
   const policy = 'Use the customer editorial checklist and existing record format.\n';
   const records = 'record_id,publication_state\nasset-17,draft\n';
@@ -1450,11 +1445,17 @@ test('maintained assets and campaigns keep customer processes and records while 
   await absent(recipePath('qualified-campaign-handoff'));
   for (const id of optionalWritingStages) await absent(join(f.cwd, '.claude', 'skills', id, 'SKILL.md'));
 
-  const writing = await run(['agent', 'setup', '--client', 'claude-code', ...optionalWritingStages.flatMap(id => ['--skill', id])], { ...f, packDir: assembledPackDir });
-  assert.equal(writing.code, 0, writing.err || writing.out);
-  assert.deepEqual(writing.json.selection.skills, ['agentlinkops-connect', ...optionalWritingStages]);
-  assert.deepEqual(writing.json.selection.recipes, []);
-  for (const id of optionalWritingStages) assert.ok(await stat(join(f.cwd, '.claude', 'skills', id, 'SKILL.md')));
+  const customerRecordPaths = ['customer-records.csv'];
+  await absent(join(f.cwd, 'ledger.json'));
+  const beforeWriting = await installerOwnedSnapshot(f, customerRecordPaths);
+  await assert.rejects(
+    run(['agent', 'setup', '--client', 'claude-code', ...optionalWritingStages.flatMap(id => ['--skill', id])], f),
+    { name: 'ConfigError', message: 'Unknown skill source-cited-content-builder.' },
+    'the product selection must not silently supply the held optional content pack',
+  );
+  assert.deepEqual(await installerOwnedSnapshot(f, customerRecordPaths), beforeWriting);
+  await absent(join(f.cwd, 'ledger.json'));
+  for (const id of optionalWritingStages) await absent(join(f.cwd, '.claude', 'skills', id, 'SKILL.md'));
   assert.equal(await readFile(recipePath('sourced-linkable-asset'), 'utf8'), asset);
   await absent(recipePath('qualified-campaign-handoff'));
 
@@ -1469,12 +1470,18 @@ test('maintained assets and campaigns keep customer processes and records while 
   assert.match(campaign, /this recipe sends no messages and activates no sequence/u);
   for (const id of ['agentlinkops-assets', 'agentlinkops-campaigns']) {
     const skill = await readFile(join(f.cwd, '.claude', 'skills', id, 'SKILL.md'), 'utf8');
-    assert.match(skill, /customer's chosen files, CRM or other record system/u);
+    if (id === 'agentlinkops-campaigns') {
+      assert.match(skill, /Save the product, campaign and qualified opportunities in the customer's adopted record system\./u);
+      assert.match(skill, /AgentLinkOps can hold private contacts and prospect records when available and authorized; preserve those IDs when using external mail tools\./u);
+    } else {
+      assert.match(skill, /customer's chosen files, CRM or other record system/u);
+    }
     assert.match(skill, /bundled local CRM is optional/u);
   }
   assert.match(await readFile(join(f.cwd, '.claude', 'skills', 'agentlinkops-assets', 'SKILL.md'), 'utf8'), /A completed local edit does not establish that the page is deployed/u);
   assert.equal(await readFile(join(f.cwd, 'AGENTS.md'), 'utf8'), policy);
   assert.equal(await readFile(join(f.cwd, 'customer-records.csv'), 'utf8'), records);
+  await absent(join(f.cwd, 'ledger.json'));
 });
 
 test('removing a maintained recipe and its optional skill leaves accountless checks usable in the customer chosen record format', async (t) => {
@@ -1556,4 +1563,124 @@ test("setup names the sign-in and approval steps and offers the CLI only on a te
     cwd, home, packDir: pack, env: {}, isTTY: true, out: () => {}, err: () => {}, connectCli: async () => dry.push("asked"),
   });
   assert.deepEqual(dry, [], "a dry run asks nothing");
+});
+
+
+test("autodetected Hermes conflict does not block Codex or claim ownership of skipped files", async (t) => {
+  const { home, cwd, pack } = await fixture(t);
+  await mkdir(join(home, ".codex"), { recursive: true });
+  const foreign = join(home, ".hermes", "skills", "agentlinkops-demo", "SKILL.md");
+  await mkdir(dirname(foreign), { recursive: true });
+  await writeFile(foreign, "Customer Hermes skill\n");
+  const dry = await run(["agent", "setup", "--dry-run"], { home, cwd, packDir: pack });
+  assert.equal(dry.code, 1);
+  assert.equal(await stat(join(home, ".codex", "config.toml")).catch(() => null), null);
+  const result = await run(["agent", "setup"], { home, cwd, packDir: pack });
+  assert.equal(result.code, 1, "partial success still reports the unresolved conflict");
+  const codex = result.json.clients.find(c => c.id === "codex");
+  const hermes = result.json.clients.find(c => c.id === "hermes");
+  assert.equal(codex.mcp.action, "written");
+  assert.equal(codex.skills.installed.length, 4);
+  assert.equal(hermes.skipped, true);
+  assert.deepEqual(hermes.skills.installed, []);
+  assert.equal(await readFile(foreign, "utf8"), "Customer Hermes skill\n");
+  assert.equal(await stat(join(home, ".hermes", "skills", "agentlinkops-connect")).catch(() => null), null);
+  const receipt = JSON.parse(await readFile(join(cwd, ".agentlinkops", "agent-setup.json"), "utf8"));
+  assert.deepEqual(receipt.clients, ["codex"]);
+  assert.ok(Object.keys(receipt.files).every(file => !file.startsWith(join(home, ".hermes"))));
+  const again = await run(["agent", "setup"], { home, cwd, packDir: pack });
+  assert.equal(again.json.clients.find(c => c.id === "codex").skills.installed.length, 0);
+  const selected = await run(["agent", "setup", "--client", "codex"], { home, cwd, packDir: pack });
+  assert.equal(selected.code, 0);
+  assert.deepEqual(selected.json.clients.map(c => c.id), ["codex"]);
+});
+
+test("explicit multi-client setup remains atomic when one client conflicts", async (t) => {
+  const { home, cwd, pack } = await fixture(t);
+  const foreign = join(home, ".hermes", "skills", "agentlinkops-demo", "SKILL.md");
+  await mkdir(dirname(foreign), { recursive: true });
+  await writeFile(foreign, "Customer Hermes skill\n");
+  const result = await run(["agent", "setup", "--client", "codex", "--client", "hermes"], { home, cwd, packDir: pack });
+  assert.equal(result.code, 1);
+  assert.equal(await stat(join(home, ".codex", "config.toml")).catch(() => null), null);
+  assert.equal(await stat(join(cwd, ".agentlinkops")).catch(() => null), null);
+  assert.equal(await readFile(foreign, "utf8"), "Customer Hermes skill\n");
+});
+
+// Synthetic reviewed-pack fixtures exercise selection mechanics only. They do not
+// lift the actual optional content source/rights hold in the maintained manifest.
+async function selectedPackFixture(f, id, {metadata=true, held=false}={}) {
+  const repo=fileURLToPath(new URL('../',import.meta.url));
+  const bytes=await readFile(join(repo,'toolkit/plugin/agentlinkops/PACKS.json')).catch(error=>{
+    if(error.code==='ENOENT')return readFile(join(repo,'PACKS.json'));throw error;
+  });
+  const contract=JSON.parse(bytes), selected=contract.packs[id];
+  if(id==='content'&&!held){selected.sourcePolicy='reviewed-portable-source';for(const name of selected.skills)contract.dependencies[name].unresolved=[];}
+  const base=join(f.root,`${id}-${metadata?'selected':'legacy'}-fixture`),packDir=join(base,'skills');
+  for(const name of selected.skills){
+    await mkdir(join(packDir,name),{recursive:true});await writeFile(join(packDir,name,'SKILL.md'),`# ${name} synthetic selection fixture\n`);
+    if(name==='agentlinkops-connect'){await mkdir(join(packDir,name,'references'));await writeFile(join(packDir,name,'references/agentlinkops.md'),'Synthetic connection reference.\n');}
+  }
+  const artifact={schemaVersion:1,pack:id,skills:selected.skills,defaultCliSkills:selected.defaultCliSkills,mcp:selected.mcp,
+    contractSha256:createHash('sha256').update(JSON.stringify(contract)).digest('hex')};
+  if(metadata){await writeFile(join(base,'PACKS.json'),JSON.stringify(contract));await writeFile(join(base,'PACK-ARTIFACT.json'),JSON.stringify(artifact));}
+  return {packDir,base,contract,artifact};
+}
+
+test('selected product artifact defaults to connect and an all-product upgrade retains legacy content selections',async t=>{
+  const f={...await fixture(t),minimal:true};const product=await selectedPackFixture(f,'product');
+  const first=await run(['agent','setup','--client','claude-code'],{...f,packDir:product.packDir});
+  assert.equal(first.code,0,first.err);assert.deepEqual(first.json.selection.skills,['agentlinkops-connect']);
+  for(const name of product.contract.packs.product.skills.filter(n=>n!=='agentlinkops-connect'))await absent(join(f.cwd,'.claude/skills',name));
+  // Recreate the older ten-skill bundle in a separate synthetic source directory.
+  const old=await selectedPackFixture(f,'product',{metadata:false});
+  for(const name of optionalWritingStages){await mkdir(join(old.packDir,name));await writeFile(join(old.packDir,name,'SKILL.md'),`# retained ${name}\n`);}
+  const legacy=await run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:old.packDir});
+  assert.equal(legacy.code,0,legacy.err);
+  const customized=join(f.cwd,'.claude/skills/source-cited-humanizer/SKILL.md');await writeFile(customized,'Customer-selected editorial rules.\n');
+  const receiptBefore=JSON.parse(await readFile(receiptAt(f))),mcpBefore=await readFile(join(f.cwd,'.mcp.json'));
+  const upgraded=await run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:product.packDir});
+  assert.equal(upgraded.code,0,upgraded.err);assert.equal(upgraded.json.selection.skills.length,5);
+  assert.equal(await readFile(customized,'utf8'),'Customer-selected editorial rules.\n');
+  const receiptAfter=JSON.parse(await readFile(receiptAt(f)));
+  for(const name of optionalWritingStages){const path=join(f.cwd,'.claude/skills',name,'SKILL.md');assert.ok(upgraded.json.retainedExisting.includes(path));assert.equal(receiptAfter.files[path],receiptBefore.files[path]);}
+  assert.ok(mcpBefore.equals(await readFile(join(f.cwd,'.mcp.json'))));
+  assert.deepEqual(upgraded.json.pruned,[]);
+  await rm(join(product.base,'PACK-ARTIFACT.json'));
+  const sourceUpgrade=await run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:product.packDir});
+  assert.equal(sourceUpgrade.code,0,sourceUpgrade.err);
+  assert.ok(sourceUpgrade.json.retainedExisting.includes(customized),'manifest-only source selection must remain additive');
+  assert.equal(await readFile(customized,'utf8'),'Customer-selected editorial rules.\n');
+});
+
+test('explicit optional pack installs without a core skill, MCP setup or account prompt',async t=>{
+  const f={...await fixture(t),minimal:true},content=await selectedPackFixture(f,'content');
+  let connectCalls=0;
+  await assert.rejects(
+    run(['agent','setup','--client','claude-code'],{...f,packDir:content.packDir}),
+    {name:'ConfigError',message:'Select optional pack skills with --skill ID or --all-skills; product recipes are a separate selection.'},
+  );
+  await absent(receiptAt(f));await absent(join(f.cwd,'.mcp.json'));await absent(join(f.cwd,'.claude/skills'));
+  const result=await run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:content.packDir,connectCli:async()=>{connectCalls++;}});
+  assert.equal(result.code,0,result.err);assert.equal(result.json.selection.skills.length,5);
+  assert.equal(result.json.clients[0].mcp.action,'not selected');assert.equal(connectCalls,0);
+  assert.doesNotMatch(result.json.next.join('\n'),/Authenticate|approve the agent|paste an API key|MCP OAuth/);
+  await absent(join(f.cwd,'.mcp.json'));await absent(join(f.cwd,'.claude/skills/agentlinkops-connect'));
+  assert.deepEqual(JSON.parse(await readFile(receiptAt(f))).mcp,{});
+});
+
+test('held or inconsistent selected-pack metadata refuses before installation writes',async t=>{
+  const f={...await fixture(t),minimal:true},content=await selectedPackFixture(f,'content',{held:true});
+  await assert.rejects(
+    run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:content.packDir}),
+    {name:'ConfigError',message:'The selected pack metadata disagrees with its files or source hold.'},
+  );
+  await absent(receiptAt(f));await absent(join(f.cwd,'.mcp.json'));await absent(join(f.cwd,'.claude/skills'));
+  const product=await selectedPackFixture(f,'product');product.artifact.skills=product.artifact.skills.slice(1);
+  await writeFile(join(product.base,'PACK-ARTIFACT.json'),JSON.stringify(product.artifact));
+  await assert.rejects(
+    run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:product.packDir}),
+    {name:'ConfigError',message:'The selected pack metadata disagrees with its files or source hold.'},
+  );
+  await absent(receiptAt(f));await absent(join(f.cwd,'.mcp.json'));await absent(join(f.cwd,'.claude/skills'));
 });

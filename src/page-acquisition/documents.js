@@ -31,6 +31,7 @@ function abortableWait(ms, { signal } = {}) {
 export function createDocumentTransport({
   fetchImpl = globalThis.fetch, timeoutMs = MAX_TIMEOUT_MS, maxBytes = MAX_DOCUMENT_BYTES,
   maxRedirects = 5, hostDelayMs = 2_000, now = () => Date.now(), wait = abortableWait,
+  remainingBytes = null, retainKnownAbsentRobots = false,
 } = {}) {
   const byteCap = bounded(maxBytes, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_BYTES, 1);
   const timeout = bounded(timeoutMs, MAX_TIMEOUT_MS, MAX_TIMEOUT_MS, 1);
@@ -102,6 +103,21 @@ export function createDocumentTransport({
           continue;
         }
         if (status === 404 || status === 410) {
+          // Private durable discovery may retain truthful robots404 evidence on
+          // this SAME response. Ordinary callers keep their exact old result.
+          if (retainKnownAbsentRobots === true && purpose === 'robots' && status === 404) {
+            phase = 'body';
+            const remaining = remainingBytes ? remainingBytes() : limit;
+            const readLimit = Number.isFinite(remaining) ? Math.min(limit, Math.max(0, Math.floor(remaining))) : 0;
+            if (!readLimit) { cancelBody(response); throw new VerificationError('body_too_large'); }
+            const body = await readBoundedBytes(response, readLimit, controller.signal);
+            let data = body.data;
+            const gzipped = data.length >= 2 && data[0] === 0x1f && data[1] === 0x8b;
+            if (gzipped) { phase = 'inflate'; data = (await inflateGzipBounded(data, readLimit, controller.signal)).data; }
+            phase = 'decode'; const text = decodeBytes(data);
+            if (controller.signal.aborted || Date.now() >= absoluteDeadline) throw new VerificationError('timeout');
+            return { ok: false, url, final_url: url, status, reason: 'not_found', text, bytes: body.bytes, gzipped };
+          }
           cancelBody(response);
           return { ok: false, url, status, reason: 'not_found' };
         }
@@ -110,12 +126,17 @@ export function createDocumentTransport({
           return { ok: false, url, status, reason: `http_${status}` };
         }
         phase = 'body';
-        const body = await readBoundedBytes(response, limit, controller.signal);
+        // Authorization hooks may read robots for a redirected origin. Take the
+        // shared remaining allowance after those hooks, immediately before body use.
+        const remaining = remainingBytes ? remainingBytes() : limit;
+        const readLimit = Number.isFinite(remaining) ? Math.min(limit, Math.max(0, Math.floor(remaining))) : 0;
+        if (!readLimit) { cancelBody(response); throw new VerificationError('body_too_large'); }
+        const body = await readBoundedBytes(response, readLimit, controller.signal);
         let data = body.data;
         const gzipped = data.length >= 2 && data[0] === 0x1f && data[1] === 0x8b;
         if (gzipped) {
           phase = 'inflate';
-          data = (await inflateGzipBounded(data, limit, controller.signal)).data;
+          data = (await inflateGzipBounded(data, readLimit, controller.signal)).data;
         }
         if (controller.signal.aborted) throw new VerificationError('timeout');
         phase = 'decode';

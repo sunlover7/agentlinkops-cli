@@ -11,7 +11,7 @@ export const linkCategoryFields={
   category_contract:z.literal(LINK_CATEGORY_CONTRACT).optional().describe('Version of the shared table, API and export category projection.'),
   chosen_category:z.looseObject({intent:z.enum(['chosen','cleared','automatic']),id:z.enum(LINK_TYPES).nullable(),name:text,standard_name:text,
     actor_id:text,recorded_at:text,revision:z.number().int().nonnegative().describe('Saved label revision; pass as revision to set_link_type. Required for intent=automatic.'),deliberate_clear:z.boolean()}).optional()
-    .describe('The team category and recorded author. Cleared keeps the type empty; automatic permits the page assessment to supply the displayed category. Neither action reviews or starts AI work.'),
+    .describe('The saved choice and recorded account attribution. Cleared keeps the type empty; automatic permits eligible existing page evidence to supply the displayed category. Neither action reviews or starts AI work.'),
   page_assessment:z.looseObject({status:z.enum(['ready','unavailable']),reason:z.string(),read_reason:text,explanation:z.string(),applicability:z.string(),
     binding:z.looseObject({workspaceId:z.string(),projectId:z.string(),watchId:z.string()}).nullable(),
     capture:z.looseObject({id:z.string(),manifest_id:text,observation_id:text,observed_at:text,expires_at:text}).nullable(),
@@ -24,7 +24,7 @@ export const linkCategoryFields={
     .describe('What retained page evidence says about link occurrences. Applicability separates current, previous, expired and unavailable evidence. Suggested is provisional; accepted_manual requires a recorded review; accepted_auto requires a qualified saved policy.'),
   display_category:z.looseObject({source:z.enum(['chosen','page_assessment','none']),kind:z.enum(['category','mixed','cleared','unknown']),
     id:z.enum(LINK_TYPES).nullable(),name:z.string(),state:z.string(),reason:z.string(),applicability:z.string(),coverage}).optional()
-    .describe('The category shown in the everyday table. A deliberate team choice takes precedence. Otherwise page evidence supplies a category or Mixed types, with its evidence state. Read the reason when no category is available.'),
+    .describe('The category shown in the everyday table. A deliberate saved choice takes precedence. Otherwise page evidence supplies a category or Mixed types, with its evidence state. Read the reason when no category is available.'),
 };
 
 // The same mutation receipts are consumed by command transports, REST clients

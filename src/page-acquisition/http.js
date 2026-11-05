@@ -36,7 +36,9 @@ export function retryAfterSeconds(value, now = Date.now()) {
 
 export function publicFetcher(options, signal) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  const robotsByOrigin = new Map();
+  // A caller may share one robots record per origin across consecutive captures
+  // (a bounded scan step); by default every fetcher reads robots itself.
+  const robotsByOrigin = options.robotsCache instanceof Map ? options.robotsCache : new Map();
   // The product token is what robots matches on and never changes. A contact URL may be appended
   // so a publisher who sees us in their logs can find out who we are — the convention every
   // reputable crawler follows, and the thing most likely to move a reflexive 403 or 429.
@@ -49,6 +51,8 @@ export function publicFetcher(options, signal) {
     : `${PRODUCT_TOKEN}/0.1`;
   const maxRedirects = Math.min(options.maxRedirects ?? 5, 5);
   const maxBytes = Math.min(options.maxBytes ?? 2 * 1024 * 1024, 2 * 1024 * 1024);
+  // Feeds and sitemaps may ask for up to 10 MiB; pages stay at the page bound.
+  const documentMaxBytes = Math.min(options.maxBytes ?? 2 * 1024 * 1024, 10 * 1024 * 1024);
   let monitorOverrideConsumed = false;
 
   async function request(url, context = {}) {
@@ -293,7 +297,7 @@ export function publicFetcher(options, signal) {
           trace.sourceResponse.bodyDiagnostic = await readBodyDiagnostic(response, signal);
           throw new VerificationError('unsupported_content_type');
         }
-        const body = await readBounded(response, maxBytes, signal);
+        const body = await readBounded(response, document ? documentMaxBytes : maxBytes, signal);
         return { response, body, notModified: false,
           validators: { etag: response.headers.get('etag'), lastModified: response.headers.get('last-modified') } };
       }

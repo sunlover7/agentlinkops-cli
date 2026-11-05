@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "agentlinkops-local-campaign-map-v1",
+  "kind": "global-placements",
+  "rowsPath": "placements",
+  "projectField": "project",
+  "projectValue": "synthetic-site",
+  "referenceField": "source_id",
+  "referencePrefix": "global:",
+  "selection": {"references": ["fixture-placement-1"]},
+  "sourceUrlField": "payload.source_url",
+  "publisherUrlField": "domain",
+  "targetUrl": "https://customer.example/asset",
+  "pull": {"statusField": "status", "statusMap": {"won": "live", "lost": "lost"}}
+}

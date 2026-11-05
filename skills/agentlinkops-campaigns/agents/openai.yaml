@@ -1,6 +1,6 @@
 interface:
   display_name: AgentLinkOps Campaigns
-  short_description: Plan and qualify backlink campaigns for a product using guest posts, resource additions, broken-link replacement, compet
+  short_description: "Plan backlink campaigns and qualify publisher opportunities"
 policy:
   allow_implicit_invocation: true
 dependencies:

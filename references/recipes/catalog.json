@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "kind": "agentlinkops_recipe_catalog",
-  "version": "1.0.8",
-  "reviewedAt": "2026-10-06",
+  "version": "1.0.11",
+  "reviewedAt": "2026-10-29",
   "convention": "AgentLinkOps package convention; not an industry schema",
   "recipes": [
     {
@@ -31,7 +31,51 @@
         "tools": [],
         "vendors": []
       },
-      "skill": "agentlinkops-connect"
+      "skill": "agentlinkops-connect",
+      "contract": {
+        "tools": {
+          "required": [],
+          "optional": [
+            "customer's browser or search tools",
+            "customer's first-party analytics",
+            "AgentLinkOps hosted reads with verified permission",
+            "customer's chosen record or file destination"
+          ]
+        },
+        "inputs": {
+          "required": [
+            "chosen site or product",
+            "intended audience",
+            "requested outcome",
+            "supplied pages or context"
+          ],
+          "optional": [
+            "search data with its date window and dimensions"
+          ]
+        },
+        "offlineOutput": "Dated site brief from supplied material: site identity, reader need, relevant assets, cited facts, missing evidence and one proposed next task",
+        "revisions": [
+          "recipe version",
+          "input references",
+          "evidence date for each asset",
+          "search data date window"
+        ],
+        "limits": {
+          "permissions": "None for supplied-input preparation; hosted research needs a working connection, permission and service access",
+          "cost": "None for supplied-input preparation; any hosted command follows its own metering",
+          "effects": "No publishing, sending or record writes; output goes only to the destination the customer chose"
+        },
+        "references": [
+          "source title, publisher, publication date, URL and retrieval date for each supported claim",
+          "URLs of existing assets"
+        ],
+        "judgments": "Suggestions without usable data are labelled hypotheses and kept apart from observed demand",
+        "checkpoints": [
+          "brief saved and read back, or returned in conversation",
+          "recipe version, input references, completed artifact, uncertainties and next action"
+        ],
+        "recovery": "Separate missing authentication, missing scope, unavailable feature, quota and temporary failure; continue from supplied context; compare a changed file before revising and keep customer edits"
+      }
     },
     {
       "id": "sourced-linkable-asset",
@@ -58,7 +102,50 @@
         "tools": [],
         "vendors": []
       },
-      "skill": "agentlinkops-assets"
+      "skill": "agentlinkops-assets",
+      "contract": {
+        "tools": {
+          "required": [],
+          "optional": [
+            "customer's browser for fetching sources",
+            "customer's site editing tools",
+            "AgentLinkOps hosted backlink research with access",
+            "optional content skills when the customer selects them"
+          ]
+        },
+        "inputs": {
+          "required": [
+            "site or context brief",
+            "reader task",
+            "candidate asset or existing page",
+            "source material",
+            "intended output destination"
+          ],
+          "optional": []
+        },
+        "offlineOutput": "Sourced draft with review receipts and an explicit publication state",
+        "revisions": [
+          "draft revision",
+          "intended URL",
+          "source records",
+          "review receipts naming the reviewer or tool and the revision"
+        ],
+        "limits": {
+          "permissions": "Site edits use the customer's own tools and authority",
+          "cost": "None from the recipe; optional hosted research follows its own metering",
+          "effects": "No publication; a release is separately authorized and verified after it happens"
+        },
+        "references": [
+          "source title, publisher, publication date and URL for each factual claim",
+          "intended URL"
+        ],
+        "judgments": "Original calculations and assumptions are marked; no manufactured experience or results",
+        "checkpoints": [
+          "draft revision, intended URL, source records, review receipts and unresolved findings",
+          "artifact read back from its chosen destination"
+        ],
+        "recovery": "Missing sources leave claims unverified; a missing review tool leaves that pass incomplete; keep existing pages and customer edits on resume"
+      }
     },
     {
       "id": "qualified-campaign-handoff",
@@ -85,11 +172,61 @@
         "tools": [],
         "vendors": []
       },
-      "skill": "agentlinkops-campaigns"
+      "skill": "agentlinkops-campaigns",
+      "contract": {
+        "tools": {
+          "required": [],
+          "optional": [
+            "browser, verifier or permitted hosted tool for fresh page checks",
+            "AgentLinkOps hosted supplier research with access",
+            "customer's CRM or sender, with its field schema read before any write",
+            "bundled local CRM when the customer chooses it"
+          ]
+        },
+        "inputs": {
+          "required": [
+            "product and audience brief",
+            "asset and publication state",
+            "candidate records",
+            "campaign purpose",
+            "chosen destination",
+            "customer's outreach constraints"
+          ],
+          "optional": [
+            "reply and suppression evidence"
+          ]
+        },
+        "offlineOutput": "Eligible, rejected and unresolved candidates with reasons, a reviewed draft, and a portable handoff with logical labels when the destination schema is unavailable",
+        "revisions": [
+          "recipe version",
+          "source and target references",
+          "draft revision",
+          "destination, workspace and project binding"
+        ],
+        "limits": {
+          "permissions": "Destination writes need the destination's schema and the customer's write authorization",
+          "cost": "Research and drafting from supplied inputs require no AgentLinkOps provider charge. Selected fresh checks, supplier research and third-party agent or destination tools may incur their own costs.",
+          "effects": "Stops at the draft or handoff boundary: sends no messages and activates no sequence"
+        },
+        "references": [
+          "destination, workspace and project binding",
+          "command or method with its exact non-secret arguments",
+          "original idempotency or conditional request identifier",
+          "resulting operation ID",
+          "existing external IDs"
+        ],
+        "judgments": "Each eligible, rejected or unresolved decision carries its reason; draft claims need supplied facts and a dated observation",
+        "checkpoints": [
+          "request saved before any remote write",
+          "operation receipt, parsed readback and local acknowledgement kept as separate facts",
+          "checkpoint written and read back"
+        ],
+        "recovery": "Read the original operation by its saved identifier, then traverse the destination afresh from its first page; never replay with a new request identifier; an ambiguous write stays outcome unknown"
+      }
     },
     {
       "id": "placement-reconciliation",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "path": "placement-reconciliation.md",
       "goals": [
         "verify-links"
@@ -112,7 +249,126 @@
         "tools": [],
         "vendors": []
       },
-      "skill": "agentlinkops-crm"
+      "skill": "agentlinkops-crm",
+      "contract": {
+        "tools": {
+          "required": [],
+          "optional": [
+            "installed agentlinkops CLI for a local check",
+            "AgentLinkOps hosted check, history and monitoring tools with permission",
+            "customer's record system"
+          ]
+        },
+        "inputs": {
+          "required": [
+            "exact source URL",
+            "destination and match scope",
+            "claim or record reference"
+          ],
+          "optional": [
+            "prior observation",
+            "supplied CSV, JSON, JSONL or report for the review section"
+          ]
+        },
+        "offlineOutput": "A review of supplied evidence with up to three actions, a dated observation with its reconciled claim, or an explicit unknown with its reason and next check",
+        "revisions": [
+          "recipe version",
+          "input hashes or supplied revisions",
+          "site binding",
+          "observation ID and revision"
+        ],
+        "limits": {
+          "permissions": "Monitoring needs the customer's monitoring authorization; scopes belong to the selected operation",
+          "cost": "The review section makes no network calls, metered checks or recurring work; a local CLI check fetches the source page; hosted checks follow their command metering",
+          "effects": "No email, crawling, supplier acquisition, publishing, disavow submission or policy edits; repairs and watches stay proposals"
+        },
+        "references": [
+          "record reference",
+          "source and target scope",
+          "observation reference",
+          "original operation request and receipt"
+        ],
+        "judgments": "Recommendations are the reviewing agent's judgment with an evidence reference and limit; customer claims, supplier rows and product observations stay separately attributed",
+        "checkpoints": [
+          "recipe version, record reference, scope, observation reference and next action",
+          "continuation block: recipe revision, input hashes, site binding, completed and unresolved work"
+        ],
+        "recovery": "Read the original operation, then traverse the destination afresh; an unknown check makes no presence finding; never repeat a remote write to repair a local note"
+      }
+    },
+    {
+      "id": "internal-link-improvement",
+      "version": "1.0.0",
+      "path": "internal-link-improvement.md",
+      "goals": [
+        "build-content"
+      ],
+      "modes": [
+        "local",
+        "hosted",
+        "external"
+      ],
+      "requiredInputs": "Site, reader task, supplied pages or saved scan, chosen edit or handoff destination",
+      "expectedArtifact": "Evidence-bound internal-link change plan with actual edit, publication and verification states kept separate",
+      "availability": {
+        "suppliedInputPreparation": "accountless",
+        "hostedOperations": "require verified permission and available service access",
+        "vendorConnections": "optional; untested"
+      },
+      "tested": {
+        "endToEnd": "not-run",
+        "clients": [],
+        "tools": [],
+        "vendors": []
+      },
+      "skill": "agentlinkops-assets",
+      "contract": {
+        "tools": {
+          "required": [],
+          "optional": [
+            "customer site editor and release tools",
+            "connected AgentLinkOps internal-link scan/change tools",
+            "customer browser for authorized public readback"
+          ]
+        },
+        "inputs": {
+          "required": [
+            "chosen site",
+            "reader task",
+            "supplied pages or saved scan",
+            "chosen edit or handoff destination"
+          ],
+          "optional": [
+            "fresh source passage",
+            "existing change revisions and operation receipts"
+          ]
+        },
+        "offlineOutput": "Reviewed source/target/anchor/passage plan with evidence, rejection reasons and unresolved coverage",
+        "revisions": [
+          "recipe version",
+          "source file hashes or scan ID and completion time",
+          "saved change revision",
+          "actual site before/after revision"
+        ],
+        "limits": {
+          "permissions": "Customer authority for records, site edits, release and fresh checks is separate; hosted calls require current access",
+          "cost": "Supplied-input review makes no network calls or metered checks; hosted verification and scans retain their own allowance, billing and cooldown rules",
+          "effects": "Selection starts no scan, schedule, site edit or publication; a published change state is a claim, not verification"
+        },
+        "references": [
+          "source and destination URLs",
+          "scan subject/change IDs",
+          "request identity and operation receipt",
+          "publication receipt and independent observation"
+        ],
+        "judgments": "Attribute reader fit and anchor choice to the customer or agent; scores do not predict rankings; unknown access does not prove absence",
+        "checkpoints": [
+          "reviewed plan and exact evidence binding",
+          "actual edits and validation",
+          "publication claim and independent verification recorded separately"
+        ],
+        "recovery": "Read the original operation and saved revision after interruption; preserve customer edits and unknown outcomes; never repeat a mutation to repair a local note"
+      }
     }
   ],
   "sources": [

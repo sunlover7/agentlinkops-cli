@@ -16,7 +16,7 @@ checked September 9, 2026.
 
 ## Commands
 
-Run from the installed plugin root and keep the database outside its cache:
+Resolve example helper paths from the plugin root for shared references, or from the skill directory for a standalone archive's bundled references. Keep the database outside the installation directory:
 
 ```sh
 python3 scripts/agentlinkops.py --db ./agentlinkops.sqlite migrate

@@ -1,0 +1,3 @@
+alo_record_ref,Sending status,actual_event_at,source_event_id,Email,Body
+lead-fixture-1,sent,2026-10-24T12:00:00Z,hunter-fixture-event-1,synthetic@publisher.example,Discard this fixture-only body
+lead-fixture-1,opened,2026-10-24T12:01:00Z,hunter-fixture-event-2,synthetic@publisher.example,Discard this fixture-only body

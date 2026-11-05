@@ -8,16 +8,17 @@ import {unknownTargetObservation} from '../verifier/target.js';
 const budget=acquisitionBudget;
 
 /** A bounded capture primitive. Owner jobs retain storage, entitlement and verdict authority. */
-export function createPageAcquisition({fetchImpl=globalThis.fetch,publicFetchSafe=false,beforeFetch,onRobots,clock=Date.now,userAgentContact='https://agentlinkops.com',transportId='workers_http',transportVersion='1'}={}){
+export function createPageAcquisition({fetchImpl=globalThis.fetch,publicFetchSafe=false,beforeFetch,onRobots,robotsCache=null,clock=Date.now,userAgentContact='https://agentlinkops.com',transportId='workers_http',transportVersion='1'}={}){
   return {async acquire(url,{signal,timeoutMs=ACQUISITION_LIMITS.timeoutMs,maxBytes=ACQUISITION_LIMITS.maxBytes,deadlineAt=null,document=false,validators=null}={}){
     if(publicFetchSafe!==true)throw new PageAcquisitionError('public_fetch_not_configured');
     const checked=validatePublicUrl(url);if(!checked.valid)throw new PageAcquisitionError(`unsafe_url:${checked.reason}`);
-    const byteCap=boundedAcquisitionLimit(maxBytes,ACQUISITION_LIMITS.maxBytes,ACQUISITION_LIMITS.maxBytes);
+    // Documents (sitemaps) may ask for up to the document bound; pages keep the page bound.
+    const byteCap=boundedAcquisitionLimit(maxBytes,ACQUISITION_LIMITS.maxBytes,document?ACQUISITION_LIMITS.documentBytes:ACQUISITION_LIMITS.maxBytes);
     const owner=budget({signal,timeoutMs,deadlineAt,clock});
     const trace={finalUrl:checked.url,httpStatus:null,redirects:[]};
     try{
       owner.assert();
-      const result=await publicFetcher({fetchImpl,publicFetchSafe,beforeFetch,onRobots,maxBytes:byteCap,userAgentContact},owner.signal).source(checked.url,trace,{document,validators});
+      const result=await publicFetcher({fetchImpl,publicFetchSafe,beforeFetch,onRobots,robotsCache,maxBytes:byteCap,userAgentContact},owner.signal).source(checked.url,trace,{document,validators});
       owner.assert();
       if(result.notModified||!result.body)return {...result,trace,capture:null};
       const {body}=result;

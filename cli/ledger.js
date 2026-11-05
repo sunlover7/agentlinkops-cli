@@ -214,6 +214,7 @@ export function toWatchInput(entry) {
   // caller can say so rather than discovering it when a reference comes back short.
   const reference = entry.ref ? `${entry.id} ${entry.ref}` : entry.id;
   return {
+    intent: ({wanted:'prospect',expected:'earned',retired:'retired'})[entry.intent],
     sourceUrl: entry.source, targetUrl: entry.target, targetScope: entry.scope,
     cadenceSeconds: cadenceSeconds(entry.cadence ?? DEFAULT_CADENCE[entry.intent] ?? 'daily'),
     expectedAnchor: entry.expect?.anchor ?? null,

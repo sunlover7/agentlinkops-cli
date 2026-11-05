@@ -202,3 +202,27 @@ test('robots bootstrap refuses an HTML replacement', async () => {
     .fetchText('https://publisher.com/robots.txt', { purpose: 'robots' });
   assert.equal(result.reason, 'robots_not_plain_text');
 });
+
+
+test('shared document remaining allowance is sampled after fetch hooks and bounds both plain and inflated bodies', async () => {
+  for (const gzip of [false, true]) {
+    let remaining = 4096;
+    const source = 'x'.repeat(2048);
+    const transport = createDocumentTransport({ maxBytes: 4096, hostDelayMs: 0, remainingBytes: () => remaining,
+      fetchImpl: async () => { remaining = 100; return xml(gzip ? gzipSync(source) : source); } });
+    const result = await transport.fetchText(URL);
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, gzip ? 'sitemap_too_large' : 'body_too_large');
+  }
+});
+
+test('exhausted or invalid shared document allowance cancels the response before consuming its body', async () => {
+  for (const remaining of [0, NaN]) {
+    let cancelled = false;
+    const transport = createDocumentTransport({ remainingBytes: () => remaining,
+      fetchImpl: async () => xml(new ReadableStream({ cancel() { cancelled = true; } })) });
+    const result = await transport.fetchText(URL);
+    assert.equal(result.reason, 'body_too_large');
+    await wait(0); assert.equal(cancelled, true);
+  }
+});

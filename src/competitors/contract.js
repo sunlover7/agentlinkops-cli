@@ -22,7 +22,23 @@ export const TargetScope = z.strictObject({ target_kind: z.enum(['domain', 'exac
   if (!DiscoveryQuery.safeParse({ ...scope, ...policy }).success)
     ctx.addIssue({ code: 'custom', message: 'Expected an explicit canonical discovery target scope.' });
 });
-const memberSchema = z.strictObject({ id: identifier, role: z.enum(['customer', 'competitor']), scope: TargetScope });
+// Customer-authored selection context, not a provider verdict or evidence of a link.
+// Keep this optional with no defaults: parsing legacy revisions must not add bytes
+// to the set hash embedded in their immutable inventory snapshots.
+export const CompetitorSelectionRationale = z.strictObject({
+  relationship: z.enum(['business', 'search', 'shared_backlink_neighbor', 'unknown']),
+  audience: z.string().trim().min(1).max(500).nullable(),
+  topic: z.string().trim().min(1).max(500).nullable(),
+  evidence: z.array(z.strictObject({
+    source_url: z.string().min(1).max(2048).refine(value => {
+      const checked = validatePublicUrl(value);
+      return checked.valid && checked.url === value;
+    }, 'Expected a canonical public HTTP(S) source URL.'),
+    note: z.string().trim().min(1).max(1000),
+  })).max(5),
+});
+const memberSchema = z.strictObject({ id: identifier, role: z.enum(['customer', 'competitor']), scope: TargetScope,
+  selection_rationale: CompetitorSelectionRationale.optional() });
 export const ApprovedCompetitorSet = z.strictObject({
   v: z.literal(COMPETITOR_VERSION), id: identifier, revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
   workspace_id: identifier, project_id: identifier, approved_by: identifier, approved_at: timestamp,
