@@ -96,9 +96,7 @@ API key. MCP OAuth credentials stay in the MCP client and cannot authorize REST.
    existing project and the scopes `projects:read`, `watches:read`,
    `watches:write`, `events:read`, and `exports:create`.
 2. Save the once-shown credential in the user's secret store. Supply it through
-   `AGENTLINKOPS_API_KEY` in the CLI process environment. The ledger CLI also accepts
-   `AGENTLINKOPS_TOKEN`; if both are set, they must agree. The `LINKTRAIL_` spellings are
-   still read, with a one-line warning, during the pilot compatibility window. Never paste credentials
+   `AGENTLINKOPS_API_KEY` in the CLI process environment. Never paste credentials
    into chat, command arguments, or ledger files.
 3. Run the installed CLI from the directory containing the existing `.agentlinkops/` (or `.linktrail/`)
    ledger. Replace the script path and IDs below with the installed package path

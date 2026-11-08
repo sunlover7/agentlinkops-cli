@@ -50,7 +50,7 @@ export function cloudConnection(config, env = process.env) {
 }
 
 export function keySetup(origin) {
-  return `Create an API key on the Agent page (${origin}/#/access, Create API key), then run \`npx -y agentlinkops connect\` in a terminal and paste it when asked; the CLI keeps it outside your repository. Scripts and CI can supply it through AGENTLINKOPS_API_KEY instead (AGENTLINKOPS_TOKEN also works; the LINKTRAIL_ spellings remain accepted during the pilot compatibility window). Ledger sync needs the scopes ${SYNC_SCOPES.join(', ')}. For CLI OAuth on Linux, use connect --oauth with an existing public client; credentials stay in the user-owned POSIX-mode store. On other platforms, use OAuth in your MCP client. MCP clients manage their own credentials.`;
+  return `Create an API key on the Agent page (${origin}/#/access, Create API key), then run \`npx -y agentlinkops connect\` in a terminal and paste it when asked; the CLI keeps it outside your repository. Scripts and CI can supply it through AGENTLINKOPS_API_KEY instead. Ledger sync needs the scopes ${SYNC_SCOPES.join(', ')}. For CLI OAuth on Linux, use connect --oauth with an existing public client; credentials stay in the user-owned POSIX-mode store. On other platforms, use OAuth in your MCP client. MCP clients manage their own credentials.`;
 }
 
 const pastePrompt = origin => `Paste an API key from ${origin}/#/access (Create API key), or press Enter to cancel: `;
@@ -70,7 +70,7 @@ export async function connectKey({ origin, token = null, stored = false, ask = n
       pasted = true;
     }
     if (!API_KEY_PATTERN.test(token))
-      throw new ConfigError(pasted ? 'That is not an AgentLinkOps API key (keys start with lt_). Create one on the Agent page and paste all of it.' : 'Supply a complete API key through AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY.');
+      throw new ConfigError(pasted ? 'That is not an AgentLinkOps API key (keys start with lt_). Create one on the Agent page and paste all of it.' : 'Supply a complete API key through AGENTLINKOPS_API_KEY.');
     try { account = await clientFactory({ origin, token, fetchImpl }).getWorkspace(); break; }
     catch (error) {
       if (!(stored && !pasted && ask && error?.status === 401)) throw error;
@@ -127,7 +127,7 @@ export async function connectMain(args, { cwd, env = process.env, out = console.
       return 0;
     }
   }
-  if (!oauthRequested && !API_KEY_PATTERN.test(token)) throw new ConfigError('Supply a complete API key through AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY.');
+  if (!oauthRequested && !API_KEY_PATTERN.test(token)) throw new ConfigError('Supply a complete API key through AGENTLINKOPS_API_KEY.');
   if (!hasLedger) throw new ConfigError('No ledger here to map to a website: run `agentlinkops init` first, or omit --project-id to connect the CLI only.');
   let ledgerIds;
   if (args.selection !== undefined) {

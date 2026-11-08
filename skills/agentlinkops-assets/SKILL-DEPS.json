@@ -6,7 +6,7 @@
   "sourceManifest": [
     {
       "path": "references/cli.md",
-      "sha256": "7b665f9d9b60cdab1f0238b71500f8389e0a6df4ea9777db69af6627a000a766"
+      "sha256": "eae7a48e244f8e43d0356469bb9de5c34bdc1a7b7738c7da83f958aa1fbba8a0"
     },
     {
       "path": "references/disavow.md",
@@ -14,7 +14,7 @@
     },
     {
       "path": "references/reports.md",
-      "sha256": "361ea12f145daf15c30d35cfaec3f41bfa677fee9c5eabf7dc10b6004cbe617e"
+      "sha256": "6af4424c2a081195cb57c995cba1cd7695bafbef0a5226c8bcd64ed1aca4c15d"
     },
     {
       "path": "scripts/agentlinkops.py",
@@ -68,7 +68,7 @@
     },
     {
       "path": "references/portable/references/cli.md",
-      "sha256": "55ad759a920ed5bb683b0354739b7a929a0d733e987c6164977ea466ff606955"
+      "sha256": "74f74491f783a509fbd91ea4e575e1956b57da6be020f6c5c3356d44adeebe62"
     },
     {
       "path": "references/portable/references/disavow.md",
@@ -76,7 +76,7 @@
     },
     {
       "path": "references/portable/references/reports.md",
-      "sha256": "4fc4791d03c7497f0193fb3d6b4114095aad4d551bb063c8c9e9c485f0c8ca56"
+      "sha256": "4e9a626857d6cf67ca1e7d1a17373db4ded4052f389dc81e71829133f53b2945"
     },
     {
       "path": "references/portable/scripts/agentlinkops.py",

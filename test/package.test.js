@@ -1,6 +1,6 @@
 // The package as a user gets it: the executables run as subprocesses from the package
 // directory, with the declared dependencies and nothing from any product tree.
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -14,18 +14,24 @@ const exec = promisify(execFile);
 const pkg = fileURLToPath(new URL('../', import.meta.url));
 const bin = name => join(pkg, 'bin', `${name}.mjs`);
 const preload = join(pkg, 'test/support/route-fetch.mjs');
+// Every spawned CLI runs offline with no saved key: see the preload's header.
+const offline = join(pkg, 'test/fixtures/offline-cli-preload.mjs');
 const FIXTURE_HOST = 'publisher-fixture.com';
 
-// The environment a stranger has: no AgentLinkOps or Linktrail variable set.
+// The environment a stranger has: no AgentLinkOps or Linktrail variable set, and a scratch HOME
+// so no key saved under ~/.agentlinkops is read.
+const home = await mkdtemp(join(tmpdir(), 'agentlinkops-pkg-home-'));
+after(() => rm(home, { recursive: true, force: true }));
 const cleanEnv = extra => ({
   ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(?:AGENTLINKOPS|LINKTRAIL)_/u.test(key))),
+  HOME: home,
   ...extra,
 });
 // Node prints its own experimental warnings on stderr; they are not the CLI's output.
 const cliLines = text => text.split('\n').filter(line => line && !/ExperimentalWarning|--trace-warnings/u.test(line));
 
 async function cli(name, args, { cwd, env = {}, nodeArgs = [] } = {}) {
-  const result = await exec(process.execPath, [...nodeArgs, bin(name), ...args], { cwd, env: cleanEnv(env) }).catch(error => error);
+  const result = await exec(process.execPath, ['--import', offline, ...nodeArgs, bin(name), ...args], { cwd, env: cleanEnv(env) }).catch(error => error);
   return { code: result.code ?? 0, stdout: result.stdout ?? '', stderr: cliLines(result.stderr ?? '') };
 }
 
@@ -134,7 +140,7 @@ test('LINKTRAIL_* variables are read with one warning, disagreeing spellings ref
   assert.equal((await cli('agentlinkops', ['init'], { cwd: dir })).code, 0);
   const secret = `lt_${'0123456789abcdef'.repeat(4)}`;
   const old = await cli('agentlinkops', ['doctor'], { cwd: dir, env: { LINKTRAIL_TOKEN: secret } });
-  assert.ok(old.stderr.some(line => /LINKTRAIL_TOKEN is deprecated; set AGENTLINKOPS_TOKEN instead/u.test(line)), old.stderr.join('\n'));
+  assert.ok(old.stderr.some(line => /LINKTRAIL_TOKEN is deprecated; set AGENTLINKOPS_API_KEY instead/u.test(line)), old.stderr.join('\n'));
   assert.equal(old.stderr.filter(line => /deprecated/u.test(line)).length, 1, `one warning per variable per process:\n${old.stderr.join('\n')}`);
   assert.match(old.stdout, /set in the environment \(LINKTRAIL_TOKEN\)/u);
   assert.equal(`${old.stdout}${old.stderr.join('\n')}`.includes(secret), false, 'the value never appears');

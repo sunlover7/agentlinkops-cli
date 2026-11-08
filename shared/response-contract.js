@@ -9,6 +9,7 @@ import {prospectResponses} from './campaign-prospect-contract.js';
 import {campaignOutcomeResponses} from './campaign-outcome-contract.js';
 import {searchConnectionsResponse,searchRowsResponse,searchSyncResponse,searchPropertiesResponse,searchStartResponse,searchConnection,searchImportResponse} from './search-connection-contract.js';
 import {linkSummaryResponse} from './link-summary-contract.js';
+import {clientReportOutput,clientResultsOutput} from './client-report-contract.js';
 import {linkCategoryFields,linkLabelledWatchResponse,linkLabelledWatchesResponse} from './link-category-contract.js';
 export {linkSummaryResponse};
 import {z} from 'zod';
@@ -94,6 +95,8 @@ export function restResponseContract(path,method='GET') {
   if(['/v1/targets','/v1/projects'].includes(pathname))return pageResponse;
   if(pathname==='/v1/usage')return usageResponse;
   if(pathname==='/v1/reports/link-changes')return linkChangeReportResponse;
+  if(pathname==='/v1/reports/client')return clientReportOutput;
+  if(pathname==='/v1/reports/client-results')return clientResultsOutput;
   if(pathname==='/v1/reports/history')return profileHistoryOutput;
   if(pathname==='/v1/reports/history/records')return profileHistoryRecordsOutput;
   if(pathname==='/v1/reports/summary')return linkSummaryResponse;

@@ -105,7 +105,7 @@ const USAGE = `agentlinkops — a backlink ledger that lives in your repository
   agentlinkops agent remove [--skill ID ...] [--recipe ID ...] [--scope project|user] [--apply] [--json]
   agentlinkops agent recover [--scope project|user] [--apply] [--json]
   agentlinkops sync [--push-only] [--pull-only] [--dry-run] [--include-wanted] [--lifecycle] [--recover-cursors]
-                                            AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY
+                                            needs AGENTLINKOPS_API_KEY or a key saved by connect
   agentlinkops check [--filter TEXT] [--all] [--json] [--fail-on-unknown]
   agentlinkops doctor                       verify ledger, verifier, cloud reachability, token
   agentlinkops check --source URL --target URL [--scope exact] [--json] [--out FILE]
@@ -267,7 +267,16 @@ export async function main(argv = process.argv.slice(2), options) {
         supplierGeneratedAt: args['generated-at'] === true ? null : (args['generated-at'] ?? null),
       });
       if (result.error) { err(result.error); return 2; }
-      if (args.json) { out(JSON.stringify(result.accepted.map(candidate => JSON.stringify(candidate)).join('\n'))); return 0; }
+      // One object, so an agent reads the same counts and reasons the text preview prints. A file
+      // whose every row is rejected still says how many rows were read and why each was refused.
+      if (args.json) {
+        out(JSON.stringify({
+          preview: true, written: false, supplier: result.supplier, mapping: result.mapping,
+          unclaimed: result.unclaimed, counts: result.counts, chunks: result.chunks, reasons: result.reasons,
+          rejected: result.rejected, duplicates: result.duplicates, candidates: result.accepted,
+        }));
+        return 0;
+      }
       out(`mapped ${Object.entries(result.mapping).map(([field, column]) => `${field}="${column}"`).join(', ')}`);
       if (result.unclaimed.length) out(`kept as supplier metrics: ${result.unclaimed.join(', ')}`);
       out(`\n${JSON.stringify(result.counts)}`);

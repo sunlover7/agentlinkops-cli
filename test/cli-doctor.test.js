@@ -174,7 +174,9 @@ test('a local-only repository with a valid ledger passes with skips, exit 0', as
   // repository with no live engine configured; the browser line reports ok or
   // skip depending on whether THIS machine has the camoufox stack, so accept
   // both shapes rather than pinning the local install.
-  assert.match(text, /all checks passed \((3|4) ok, (4|5) skipped\)/);
+  // The tls line skips when NODE_EXTRA_CA_CERTS is unset (DP-0063-T05).
+  assert.match(text, /all checks passed \((3|4) ok, (5|6) skipped\)/);
+  assert.match(text, /skip\s+tls\s+—\s+NODE_EXTRA_CA_CERTS not set/u);
 });
 
 test('MCP-only cloud metadata fails CLI connection diagnostics without making requests or changing config', async t => {
@@ -191,8 +193,12 @@ test('MCP-only cloud metadata fails CLI connection diagnostics without making re
     const { code, text } = await run(root, { env, fetchImpl: async () => { requests++; throw new Error('unexpected network'); } });
     assert.equal(code, 1);
     assert.match(text, /fail\s+connection\s+—\s+saved cloud metadata is present, but the CLI API connection is not configured/u);
-    assert.match(text, /AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY/u);
-    assert.match(text, /`agentlinkops connect` to verify the workspace and project/u);
+    // One environment-variable name is taught; the older aliases are still read silently.
+    assert.match(text, /AGENTLINKOPS_API_KEY/u);
+    // The token line reports the variable the person actually set; every taught line names only the one.
+    const taught = text.split('\n').filter(line => !/^\w+\s+token\s+—/u.test(line)).join('\n');
+    assert.doesNotMatch(taught, /AGENTLINKOPS_TOKEN|LINKTRAIL_/u);
+    assert.match(text, /`npx -y agentlinkops connect` and paste an API key from the Agent page \(scripts can set AGENTLINKOPS_API_KEY instead\) to verify the workspace and project/u);
     assert.match(text, /MCP clients keep their own OAuth credentials/u);
     assert.match(text, /skip\s+cloud\s+—\s+CLI API origin is missing; MCP access is separate/u);
     assert.doesNotMatch(text, /local-only repository|all checks passed/u);

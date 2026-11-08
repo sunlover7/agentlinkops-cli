@@ -1,11 +1,12 @@
 import {restResponseContract} from '../shared/response-contract.js';
 import {CloudError} from './cloud-error.js';
 import {createMcpClient} from './mcp-client.js';
+import {tlsFailure, tlsCloudError} from './tls-diagnostics.js';
 export {CloudError} from './cloud-error.js';
 // A small HTTP client for the cloud. Scoped keys only; no human session ever reaches here.
 // DP-0036-T13: the CLI names itself so the usage counters can tell it from other REST callers.
 // The version follows the plugin manifests; bump it with them.
-export const CLI_VERSION = '0.6.17';
+export const CLI_VERSION = '0.6.18';
 export const CLI_USER_AGENT = `agentlinkops-cli/${CLI_VERSION}`;
 const MAX_ATTEMPTS = 3;
 const MAX_RETRY_WAIT_MS = 5_000;
@@ -51,6 +52,9 @@ export function createClient({ origin, token, workspaceId, projectId, fetchImpl 
         requestId = response.headers.get('X-Request-ID') ?? requestId;
         text = await response.text();
       } catch (error) {
+        // A certificate failure repeats identically on every attempt; name it once, now.
+        const tls = response ? null : tlsFailure(error);
+        if (tls) throw tlsCloudError(tls, { attempts: attempt });
         if (safeRead && attempt < MAX_ATTEMPTS) {
           if (response && retryableStatus.has(response.status)) {
             const serverDelay = retryAfterMs(retryAfter, now());

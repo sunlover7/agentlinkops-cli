@@ -9,8 +9,8 @@ records. This page is the complete agent reference: the same text prints from
 full once per session, then use `describe` (or `exec describe` on MCP) for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.17. 156 commands in 13 toolsets.
-This reference targets CLI 0.6.17. Check `agentlinkops --version` and local help for installed features. The hosted MCP server and `agentlinkops tools --refresh` list hosted commands; refreshing does not install newer local CLI features. Upgrade only to a version available through your chosen channel.
+Pack version 0.6.18. 159 commands in 13 toolsets.
+This reference targets CLI 0.6.18. Check `agentlinkops --version` and local help for installed features. The hosted MCP server and `agentlinkops tools --refresh` list hosted commands; refreshing does not install newer local CLI features. Upgrade only to a version available through your chosen channel.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)
@@ -55,14 +55,20 @@ check date, coverage and evidence limits. Preserve the person's other records.
 
 REST and the CLI use a scoped API key created in **Agent access > Create API key** in the
 [workspace](https://app.agentlinkops.com/app), supplied as `AGENTLINKOPS_API_KEY` in the
-environment (`AGENTLINKOPS_TOKEN` also works; the older `LINKTRAIL_*` names keep working
-during the pilot compatibility window with one warning per process). MCP OAuth tokens are
-bound to `/mcp` and are not API keys.
+environment. MCP OAuth tokens are bound to `/mcp` and are not API keys.
 
 Verify: on MCP call `get_workspace` with `{}`, directly or as
 `exec: {"command": "call get_workspace {}"}` (a workspace name in the answer means the
 connection works); on the CLI run `agentlinkops doctor` (its `cloud` and `token` lines say
 `ok` when the origin answers and the key is accepted).
+
+If a CLI call fails with `CLOUD_TLS_UNTRUSTED` (or another Node.js tool reports
+`UNABLE_TO_GET_ISSUER_CERT_LOCALLY`), Node could not build a trusted certificate chain: the
+server may omit an intermediate certificate, or the network may need a private root. That
+request was not sent. If the organization supplies an HTTPS inspection root, set
+`NODE_EXTRA_CA_CERTS` to that PEM file, open a new terminal and run `agentlinkops doctor`.
+Adding a root does not fix `CLOUD_TLS_INVALID` (expired, not yet valid, revoked or another
+host). Never suggest turning certificate checks off.
 
 ## Views
 
@@ -151,6 +157,15 @@ record id). Needs `watches:write`. It creates recurring metered checks.
 An `INSUFFICIENT_SCOPE` error names the scope to request through the client's OAuth flow.
 Keep existing authorization and project limits; repeated consent cannot widen a forbidden
 grant.
+
+One workspace can hold several clients' websites; limit each person or agent to the
+websites they need. `list_projects` returns those websites, and `list_members` shows teammates
+who share one plus staff with every website; other website IDs stay hidden. New credentials
+cannot exceed the issuer's current access (a limited admin's new keys record its website list),
+and project-scoped keys need the workspace's access entitlement: for `PLAN_FEATURE_REQUIRED`,
+ask the owner and keep the restriction. Older all-websites credentials can widen with the
+person's access, so revoke and reissue them before relying on a fixed client boundary. A
+refused invitation does not mean an email is unknown.
 
 ## Rules
 
@@ -324,6 +339,16 @@ emails and contact pages from saved HTML; candidate pages are not fetched, deliv
 verified); `get_link_profile` and `get_anchor_report` (keep their coverage and truncation
 notes when reporting counts).
 
+Is monitoring running for a project? `get_monitoring_service_assurance` takes one `projectId`.
+Its counts, roster and `capacity.finite` cover only that project; `serviceTicks`, the scheduler
+plans and the check allowance in `binding.entitlement` are service- or workspace-wide (the allowance needs
+`projects:read`). `capacity.finite.fits` is not a reservation: manual checks, scans and other
+projects draw on the same allowance. Report `not_recorded`, `not_measurable`, `unavailable`,
+null and any state not named here as unknown, not as missed runs or healthy coverage;
+`latest_failed` means the latest run failed, and `current` means the latest scheduled run
+happened, not that every link was checked. None of it proves an email arrived or that
+monitoring ran without a gap.
+
 ## Handoffs
 
 Some tasks happen on another website that has no API, such as uploading the disavow file to
@@ -377,7 +402,7 @@ The human-readable version is
 ## Tool reference
 
 <!-- generated:skill-tools begin (npm run generate:tools; source: src/tool-registry.js) -->
-156 commands in 13 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated commands: prepare_competitor_supplier_inventory, start_competitor_supplier_inventory, start_competitor_analysis, prepare_domain_baseline, start_domain_baseline, request_competitor_inventory, request_domain_overview. Starting new provider-backed work requires admission in the selected deployment; without admission these commands return a configuration error.
+159 commands in 13 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated commands: prepare_competitor_supplier_inventory, start_competitor_supplier_inventory, start_competitor_analysis, prepare_domain_baseline, start_domain_baseline, request_competitor_inventory, request_domain_overview. Starting new provider-backed work requires admission in the selected deployment; without admission these commands return a configuration error.
 
 | Toolset | Commands | What it covers |
 | --- | --- | --- |
@@ -385,14 +410,14 @@ The human-readable version is
 | `classification` | 7 | Manual link types and tags with retained placement context and metadata. |
 | `evidence` | 14 | What a check observed: histories, snapshots, change feeds, check jobs, published contacts. |
 | `discovery` | 15 | Import candidate rows, read stored runs, verify selected candidates, enroll them. |
-| `baseline` | 14 | Scoped backlink baselines; new live work requires admission in this deployment. |
+| `baseline` | 15 | Scoped backlink baselines; new live work requires admission in this deployment. |
 | `competitors` | 16 | Competitor sets, dated inventories, scheduled refresh and gap reports. |
 | `internal-links` | 16 | Owned-site page inventories, bounded captures, internal-link health and graph evidence. |
 | `reports` | 17 | Placement chronology, service assurance, backlink and domain-mix reports. |
 | `workspace` | 18 | Workspace, projects, usage, members, invitations, scratch-resource cleanup. |
 | `notifications` | 6 | Email notification preferences, previews, tests and deliveries. |
 | `disavow` | 11 | Propose, review and export website disavow rules; check the copy Google holds (handoffs). |
-| `lifecycle` | 4 | Placement costs, expiry, renewal events and currency reports. |
+| `lifecycle` | 6 | Placement costs, expiry, renewals, currency and client link reports. |
 | `digests` | 2 | Own-address digest delivery history and exact retained events. |
 <!-- generated:skill-tools end -->
 

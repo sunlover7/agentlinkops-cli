@@ -22,6 +22,7 @@ import { readState, writeState } from './state.js';
 import { acquireSyncLock } from './sync-lock.js';
 import { createClient, CloudError } from './client.js';
 import { cloudConnection } from './connection.js';
+import { tlsFailure, tlsRecovery, extraCaStatus, systemCaMode, EXTRA_CA_ENV } from './tls-diagnostics.js';
 import { validatePublicUrl, parseLinks, transitionState, checkObservationKind } from '../src/verifier/index.js';
 import { matchesTarget } from '../src/verifier/url.js';
 
@@ -103,8 +104,9 @@ export async function probeCloud({ origin, fetchImpl, timeoutMs = 5000 }) {
     return { reachable: true, ok: response.ok, status: response.status, ms: Date.now() - started };
   } catch (error) {
     const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';
+    const tls = timedOut ? null : tlsFailure(error);
     return { reachable: false, ok: false, status: null, ms: Date.now() - started,
-      error: timedOut ? 'timeout' : 'network error', timedOut };
+      error: timedOut ? 'timeout' : tls ? `certificate ${tls.kind === 'untrusted' ? 'not trusted' : 'invalid'}: ${tls.code}` : 'network error', timedOut, tls };
   }
 }
 
@@ -200,7 +202,7 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
     if (savedConnectionMetadata) {
       checks.push({ status: 'fail', name: 'connection',
         detail: 'saved cloud metadata is present, but the CLI API connection is not configured',
-        fix: 'supply an API key through AGENTLINKOPS_TOKEN or AGENTLINKOPS_API_KEY, then run `agentlinkops connect` to verify the workspace and project. MCP clients keep their own OAuth credentials' });
+        fix: 'run `npx -y agentlinkops connect` and paste an API key from the Agent page (scripts can set AGENTLINKOPS_API_KEY instead) to verify the workspace and project. MCP clients keep their own OAuth credentials' });
     }
     checks.push({ status: 'skip', name: 'cloud', detail: savedConnectionMetadata
       ? 'CLI API origin is missing; MCP access is separate'
@@ -211,7 +213,7 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
     if (!cloud.reachable) {
       checks.push({ status: 'fail', name: 'cloud',
         detail: `cannot reach ${origin} (${cloud.error}${cloud.timedOut ? ` after ${timeoutMs} ms` : ''})`,
-        fix: `check the network and cloud.origin in ${config.dirName}/config.json` });
+        fix: cloud.tls ? tlsRecovery(cloud.tls, env) : `check the network and cloud.origin in ${config.dirName}/config.json` });
     } else if (!cloud.ok) {
       checks.push({ status: 'fail', name: 'cloud', detail: `${origin} answered HTTP ${cloud.status}`,
         fix: 'the cloud is reachable but unhealthy; check its deployment before syncing' });
@@ -220,6 +222,22 @@ export async function doctorMain(argv = [], { cwd = process.cwd(), out = console
     }
     probed = true;
   }
+
+  // Certificates: by default Node does not read the operating system's trust store, so a root
+  // added by a corporate proxy has to be named through NODE_EXTRA_CA_CERTS, or Node started with
+  // --use-system-ca. Only the file is inspected. An unusable file fails doctor only when the
+  // cloud probe itself failed on a certificate; Node merely warns about it, and a working
+  // connection does not need it.
+  const extraCa = extraCaStatus(env);
+  const systemCa = systemCaMode(env);
+  const tlsBroken = checks.some(check => check.name === 'cloud' && check.status === 'fail' && /certificate/u.test(check.detail));
+  const store = systemCa ? "Node's bundled certificates plus the operating system store (--use-system-ca)" : "Node's bundled certificates only";
+  checks.push(!extraCa.set
+    ? { status: systemCa ? 'ok' : 'skip', name: 'tls', detail: `${EXTRA_CA_ENV} not set; ${store}${systemCa ? '' : ' (set it to a PEM root, or use --use-system-ca, if a proxy inspects HTTPS)'}` }
+    : extraCa.usable
+      ? { status: 'ok', name: 'tls', detail: `${EXTRA_CA_ENV} adds ${extraCa.certificates} certificate${extraCa.certificates === 1 ? '' : 's'} from ${extraCa.path}${systemCa ? '; the operating system store is also used' : ''}` }
+      : { status: tlsBroken ? 'fail' : 'skip', name: 'tls', detail: `${EXTRA_CA_ENV} is set to ${extraCa.path}, but that file ${extraCa.problem}${tlsBroken ? '' : '; the connection did not need it'}`,
+          fix: `point ${EXTRA_CA_ENV} at your organization's root certificate in PEM format, or unset it; never turn certificate checks off` });
 
   // Token: presence, shape, and — only when the cloud just proved reachable — whether the
   // cloud accepts it. The value itself is never printed, hashed or measured here.
