@@ -11,7 +11,7 @@ export const TOOLSETS = ['monitoring','classification','evidence','rank','licens
 export const TOOLSET_SUMMARIES = {
   admission: 'Project rules, URL previews and retained admission decisions.',
   disavow: 'Propose, review and export website disavow rules; check the copy Google holds (handoffs).',
-  lifecycle: 'Placement costs, expiry, renewal events and currency reports.',
+  lifecycle: 'Placement costs, expiry, renewals, currency and client link reports.',
   campaigns: 'Campaign contacts and supplied outreach outcomes.',
   digests: 'Own-address digest delivery history and exact retained events.',
   monitoring: 'Watch earned links and destination URLs: create, list, update, import, export, recheck.',

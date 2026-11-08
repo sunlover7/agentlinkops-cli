@@ -1,4 +1,5 @@
 import {CloudError} from './cloud-error.js';
+import {tlsFailure, tlsCloudError} from './tls-diagnostics.js';
 import {createOAuthCredentialStore} from './oauth-credentials.js';
 import {discoverOAuth, refreshOAuthTokens} from './oauth-flow.js';
 import {restResponseContract} from '../shared/response-contract.js';
@@ -62,7 +63,7 @@ function retryDelay(error, attempt, now) {
 
 async function sdkClient({url, token, workspaceId, fetchImpl}) {
   const {Client, StreamableHTTPClientTransport} = await import('@modelcontextprotocol/client');
-  const client = new Client({name: 'agentlinkops-cli', version: '0.6.17'});
+  const client = new Client({name: 'agentlinkops-cli', version: '0.6.18'});
   const destination = new URL(url);
   const transport = new StreamableHTTPClientTransport(destination, {
     authProvider: {token: async () => token},
@@ -71,7 +72,7 @@ async function sdkClient({url, token, workspaceId, fetchImpl}) {
       if (target.href !== destination.href) fail('OAUTH_TOKEN_DESTINATION_MISMATCH');
       const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined));
       if (workspaceId) headers.set('X-Workspace-ID', workspaceId);
-      headers.set('User-Agent', 'agentlinkops-cli/0.6.17');
+      headers.set('User-Agent', 'agentlinkops-cli/0.6.18');
       const response = await fetchImpl(input, {...init, headers, redirect: 'error', signal: AbortSignal.timeout(30000)});
       if (response.redirected || response.status >= 300 && response.status < 400
         || response.url && response.url !== destination.href) fail('OAUTH_TOKEN_DESTINATION_MISMATCH');
@@ -112,6 +113,8 @@ export function createMcpClient({origin, auth, workspaceId, projectId, credentia
       });
     } catch (error) {
       if (error instanceof CloudError) throw error;
+      const tls = tlsFailure(error);
+      if (tls) throw tlsCloudError(tls, {target: 'the OAuth issuer'});
       const code = typeof error?.code === 'string' && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.code) ? error.code : 'OAUTH_CREDENTIAL_UNAVAILABLE';
       throw new CloudError(code, 401, null, 'OAuth credentials could not be used. Reconnect through the configured issuer; do not repeat an unresolved write.');
     }
@@ -125,7 +128,8 @@ export function createMcpClient({origin, auth, workspaceId, projectId, credentia
         return await operation(client, token);
       } catch (error) {
         const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : null;
-        const failure = error instanceof CloudError ? error : status !== null ? new CloudError(`HTTP_${status}`, status,
+        const tls = error instanceof CloudError || status !== null ? null : tlsFailure(error);
+        const failure = error instanceof CloudError ? error : tls ? tlsCloudError(tls, {attempts: attempt}) : status !== null ? new CloudError(`HTTP_${status}`, status,
           null, 'The cloud request was refused.', null, {retryAfter: error.retryAfter ?? null, requestId: error.requestId ?? null}) : new CloudError(
           ['AbortError', 'TimeoutError'].includes(error?.name) ? 'CLOUD_TIMEOUT' : 'CLOUD_NETWORK_ERROR', 0,
           {attempts: attempt}, safeRead ? 'The cloud read failed. Check the connection before retrying.'

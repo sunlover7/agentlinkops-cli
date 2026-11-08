@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { parseCsv, readTable, normalizeHeader, CsvError } from '../cli/adapters/csv.js';
 import { resolveMapping, toImportRow, readFlag, SUPPLIER_NAMES } from '../cli/adapters/suppliers.js';
 import { readImport, parseMap } from '../cli/import.js';
+import { main } from '../cli/main.js';
 
 async function file(t, name, contents) {
   const dir = await mkdtemp(join(tmpdir(), 'linktrail-import-'));
@@ -327,6 +328,34 @@ test('import previews and never writes', async t => {
   // A preview that wrote files would make a dry run indistinguishable from a real one.
   assert.ok(result.accepted.length);
   assert.equal(result.written, undefined);
+});
+
+test('the JSON preview carries counts and reasons even when every row is rejected', async t => {
+  // DP-0060-T08a: a domain-only shortlist printed "" under --json, with no counts, so an agent
+  // could not tell an empty file from a wrong mapping. The JSON preview now matches the text one.
+  const path = await file(t, 'domains.csv', 'rank,source_domain\n1,publisher.example.org\n2,other.example.net\n');
+  const lines = [];
+  const code = await main(['import', path, '--target', 'example.com', '--map', 'source=source_domain', '--json'],
+    { cwd: dirname(path), env: {}, out: line => lines.push(line), err: () => {} });
+  assert.equal(code, 0);
+  assert.equal(lines.length, 1, 'one JSON document on stdout');
+  const preview = JSON.parse(lines[0]);
+  assert.equal(preview.preview, true);
+  assert.equal(preview.written, false);
+  assert.deepEqual(preview.counts, { read: 2, accepted: 0, rejected: 2, duplicates: 0 });
+  assert.deepEqual(preview.reasons, [{ reason: 'source_url: invalid_url', count: 2, example_row: 2 }]);
+  assert.deepEqual(preview.rejected.map(entry => entry.row), [2, 3]);
+  assert.deepEqual(preview.candidates, []);
+  assert.deepEqual(await readdir(dirname(path)), ['domains.csv'], 'the JSON preview writes nothing either');
+
+  const exact = await file(t, 'exact.csv', 'source_url,target_url\nhttps://publisher.example.org/resources,https://example.com/guide\n');
+  const accepted = [];
+  assert.equal(await main(['import', exact, '--target', 'example.com', '--map', 'source=source_url,target=target_url', '--json'],
+    { cwd: dirname(exact), env: {}, out: line => accepted.push(line), err: () => {} }), 0);
+  const parsed = JSON.parse(accepted[0]);
+  assert.deepEqual(parsed.counts, { read: 1, accepted: 1, rejected: 0, duplicates: 0 });
+  assert.equal(parsed.candidates[0].source_url, 'https://publisher.example.org/resources');
+  assert.equal(parsed.candidates[0].verification_status, 'not_checked');
 });
 
 test('a large export reports duplicates across normalization slices with original file lines', async t => {

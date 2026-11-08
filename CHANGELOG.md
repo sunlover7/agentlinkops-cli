@@ -3,7 +3,14 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
-## 0.6.17 (unreleased)
+## 0.6.18 (unreleased)
+
+- TLS failures are named, not retried: REST and MCP clients raise `CLOUD_TLS_UNTRUSTED` or `CLOUD_TLS_INVALID` and say the request was not sent. `agentlinkops doctor` names the certificate failure and its fix on the `cloud` line, and a new `tls` line reports whether `NODE_EXTRA_CA_CERTS` is set and how many certificates it adds. A trust-chain error can come from an incomplete server chain or an untrusted network root.
+- CLI messages and the connect and CLI references teach one key variable, `AGENTLINKOPS_API_KEY`; the older names are still read, and the `LINKTRAIL_TOKEN` warning names the new one.
+- The offline command catalog adds `list_domain_baseline_groups`, `get_client_link_report` and `get_client_results_report` (159 commands).
+- The `import --json` preview now returns one JSON object with counts, rejection reasons, duplicates and accepted `candidates`. Update callers that decoded a JSON string containing JSONL to read the object directly. The preview keeps `written:false` and writes no ledger or cloud data.
+
+## 0.6.17 (2026-11-08)
 
 - The offline command catalog carries the November 7 hosted contract: `estimate_usage` lookup quotes report `searches` (searches left today under the daily limit that Find backlinks searches and competitor lookups share) on every plan, including shared-credit plans, and the Find backlinks and competitor lookup reads carry the shared `progress` block with an honest stalled state.
 - The agent reference tells agents to read `searches` before a lookup and that Find backlinks searches and competitor lookups report progress the same way check jobs do.

@@ -20,6 +20,7 @@ import { createHmac } from 'node:crypto';
 
 const run = promisify(execFile);
 const cliDir = fileURLToPath(new URL('../cli/', import.meta.url));
+const OFFLINE_PRELOAD = fileURLToPath(new URL('./fixtures/offline-cli-preload.mjs', import.meta.url));
 const TOKEN = `lt_${'ab'.repeat(32)}`;
 
 async function scratch(t, prefix = 'agentlinkops-compat-') {
@@ -47,9 +48,19 @@ test('every variable prefers the AGENTLINKOPS_ name and reads the LINKTRAIL_ nam
     assert.deepEqual(readEnv({}, suffix, { warn }), { value: undefined, name: null });
     // Both set to the same value: the new name is reported and nobody is warned.
     assert.deepEqual(readEnv({ [`AGENTLINKOPS_${suffix}`]: 'same', [`LINKTRAIL_${suffix}`]: 'same' }, suffix, { warn }), { value: 'same', name: `AGENTLINKOPS_${suffix}` });
-    assert.deepEqual(warnings, [deprecationNotice(`LINKTRAIL_${suffix}`, `AGENTLINKOPS_${suffix}`)], `${suffix}: exactly one warning, for the old-only case`);
+    assert.deepEqual(warnings, [deprecationNotice(`LINKTRAIL_${suffix}`, `AGENTLINKOPS_${suffix === 'TOKEN' ? 'API_KEY' : suffix}`)], `${suffix}: exactly one warning, for the old-only case, naming the taught variable`);
     assert.ok(!warnings[0].includes('legacy-value-xyz'), 'a warning never carries the value');
   }
+});
+
+test('LINKTRAIL_TOKEN beside an identical AGENTLINKOPS_API_KEY is read without a warning', () => {
+  const warnings = [];
+  const warn = message => warnings.push(message);
+  assert.deepEqual(readEnv({ LINKTRAIL_TOKEN: TOKEN, AGENTLINKOPS_API_KEY: TOKEN }, 'TOKEN', { warn }), { value: TOKEN, name: 'LINKTRAIL_TOKEN' });
+  assert.deepEqual(warnings, [], 'the person already set the taught name');
+  assert.equal(cloudConnection({}, { LINKTRAIL_TOKEN: TOKEN, AGENTLINKOPS_API_KEY: TOKEN }).token, TOKEN);
+  readEnv({ LINKTRAIL_TOKEN: TOKEN, AGENTLINKOPS_API_KEY: `lt_${'cd'.repeat(32)}` }, 'TOKEN', { warn });
+  assert.equal(warnings.length, 1, 'a different API key still gets the warning (and the connection conflict rule)');
 });
 
 test('an old name and a new name set to different values fail like TOKEN versus API_KEY, without exposing either', () => {
@@ -72,7 +83,7 @@ test('the old-name warning is printed once per process per variable, to the noti
   cloudConnection({}, env);
   resolveEnv(env);
   assert.deepEqual(notices, [
-    deprecationNotice('LINKTRAIL_TOKEN', 'AGENTLINKOPS_TOKEN'),
+    deprecationNotice('LINKTRAIL_TOKEN', 'AGENTLINKOPS_API_KEY'),
     deprecationNotice('LINKTRAIL_API_URL', 'AGENTLINKOPS_API_URL'),
   ]);
   assert.ok(notices.every(line => !line.includes(TOKEN)), 'a notice never carries the value');
@@ -258,8 +269,10 @@ test('agentlinkops is the executable and linktrail is an alias that prints exact
 test('both executables run doctor in an empty directory with no token and name the new commands', async t => {
   const dir = await scratch(t);
   for (const entry of ['agentlinkops.mjs', 'linktrail.mjs']) {
-    const env = { PATH: process.env.PATH, HOME: process.env.HOME };
-    const result = await run(process.execPath, [join(cliDir, entry), 'doctor'], { cwd: dir, env }).catch(error => error);
+    // A scratch HOME and the offline preload: the spawned CLI reads no saved key (Keychain or
+    // ~/.agentlinkops/keys) and cannot reach a real cloud, whoever runs the suite.
+    const env = { PATH: process.env.PATH, HOME: await scratch(t, 'agentlinkops-compat-home-') };
+    const result = await run(process.execPath, ['--import', OFFLINE_PRELOAD, join(cliDir, entry), 'doctor'], { cwd: dir, env }).catch(error => error);
     assert.equal(result.code, 1, `${entry}: doctor fails on a directory with no ledger`);
     assert.match(result.stdout, /agentlinkops doctor — .*\.agentlinkops/u);
     assert.match(result.stdout, /fix\s+— run `agentlinkops init`/u);

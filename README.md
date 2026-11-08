@@ -1,7 +1,7 @@
 # agentlinkops
 
 <!-- generated:customer-catalog begin -->
-Pack version 0.6.17. 156 commands in 13 toolsets.
+Pack version 0.6.18. 159 commands in 13 toolsets.
 <!-- generated:customer-catalog end -->
 
 A backlink ledger that lives in your repository. `agentlinkops check` fetches a source page,
@@ -167,7 +167,7 @@ Local commands need no account. Sync pushes expectations and pulls events and ev
 references into the mirror. It never writes into `links.jsonl`.
 
 ```sh
-export AGENTLINKOPS_TOKEN=...   # from Agent access > Create API key in the hosted workspace
+export AGENTLINKOPS_API_KEY=...   # from Agent access > Create API key in the hosted workspace
 agentlinkops connect --workspace WORKSPACE_ID --project-id PROJECT_ID --origin https://app.agentlinkops.com
 agentlinkops sync --dry-run
 agentlinkops sync
@@ -188,7 +188,7 @@ commands.
 
 | Variable | Purpose |
 | --- | --- |
-| `AGENTLINKOPS_TOKEN` or `AGENTLINKOPS_API_KEY` | Scoped credential for `connect`, `sync`, `tools`, `call` and the token probe in `doctor`. If both are set they must agree. |
+| `AGENTLINKOPS_API_KEY` | Scoped credential for `connect`, `sync`, `tools`, `call` and the token probe in `doctor`. The older `AGENTLINKOPS_TOKEN` is still read; if both are set they must agree. |
 | `AGENTLINKOPS_API_URL` | Hosted origin when it is not in `config.json`. |
 | `AGENTLINKOPS_WEBHOOK_SECRET` | Verifies signed deliveries in `agentlinkops receive`. |
 | `AGENTLINKOPS_GSC_TOKEN`, `AGENTLINKOPS_GA4_TOKEN` | First-party context commands under `agentlinkops context`. |

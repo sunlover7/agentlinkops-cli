@@ -7,6 +7,8 @@
 //
 //   - only the new name set      -> used, silently
 //   - only the old name set      -> used, with ONE warning per process naming the new variable
+//                                   (for the key, the taught AGENTLINKOPS_API_KEY; no warning
+//                                   when LINKTRAIL_TOKEN equals an AGENTLINKOPS_API_KEY already set)
 //   - both set, same value       -> used, silently (an operator mid-migration exports both)
 //   - both set, different values -> ConfigError, the same conflict rule that already refuses a
 //                                   TOKEN that disagrees with an API_KEY. Guessing between two
@@ -25,6 +27,9 @@ export const ENV_NAMES = Object.freeze(['TOKEN', 'API_KEY', 'API_URL', 'WEBHOOK_
 
 export const envName = suffix => `${ENV_PREFIX}_${suffix}`;
 export const legacyEnvName = suffix => `${LEGACY_ENV_PREFIX}_${suffix}`;
+// The name a warning teaches. The key has one taught name, AGENTLINKOPS_API_KEY (DP-0063-T05);
+// AGENTLINKOPS_TOKEN stays readable, so a LINKTRAIL_TOKEN warning points at the taught name.
+export const taughtEnvName = suffix => envName(suffix === 'TOKEN' ? 'API_KEY' : suffix);
 
 export function deprecationNotice(oldName, newName) {
   return `${oldName} is deprecated; set ${newName} instead. The old name keeps working during the pilot compatibility window.`;
@@ -42,10 +47,13 @@ export function readEnv(env, suffix, { warn = null } = {}) {
     throw new ConfigError(`${preferred} and ${legacy} disagree; select one value.`);
   if (fresh !== undefined && fresh !== '') return { value: fresh, name: preferred };
   if (old !== undefined && old !== '') {
+    // LINKTRAIL_TOKEN beside an identical AGENTLINKOPS_API_KEY: the person already uses the
+    // taught name, so a warning telling them to set it would repeat on every run.
+    if (suffix === 'TOKEN' && env[taughtEnvName(suffix)] === old) return { value: old, name: legacy };
     // Once per process, per variable, so a command that resolves the environment in three
     // places (config, doctor, context) warns once rather than three times.
-    if (warn) warn(deprecationNotice(legacy, preferred));
-    else noticeOnce(`legacy-env:${legacy}`, deprecationNotice(legacy, preferred));
+    if (warn) warn(deprecationNotice(legacy, taughtEnvName(suffix)));
+    else noticeOnce(`legacy-env:${legacy}`, deprecationNotice(legacy, taughtEnvName(suffix)));
     return { value: old, name: legacy };
   }
   return { value: undefined, name: null };
