@@ -3,7 +3,12 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
-## 0.6.16 (unreleased)
+## 0.6.17 (unreleased)
+
+- The offline command catalog carries the November 7 hosted contract: `estimate_usage` lookup quotes report `searches` (searches left today under the daily limit that Find backlinks searches and competitor lookups share) on every plan, including shared-credit plans, and the Find backlinks and competitor lookup reads carry the shared `progress` block with an honest stalled state.
+- The agent reference tells agents to read `searches` before a lookup and that Find backlinks searches and competitor lookups report progress the same way check jobs do.
+
+## 0.6.16 (2026-11-05)
 
 - First npm release since 0.6.13. It carries the source changes recorded below for 0.6.14 and 0.6.15, including the refusal of an activity state written by a newer CLI.
 - The agent reference separates hosted command discovery from installed local CLI features. Refreshing the catalog does not install a newer CLI; an upgrade must use a version available through the customer's chosen channel.

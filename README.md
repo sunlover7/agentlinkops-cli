@@ -1,7 +1,7 @@
 # agentlinkops
 
 <!-- generated:customer-catalog begin -->
-Pack version 0.6.16. 156 commands in 13 toolsets.
+Pack version 0.6.17. 156 commands in 13 toolsets.
 <!-- generated:customer-catalog end -->
 
 A backlink ledger that lives in your repository. `agentlinkops check` fetches a source page,
