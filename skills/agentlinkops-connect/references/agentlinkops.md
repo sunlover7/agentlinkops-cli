@@ -9,8 +9,8 @@ records. This page is the complete agent reference: the same text prints from
 full once per session, then use `describe` (or `exec describe` on MCP) for any command's exact schema.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.16. 156 commands in 13 toolsets.
-This reference targets CLI 0.6.16. Check `agentlinkops --version` and local help for installed features. The hosted MCP server and `agentlinkops tools --refresh` list hosted commands; refreshing does not install newer local CLI features. Upgrade only to a version available through your chosen channel.
+Pack version 0.6.17. 156 commands in 13 toolsets.
+This reference targets CLI 0.6.17. Check `agentlinkops --version` and local help for installed features. The hosted MCP server and `agentlinkops tools --refresh` list hosted commands; refreshing does not install newer local CLI features. Upgrade only to a version available through your chosen channel.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)
@@ -161,7 +161,8 @@ proves a link was removed. Report inconclusive checks as inconclusive.
 - A queued job is not a result. Read `get_check_job` until the job is terminal, then read the
   observation it produced. Its `progress` block gives live counts and when the job last moved.
   `phase: "stalled"` means the job stopped moving and may still finish: report the
-  `lastProgressAt` time and wait for the result.
+  `lastProgressAt` time and wait for the result. Find backlinks searches and competitor lookups
+  (`get_domain_baseline`, `get_competitor_supplier_inventory`) carry the same block.
 - Apply a full page before saving `next_cursor`; the `links`, `targets` and workspace feeds
 keep separate cursors.
 - Join local records on `localReference`, never on URLs: stored URLs are normalized
@@ -177,8 +178,11 @@ keep separate cursors.
   every selected record is paused and no monitored slot is free. Without selected record IDs,
   `addingIsUpperBound: true` marks `adding` and `overLimit` as upper bounds; read the save result
   for what was added or already existed. A mixed active/paused selection can partly succeed, and
-  `checksStoppedBy` names a trial, plan or billing hold that refuses every check. The quote
-  spends nothing, and the service checks again at start.
+  `checksStoppedBy` names a trial, plan or billing hold that refuses every check. A lookup
+  quote on any plan also carries `searches`: the searches left today under the daily limit
+  that Find backlinks searches and competitor lookups share. When `searches.remainingToday` is 0,
+  a new search can't start before `searches.resetsAt`; `searches` is null where no hosted search
+  limit applies. The quote spends nothing, and the service checks again at start.
   Reuse an `idempotencyKey` only when retrying the same request.
 - A call refused with `RATE_LIMITED` did not run. Wait `details.retryAfterSeconds`, then send
 the identical request with the same `idempotencyKey`. In a `/mcp/code` script, other calls
