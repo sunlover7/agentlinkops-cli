@@ -32,6 +32,11 @@ export function portableCheckObservation(result) {
   const observed = structuredClone(result);
   const diagnostics = [observed.robots, ...(observed.robotsHistory ?? []), observed.sourceResponse];
   for (const item of diagnostics) if (item?.bodyDiagnostic) delete item.bodyDiagnostic.sampleText;
+  // DP-0004-T26: a hosted read keeps the page's other links to the watched site, so a later read can
+  // tell a replacement link from one that was always there ("points to another page"). The portable
+  // v1 observation has no field for that evidence, so a local result keeps the plain removal reason.
+  for (const field of ['siteLinks', 'siteLinkCount', 'landingLinks', 'landingLinkCount']) delete observed[field];
+  if (observed.reason === 'wrong_landing_page') observed.reason = 'no_matching_link_in_complete_html';
   return observed;
 }
 

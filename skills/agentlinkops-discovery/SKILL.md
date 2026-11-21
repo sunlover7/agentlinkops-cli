@@ -4,7 +4,7 @@ description: Review saved backlink searches and supplied exports, research backl
 allowed-tools: Read Write Bash(agentlinkops import *) Bash(agentlinkops init *) Bash(agentlinkops add *) Bash(agentlinkops check *) Bash(agentlinkops tools *) Bash(agentlinkops describe *) Bash(agentlinkops call *) WebFetch WebSearch
 ---
 
-For an existing search or supplied export, read [the saved-backlink workflows](references/saved-backlink-workflows.md). They cover full saved-result review, import provenance, selected checks and a reviewable monitoring handoff.
+For an existing search or supplied export, read [the saved-backlink workflows](references/saved-backlink-workflows.md). They cover full saved-result review, import provenance, selected checks, a reviewable monitoring handoff, comparing saved competitor lookups and suggesting competitors.
 
 Use the user's existing search, browser and files. Start with their product URL, audience, useful target pages and any excluded publishers. Read the existing ledger or shortlist to avoid repeating work. Choose on-topic competitors as research inputs; competing products are not automatically prospects.
 

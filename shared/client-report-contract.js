@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {discoveryDetail,discoveryCounts,population,populationCounts} from './report-population.js';
 // DP-0058-T10: the one-page client link report. One website, one period, the links a client
 // asks about (live, new, back, lost, went missing, changed, won), each with its last check and
 // the observation behind it. Counts come from the same rules as get_link_summary and the
@@ -19,10 +20,16 @@ export const clientReportInput=z.object({
 export const clientReportItem=z.object({
  watch_id:id,source_url:z.string(),target_url:z.string(),
  status:z.enum(['live','missing','couldnt_check','paused','not_checked_yet','prospect','archived']),
+ // population is the watch's current record. discovery is how this event was produced;
+ // live rows have no event, so discovery is null. The clock is the event time, not a publish date.
+ population,discovery:discoveryDetail.nullable(),
  event_at:instant.nullable(),last_checked_at:instant.nullable(),
  evidence:z.object({observation_id:id.nullable(),checked_at:instant.nullable()}).strict(),
 }).strict();
-export const clientReportSection=z.object({total:count,items:z.array(clientReportItem).max(200),truncated:z.boolean()}).strict();
+export const clientReportSection=z.object({
+ total:count,items:z.array(clientReportItem).max(200),truncated:z.boolean(),
+ by_population:populationCounts,by_origin:discoveryCounts.nullable(),
+}).strict();
 export const clientReportOutput=z.object({
  schema_version:z.literal(1),workspace_id:id,
  project:z.object({id,domain:z.string().nullable(),name:z.string().nullable()}).strict(),
@@ -66,6 +73,9 @@ export const clientResultsOutput=z.object({
  notes:z.array(z.string()),
 }).strict();
 export const CLIENT_REPORT_OUTPUTS=Object.freeze({get_client_link_report:clientReportOutput.passthrough(),get_client_results_report:clientResultsOutput.passthrough()});
-const empty={total:0,items:[],truncated:false};
+const populations={monitored:0,candidate_only:0,archived:0,absent:0};
+const origins={baseline_discovery:0,prospect_win:0,monitored_check:0,unrecorded:0};
+const emptyLive={total:0,items:[],truncated:false,by_population:populations,by_origin:null};
+const emptyChange={total:0,items:[],truncated:false,by_population:populations,by_origin:origins};
 const resultsSection={total:0,items:[],truncated:false};
-export const CLIENT_REPORT_EXAMPLES=Object.freeze({get_client_results_report:{schema_version:1,workspace_id:'workspace_example',generated_at:'2026-10-26T12:00:00.000Z',period:{kind:'month',month:'2026-09',days:null,from:'2026-09-01T00:00:00.000Z',to:'2026-09-30T23:59:59.999Z',complete:true},sites:[{project:{id:'project_example',domain:'example.com',name:'Example'},counts:{links:0,prospects:0,live_now:0,earned:0,retained:0,recovered:0,lost:0,went_missing:0,changed:0,never_live:0,couldnt_check:0,won:0},earned_by_origin:{import:0,discovery_candidate:0,prospect_pipeline:0,direct_or_unrecorded:0},earned_with_verified_outreach:0,earned:resultsSection,review:{lost:resultsSection,recovered:resultsSection,went_missing:resultsSection,changed:resultsSection,cant_reach_lasting:resultsSection},won:{state:'recorded',reason:null,clock:'win_verified_at'},coverage:{basis:'monitored_links_and_retained_change_feed',live_clock:'read_time',change_clock:'event_recorded_at',changes_complete:true,limitations:[],retained_basis:'recorded_found_back_lost_missing_changes',retained_complete:true}}],comparison:{state:'no_comparable_cohort_yet',reason:'Each website is its own population. No competitor or pooled cohort is compared in client results yet.'},notes:['This empty example does not establish that no links existed.']},get_client_link_report:{schema_version:1,workspace_id:'workspace_example',project:{id:'project_example',domain:'example.com',name:'Example'},generated_at:'2026-10-26T12:00:00.000Z',period:{kind:'days',month:null,days:30,from:'2026-09-27T00:00:00.000Z',to:'2026-10-26T12:00:00.000Z',complete:false},branding:{mode:'agentlinkops',name:null},counts:{links:0,live:0,missing:0,couldnt_check:0,paused:0,not_checked_yet:0,prospects:0,new:0,back:0,lost:0,went_missing:0,changed:0,won:0},won:{state:'recorded',reason:null,clock:'win_verified_at'},sections:{live:empty,new:empty,back:empty,lost:empty,went_missing:empty,changed:empty,won:empty},coverage:{basis:'monitored_links_and_retained_change_feed',live_clock:'read_time',change_clock:'event_recorded_at',changes_complete:true,limitations:[]},notes:['This empty example does not establish that no links existed.']}});
+export const CLIENT_REPORT_EXAMPLES=Object.freeze({get_client_results_report:{schema_version:1,workspace_id:'workspace_example',generated_at:'2026-10-26T12:00:00.000Z',period:{kind:'month',month:'2026-09',days:null,from:'2026-09-01T00:00:00.000Z',to:'2026-09-30T23:59:59.999Z',complete:true},sites:[{project:{id:'project_example',domain:'example.com',name:'Example'},counts:{links:0,prospects:0,live_now:0,earned:0,retained:0,recovered:0,lost:0,went_missing:0,changed:0,never_live:0,couldnt_check:0,won:0},earned_by_origin:{import:0,discovery_candidate:0,prospect_pipeline:0,direct_or_unrecorded:0},earned_with_verified_outreach:0,earned:resultsSection,review:{lost:emptyChange,recovered:emptyChange,went_missing:emptyChange,changed:emptyChange,cant_reach_lasting:emptyLive},won:{state:'recorded',reason:null,clock:'win_verified_at'},coverage:{basis:'monitored_links_and_retained_change_feed',live_clock:'read_time',change_clock:'event_recorded_at',changes_complete:true,limitations:[],retained_basis:'recorded_found_back_lost_missing_changes',retained_complete:true}}],comparison:{state:'no_comparable_cohort_yet',reason:'Each website is its own population. No competitor or pooled cohort is compared in client results yet.'},notes:['This empty example does not establish that no links existed.']},get_client_link_report:{schema_version:1,workspace_id:'workspace_example',project:{id:'project_example',domain:'example.com',name:'Example'},generated_at:'2026-10-26T12:00:00.000Z',period:{kind:'days',month:null,days:30,from:'2026-09-27T00:00:00.000Z',to:'2026-10-26T12:00:00.000Z',complete:false},branding:{mode:'agentlinkops',name:null},counts:{links:0,live:0,missing:0,couldnt_check:0,paused:0,not_checked_yet:0,prospects:0,new:0,back:0,lost:0,went_missing:0,changed:0,won:0},won:{state:'recorded',reason:null,clock:'win_verified_at'},sections:{live:emptyLive,new:emptyChange,back:emptyChange,lost:emptyChange,went_missing:emptyChange,changed:emptyChange,won:emptyChange},coverage:{basis:'monitored_links_and_retained_change_feed',live_clock:'read_time',change_clock:'event_recorded_at',changes_complete:true,limitations:[]},notes:['This empty example does not establish that no links existed.']}});

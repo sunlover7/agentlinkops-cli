@@ -1607,15 +1607,15 @@ test("explicit multi-client setup remains atomic when one client conflicts", asy
   assert.equal(await readFile(foreign, "utf8"), "Customer Hermes skill\n");
 });
 
-// Synthetic reviewed-pack fixtures exercise selection mechanics only. They do not
-// lift the actual optional content source/rights hold in the maintained manifest.
+// Synthetic pack fixtures exercise selection mechanics with the maintained manifest's
+// membership; held re-applies a source hold to prove it still refuses.
 async function selectedPackFixture(f, id, {metadata=true, held=false}={}) {
   const repo=fileURLToPath(new URL('../',import.meta.url));
   const bytes=await readFile(join(repo,'toolkit/plugin/agentlinkops/PACKS.json')).catch(error=>{
     if(error.code==='ENOENT')return readFile(join(repo,'PACKS.json'));throw error;
   });
   const contract=JSON.parse(bytes), selected=contract.packs[id];
-  if(id==='content'&&!held){selected.sourcePolicy='reviewed-portable-source';for(const name of selected.skills)contract.dependencies[name].unresolved=[];}
+  if(held){selected.sourcePolicy='held';selected.holdReasons=['synthetic source hold'];}
   const base=join(f.root,`${id}-${metadata?'selected':'legacy'}-fixture`),packDir=join(base,'skills');
   for(const name of selected.skills){
     await mkdir(join(packDir,name),{recursive:true});await writeFile(join(packDir,name,'SKILL.md'),`# ${name} synthetic selection fixture\n`);
@@ -1654,6 +1654,10 @@ test('selected product artifact defaults to connect and an all-product upgrade r
 });
 
 test('explicit optional pack installs without a core skill, MCP setup or account prompt',async t=>{
+  const seoFixture={...await fixture(t),minimal:true},seo=await selectedPackFixture(seoFixture,'seo');
+  const seoResult=await run(['agent','setup','--client','claude-code','--all-skills'],{...seoFixture,packDir:seo.packDir});
+  assert.equal(seoResult.code,0,seoResult.err);assert.equal(seoResult.json.selection.skills.length,8);
+  assert.equal(seoResult.json.clients[0].mcp.action,'not selected');await absent(join(seoFixture.cwd,'.mcp.json'));
   const f={...await fixture(t),minimal:true},content=await selectedPackFixture(f,'content');
   let connectCalls=0;
   await assert.rejects(
@@ -1670,12 +1674,15 @@ test('explicit optional pack installs without a core skill, MCP setup or account
 });
 
 test('held or inconsistent selected-pack metadata refuses before installation writes',async t=>{
-  const f={...await fixture(t),minimal:true},content=await selectedPackFixture(f,'content',{held:true});
-  await assert.rejects(
-    run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:content.packDir}),
-    {name:'ConfigError',message:'The selected pack metadata disagrees with its files or source hold.'},
-  );
-  await absent(receiptAt(f));await absent(join(f.cwd,'.mcp.json'));await absent(join(f.cwd,'.claude/skills'));
+  const f={...await fixture(t),minimal:true};
+  for(const id of ['content','seo']){
+    const held=await selectedPackFixture(f,id,{held:true});
+    await assert.rejects(
+      run(['agent','setup','--client','claude-code','--all-skills'],{...f,packDir:held.packDir}),
+      {name:'ConfigError',message:'The selected pack metadata disagrees with its files or source hold.'},
+    );
+    await absent(receiptAt(f));await absent(join(f.cwd,'.mcp.json'));await absent(join(f.cwd,'.claude/skills'));
+  }
   const product=await selectedPackFixture(f,'product');product.artifact.skills=product.artifact.skills.slice(1);
   await writeFile(join(product.base,'PACK-ARTIFACT.json'),JSON.stringify(product.artifact));
   await assert.rejects(

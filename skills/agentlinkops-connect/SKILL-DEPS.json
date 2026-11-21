@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "skill": "agentlinkops-connect",
   "pack": "product",
-  "contractSha256": "e3d29a169dd1ecae2db26b22ab666419c4057e84831653df655f04ae61725e93",
+  "contractSha256": "7bdf0456165bc5569d6f9c9c4735aa00323620c94f7c48f2b51729590657021d",
   "sourceManifest": [
     {
       "path": "skills/agentlinkops-connect/SKILL.md",
-      "sha256": "3825b1b27209209cfaa6f4c5a5a30e10de1316c0282db4b165e49f745e08fd08"
+      "sha256": "f0e37ac73725c34730251ccef307bd4dbe52d03f0cb1c79baa7ee8d0febdfbc9"
     },
     {
       "path": "skills/agentlinkops-connect/agents/openai.yaml",
@@ -14,17 +14,17 @@
     },
     {
       "path": "skills/agentlinkops-connect/references/agentlinkops.md",
-      "sha256": "745b8245fff78d193833027d99655b867f5068e7045687e6b0a41d34a7c01aa2"
+      "sha256": "8dd774bd99c4246169579aafb8937295b4c1a453b7f8a81ee804ec5c59896c80"
     },
     {
       "path": "skills/agentlinkops-connect/references/placement-workflows.md",
-      "sha256": "b5545af0934ec8e9e14157d4097edbf065bcfaede5f67ca65da1aee87e55fb83"
+      "sha256": "f0b18dbc920041244bd6f61682ba4ca1d6f6d0bb643da4729e1810e7476086a2"
     }
   ],
   "members": [
     {
       "path": "SKILL.md",
-      "sha256": "3825b1b27209209cfaa6f4c5a5a30e10de1316c0282db4b165e49f745e08fd08"
+      "sha256": "f0e37ac73725c34730251ccef307bd4dbe52d03f0cb1c79baa7ee8d0febdfbc9"
     },
     {
       "path": "agents/openai.yaml",
@@ -32,11 +32,11 @@
     },
     {
       "path": "references/agentlinkops.md",
-      "sha256": "745b8245fff78d193833027d99655b867f5068e7045687e6b0a41d34a7c01aa2"
+      "sha256": "8dd774bd99c4246169579aafb8937295b4c1a453b7f8a81ee804ec5c59896c80"
     },
     {
       "path": "references/placement-workflows.md",
-      "sha256": "b5545af0934ec8e9e14157d4097edbf065bcfaede5f67ca65da1aee87e55fb83"
+      "sha256": "f0b18dbc920041244bd6f61682ba4ca1d6f6d0bb643da4729e1810e7476086a2"
     }
   ],
   "edges": [

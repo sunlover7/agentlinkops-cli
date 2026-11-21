@@ -1,5 +1,7 @@
 import { validatePublicUrl } from '../verifier/url.js';
 import { robotsDecision } from '../verifier/robots.js';
+import { analyzeReadiness, isAccessChallenge } from '../verifier/readiness.js';
+import { parseDocument } from '../page-extraction/html.js';
 import { VerificationError, readBounded, readBodyDiagnostic, withAbort, cancelBody } from './bytes.js';
 
 export { VerificationError, readBounded } from './bytes.js';
@@ -150,7 +152,15 @@ export function publicFetcher(options, signal) {
       const body = await readBounded(response, 512 * 1024, signal);
       if (/text\/html/iu.test(response.headers.get('content-type') ?? '') || /<(?:!doctype|html|body)\b/iu.test(body.text)) {
         diagnostic.bodyDiagnostic = await readBodyDiagnostic(new Response(body.data,{headers:{'content-length':String(body.bytes)}}),signal);
-        throw new VerificationError('robots_not_plain_text');
+        // A web page where robots.txt should be (DP-0004-T24 census). A recognizable bot check is
+        // named as the challenge it is; either way it is never policy and never authorizes a fetch,
+        // including a customer-supplied monitor's single visit.
+        let challenge = false;
+        try {
+          const parsed = parseDocument(body.text, url);
+          challenge = isAccessChallenge(parsed, { managedClientChallenge: analyzeReadiness({ html: body.text, parsed, targetUrl: url }).managedClientChallenge });
+        } catch { challenge = false; }
+        throw new VerificationError(challenge ? 'robots_access_challenge' : 'robots_not_plain_text');
       }
       return { text: body.text, reason: 'robots_fetched' };
     }

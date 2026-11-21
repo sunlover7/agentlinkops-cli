@@ -18,7 +18,9 @@ AgentLinkOps stores verified backlink observations, monitoring history and evide
 
 Inspect `npx -y agentlinkops agent setup --help` for the installed version before selecting payloads. CLI 0.6.10 installs the connection skill and its reference by default, with MCP setup for detected clients. Select optional guidance explicitly. CLI 0.6.9 and earlier can install the complete pack. Native-client acceptance remains separate from package checks. Setup stores no credential.
 
-For a chosen hosted task, sign in through the client's OAuth flow. If the CLI is not installed, connect the client to `https://app.agentlinkops.com/mcp` by hand and let the person approve the workspace and scopes. `agentlinkops agent status` shows what is configured.
+For a chosen hosted task, sign in through the client's OAuth flow. If the CLI is not installed, connect the client to `https://app.agentlinkops.com/mcp` by hand. For a fresh connection through the configured Clerk consent page, review the request and choose **Allow** once. Your sole workspace or valid remembered workspace is selected automatically; otherwise choose a workspace. Use **Advanced access** only to choose read-only access or specific websites. Current role, token scopes and project limits still apply. Saved restrictions stay in place; reconnecting cannot restore revoked access or widen those restrictions.
+
+Follow returned approval or workspace-selection errors when an older or unsupported flow needs separate review in Agent access. API credentials and other authentication paths retain their own grant requirements. Connecting buys no plan, raises no spending limit and connects no mailbox. Sending and spending need separate authority. `agentlinkops agent status` shows what is configured.
 
 ## Check a supplied pair (after reading the reference)
 

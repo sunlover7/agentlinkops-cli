@@ -209,7 +209,7 @@ export async function readPack(dir) {
       };
     } catch { throw new ConfigError("The selected pack metadata is unavailable or invalid."); }
     const selected = contract?.packs?.[artifact?.pack];
-    if (!artifact || artifact.schemaVersion !== 1 || contract?.schemaVersion !== 1 || !["product", "content"].includes(artifact.pack)
+    if (!artifact || artifact.schemaVersion !== 1 || contract?.schemaVersion !== 1 || !["product", "content", "seo"].includes(artifact.pack)
         || !selected || selected.sourcePolicy !== (artifact.pack === "product" ? "maintained-product-source" : "reviewed-portable-source")
         || artifact.contractSha256 !== sha256(JSON.stringify(contract))
         || !Array.isArray(artifact.skills) || !Array.isArray(artifact.defaultCliSkills)

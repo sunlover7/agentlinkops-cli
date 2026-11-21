@@ -3,7 +3,18 @@
 All notable changes to the `agentlinkops` package are recorded here. The version follows the
 plugin manifests in `.claude-plugin/` and `.codex-plugin/`.
 
-## 0.6.18 (unreleased)
+## 0.6.19 (unreleased)
+
+- The offline command catalog now matches the production customer catalog (165 commands in 15 toolsets). It adds the contact, prospect and outreach-outcome commands, which production lists, and leaves out the command families that are off there: domain overviews, owned-corpus competitor lookups, paginated competitor analyses, scheduled competitor refresh and weekly review checkpoints. Those commands stay registered on the server. While their service is off, a call starts no new work and returns a configuration error, and saved overviews, analyses and refresh schedules stay readable by ID. `agentlinkops tools --refresh` lists what the connected server offers.
+- A new `competitor-comparison` toolset has five commands. `get_competitor_comparison` puts saved competitor lookups side by side. `get_competitor_matrix` lists the referring sites across your website and each saved lookup, with filters such as sites not found linking to you in your saved data. Both read saved rows only and start no lookup, check or credit charge. `suggest_competitors`, `propose_competitors` and `decide_competitor_suggestion` keep a list of proposed competitors with their reasons. A rejected site stays off the list, and a new proposal for it is skipped, until you restore it. None of the five changes the competitor set or starts a lookup.
+- Link reads (`list_link_watches`, `get_link_watch` and `export_link_watches`) add `reach`: why the latest check ended as it did, as a reason code, a reason class, a sentence and a next step, in the same words the console uses. It is null for a Live link and when no check has saved a reason yet.
+- `update_link_watch` accepts `note` and `markedFine` for a single link, sent without other changes. A note is free text up to 2,000 characters; null or an empty string clears it. `markedFine: true` marks a link that is not Live as fine. The mark records who set it. It is not a check, and the next conclusive check clears it. `markedFine: false` removes it.
+- Local checks tell a gone site apart from a removed link. When a complete page no longer has the link and reads as a parked, for-sale, expired, suspended, coming-soon or default server page, the result is `source_unavailable` with a `site_gone_*` reason instead of `absent`. The site may come back, so the link is not reported as removed, and `agentlinkops check` does not fail on it.
+- `agent setup --pack DIR` installs the optional content and SEO packs from a built pack directory, and the content pack is no longer held. Both packs are Apache-2.0. Their skills install only when you choose them with `--skill ID` or `--all-skills`, and choosing them does not configure MCP.
+- `get_link_summary` is a core command on every view.
+- `list_events` accepts `since` for link and target events. The read starts before the earliest retained event at or after that time, and `retention_limited: true` means retention may have removed matching events. A citation-feed read with `since` is refused; continue it from the saved cursor.
+
+## 0.6.18 (2026-11-08)
 
 - TLS failures are named, not retried: REST and MCP clients raise `CLOUD_TLS_UNTRUSTED` or `CLOUD_TLS_INVALID` and say the request was not sent. `agentlinkops doctor` names the certificate failure and its fix on the `cloud` line, and a new `tls` line reports whether `NODE_EXTRA_CA_CERTS` is set and how many certificates it adds. A trust-chain error can come from an incomplete server chain or an untrusted network root.
 - CLI messages and the connect and CLI references teach one key variable, `AGENTLINKOPS_API_KEY`; the older names are still read, and the `LINKTRAIL_TOKEN` warning names the new one.

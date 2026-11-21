@@ -30,26 +30,30 @@
         "pre-publish-review"
       ],
       "selection": "explicit-only",
-      "sourcePolicy": "held",
-      "holdReasons": [
-        "Existing optional source provenance/rights gaps remain open.",
-        "Required portable content-quality dependencies are not yet qualified."
-      ],
+      "sourcePolicy": "reviewed-portable-source",
       "defaultCliSkills": [],
       "mcp": false,
       "indexPath": "content/.well-known/agent-skills/index.json",
       "archiveIndex": "content/index.json"
     },
     "seo": {
-      "artifactName": null,
-      "skills": [],
-      "selection": "unselected",
-      "sourcePolicy": "held",
-      "holdReasons": [
-        "No curated source selection with reviewed rights and dependencies is adopted."
+      "artifactName": "agentlinkops-seo",
+      "skills": [
+        "content-freshness-audit",
+        "factual-consistency-audit",
+        "link-reclamation",
+        "onpage-seo-audit",
+        "seo-topical-map",
+        "site-migration-safety",
+        "technical-seo-setup",
+        "wikipedia-entity-map"
       ],
+      "selection": "explicit-only",
+      "sourcePolicy": "reviewed-portable-source",
       "defaultCliSkills": [],
-      "mcp": false
+      "mcp": false,
+      "indexPath": "seo/.well-known/agent-skills/index.json",
+      "archiveIndex": "seo/index.json"
     }
   },
   "dependencies": {
@@ -513,78 +517,258 @@
       ]
     },
     "source-cited-content-builder": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/citation-format.md",
+        "references/phrases-to-avoid.md",
+        "references/source-quality.md"
+      ],
       "requiredBundled": [],
       "optionalSelected": [],
       "externalRuntime": [],
       "privateExcluded": [
         "private Fleet/account files",
         "site-specific private policy/runtime files"
-      ],
-      "unresolved": [
-        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
-      ],
-      "requiredOwn": [
-        "SKILL.md"
       ]
     },
     "source-cited-humanizer": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/meaning-check.md",
+        "references/patterns.md",
+        "references/phrases-to-avoid.md",
+        "references/source-quality.md"
+      ],
       "requiredBundled": [],
       "optionalSelected": [],
       "externalRuntime": [],
       "privateExcluded": [
         "private Fleet/account files",
         "site-specific private policy/runtime files"
-      ],
-      "unresolved": [
-        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
-      ],
-      "requiredOwn": [
-        "SKILL.md"
       ]
     },
     "content-defingerprinting": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/character-classes.md",
+        "scripts/char_scan.py",
+        "scripts/test_char_scan.py"
+      ],
       "requiredBundled": [],
       "optionalSelected": [],
-      "externalRuntime": [],
+      "externalRuntime": [
+        {
+          "kind": "external-runtime",
+          "id": "python3-standard-library",
+          "imports": [
+            "argparse",
+            "bisect",
+            "importlib",
+            "json",
+            "os",
+            "re",
+            "subprocess",
+            "sys",
+            "tempfile",
+            "time",
+            "unicodedata",
+            "unittest"
+          ],
+          "availability": "Python 3 with only its standard library. The scanner and its tests import nothing else."
+        }
+      ],
       "privateExcluded": [
         "private Fleet/account files",
         "site-specific private policy/runtime files"
       ],
-      "unresolved": [
-        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
-      ],
-      "requiredOwn": [
-        "SKILL.md"
+      "pythonDynamicFiles": [
+        {
+          "from": "skills/content-defingerprinting/scripts/test_char_scan.py",
+          "target": "skills/content-defingerprinting/scripts/char_scan.py",
+          "expression": "importlib.util.spec_from_file_location(\"char_scan\", SCRIPT)"
+        }
       ]
     },
     "internal-linking-optimizer": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/method.md"
+      ],
       "requiredBundled": [],
       "optionalSelected": [],
       "externalRuntime": [],
       "privateExcluded": [
         "private Fleet/account files",
         "site-specific private policy/runtime files"
-      ],
-      "unresolved": [
-        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
-      ],
-      "requiredOwn": [
-        "SKILL.md"
       ]
     },
     "pre-publish-review": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/editorial-checklist.md",
+        "references/seo-checklist.md"
+      ],
       "requiredBundled": [],
       "optionalSelected": [],
       "externalRuntime": [],
       "privateExcluded": [
         "private Fleet/account files",
         "site-specific private policy/runtime files"
-      ],
-      "unresolved": [
-        "Existing source provenance and required content-quality dependencies remain unqualified; DP-0073-T03/T08 retain this work."
-      ],
+      ]
+    },
+    "content-freshness-audit": {
       "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
         "SKILL.md"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ]
+    },
+    "factual-consistency-audit": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ]
+    },
+    "link-reclamation": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/link-data-sources.md",
+        "scripts/dead_targets.py"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [
+        {
+          "kind": "external-runtime",
+          "id": "python3-standard-library",
+          "imports": [
+            "argparse",
+            "csv",
+            "datetime",
+            "gzip",
+            "http",
+            "io",
+            "json",
+            "pathlib",
+            "re",
+            "socket",
+            "ssl",
+            "sys",
+            "tempfile",
+            "threading",
+            "time",
+            "urllib",
+            "xml",
+            "zlib"
+          ],
+          "availability": "Python 3 with only its standard library. Live checks fetch the customer's own pages; --self-test runs offline."
+        }
+      ],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ]
+    },
+    "onpage-seo-audit": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/snippet-preview.md"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ]
+    },
+    "seo-topical-map": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/handoff-schema.md"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ]
+    },
+    "site-migration-safety": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ]
+    },
+    "technical-seo-setup": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md",
+        "references/crawler-policy.md",
+        "references/live-response-check.md",
+        "references/structured-data.md"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
+      ]
+    },
+    "wikipedia-entity-map": {
+      "requiredOwn": [
+        "LICENSE",
+        "NOTICE",
+        "SKILL.md"
+      ],
+      "requiredBundled": [],
+      "optionalSelected": [],
+      "externalRuntime": [],
+      "privateExcluded": [
+        "private Fleet/account files",
+        "site-specific private policy/runtime files"
       ]
     }
   }
