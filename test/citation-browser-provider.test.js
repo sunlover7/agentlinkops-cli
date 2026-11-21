@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import { createBrowserEngine, BROWSER_PROVIDERS, guardDisplay, ensurePromptEntered, normalizePrompt, readChatgptSubmittedPrompt } from '../src/citations/browser/engine.js';
 import { OWN_PROVIDER_CONFIGS } from '../src/citations/browser/providers.js';
 
@@ -173,15 +171,45 @@ test('display watchdog arms on the Xvfb lock pid and is retired only after a con
   assert.deepEqual(armed, [':991'], 'an unconfirmed display close keeps the watchdog armed');
 });
 test('display watchdog ends an orphaned Xvfb after its parent dies (Linux)', { skip: !existsSync('/proc/self/comm') }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'xvfb-guard-'));
-  const fake = join(dir, 'Xvfb'); copyFileSync('/bin/sleep', fake);
-  const xvfb = spawn(fake, ['60'], { stdio: 'ignore' }); const parent = spawn('/bin/sleep', ['1'], { stdio: 'ignore' });
-  const exited = new Promise(resolve => xvfb.once('exit', (code, signal) => resolve(signal)));
+  const fixture = source => {
+    const child = spawn(process.execPath, ['-e', source], { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
+    let stderr = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-4096); });
+    const exited = new Promise(resolve => {
+      child.once('exit', (code, signal) => resolve({ code, signal }));
+      child.once('error', error => resolve({ error: error.message }));
+    });
+    const ready = new Promise((resolve, reject) => {
+      child.once('message', message => message === 'ready' ? resolve() : reject(Error('Unexpected fixture readiness message')));
+      child.once('error', reject);
+      child.once('exit', (code, signal) => reject(Error(`Fixture exited before readiness: ${JSON.stringify({ code, signal, stderr })}`)));
+    });
+    return { child, exited, ready, diagnostic: () => stderr };
+  };
+  const within = async (promise, ms, message) => {
+    let timer;
+    try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(Error(message)), ms); })]); }
+    finally { clearTimeout(timer); }
+  };
+  const xvfb = fixture("process.title = 'Xvfb'; setInterval(() => {}, 1000); process.send('ready');");
+  const parent = fixture("process.on('message', message => { if (message === 'exit') process.exit(0); }); process.send('ready');");
+  let release = () => {};
   try {
-    guardDisplay(':1', { parentPid: parent.pid, readLock: () => String(xvfb.pid) });
-    const signal = await Promise.race([exited, new Promise(resolve => setTimeout(() => resolve('still-running'), 9000))]);
-    assert.equal(signal, 'SIGTERM');
-  } finally { xvfb.kill('SIGKILL'); parent.kill('SIGKILL'); rmSync(dir, { recursive: true, force: true }); }
+    await within(Promise.all([xvfb.ready, parent.ready]), 3000, 'Display fixtures did not become ready');
+    assert.equal(readFileSync(`/proc/${xvfb.child.pid}/comm`, 'utf8').trim(), 'Xvfb');
+    assert.equal(xvfb.child.exitCode, null); assert.equal(xvfb.child.signalCode, null);
+    assert.equal(parent.child.exitCode, null); assert.equal(parent.child.signalCode, null);
+    release = guardDisplay(':1', { parentPid: parent.child.pid, readLock: () => String(xvfb.child.pid) });
+    parent.child.send('exit');
+    assert.deepEqual(await within(parent.exited, 3000, 'Parent fixture did not exit'), { code: 0, signal: null });
+    const result = await within(xvfb.exited, 9000, 'Display watchdog did not end the orphaned Xvfb');
+    assert.deepEqual(result, { code: null, signal: 'SIGTERM' }, xvfb.diagnostic());
+  } finally {
+    release();
+    for (const { child } of [xvfb, parent]) if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    await within(Promise.all([xvfb.exited, parent.exited]), 3000, 'Display fixture cleanup did not finish');
+  }
 });
 
 test('an unknown extraction names the unrecognized element kinds in its event, never the error text', async () => {
