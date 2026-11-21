@@ -34,6 +34,18 @@ function summary(observation) {
       rel, context: context?.slice(0, 320), locator,
     })),
     directives: observation.directives ? { noindex: observation.directives.noindex, nofollow: observation.directives.nofollow, indexingStatus: observation.directives.indexingStatus } : undefined,
+    // DP-0004-T26 wrong landing page: where the page links on the same site instead (at most three).
+    ...(Array.isArray(observation.landingLinks) && observation.landingLinks.length ? {
+      landingLinks: observation.landingLinks.slice(0, 3).map(({ href, targetUrl, anchor }) => ({
+        href: href?.slice(0, 512), targetUrl: targetUrl?.slice(0, 512), anchor: anchor?.slice(0, 256) })),
+      landingLinkCount: observation.landingLinkCount ?? observation.landingLinks.length,
+    } : {}),
+    // The other links to the watched site this read saw (at most ten), so the next read can tell a
+    // replacement link from one that was always on the page.
+    ...(Array.isArray(observation.siteLinks) && Number.isInteger(observation.siteLinkCount) ? {
+      siteLinks: observation.siteLinks.slice(0, SITE_LINK_LIMIT).map((url) => String(url).slice(0, 512)),
+      siteLinkCount: observation.siteLinkCount,
+    } : {}),
     evidence: evidence ? {
       complete: evidence.complete, method: evidence.method, checkerVersion: evidence.checkerVersion,
       sha256: evidence.sha256, decodedSha256: evidence.decodedSha256, bytes: evidence.bytes, fetchedAt: evidence.fetchedAt,
@@ -52,9 +64,44 @@ function fingerprint(observation) {
   });
 }
 
+const SITE_LINK_LIMIT = 10;
+const WRONG_LANDING = 'wrong_landing_page';
+
+/**
+ * DP-0004-T26: settle a read's wrong_landing_page reason against the last complete read. The page
+ * "points to another page" only when a link to the watched site is NEW since the last read that saw
+ * the watched link, so it replaced that link; a brand or homepage link that was already on the page
+ * proves nothing, and the read is a plain removal (counted as lost). A read after one already settled
+ * as wrong landing keeps the reading while one of those links remains. Without a baseline that lists
+ * the page's links (older saved states, a link never seen) the read stays a plain removal. Pure and
+ * idempotent: the observation comes back unchanged or as a copy.
+ */
+export function settleLandingReason(previous, observation) {
+  if (observation?.reason !== WRONG_LANDING) return observation;
+  const plain = () => {
+    const { landingLinks, landingLinkCount, ...rest } = observation;
+    return { ...rest, reason: 'no_matching_link_in_complete_html' };
+  };
+  const current = Array.isArray(observation.landingLinks) ? observation.landingLinks : [];
+  const baseline = previous?.lastSuccessfulObservation;
+  let kept = [];
+  if (baseline?.state === 'absent' && baseline.reason === WRONG_LANDING && Array.isArray(baseline.landingLinks)) {
+    const before = new Set(baseline.landingLinks.map((link) => link?.targetUrl));
+    kept = current.filter((link) => before.has(link?.targetUrl));
+  } else if (baseline?.state === 'present' && Array.isArray(baseline.siteLinks) && Number.isInteger(baseline.siteLinkCount)
+    && baseline.siteLinkCount <= baseline.siteLinks.length) {
+    // Only a complete list of the page's earlier same-site links (possibly empty) proves a link is new.
+    const before = new Set(baseline.siteLinks);
+    kept = current.filter((link) => !before.has(link?.targetUrl));
+  }
+  if (!kept.length) return plain();
+  return { ...observation, landingLinks: kept, landingLinkCount: kept.length };
+}
+
 /** Pure state reducer. Persist its result atomically with the observation + outbox. */
 export function transitionState(previous, observation, now = Date.now()) {
   const prior = previous ?? {};
+  observation = settleLandingReason(prior, observation);
   // Keep a historical confirmed fact separate from the latest check's ability
   // to verify it. Older saved states predate this explicit historical field.
   const confirmedState = prior.confirmedState ?? (prior.state === 'present' || prior.state === 'confirmed_missing'

@@ -1,7 +1,7 @@
 # agentlinkops
 
 <!-- generated:customer-catalog begin -->
-Pack version 0.6.18. 159 commands in 13 toolsets.
+Pack version 0.6.20. 149 commands in 14 toolsets.
 <!-- generated:customer-catalog end -->
 
 A backlink ledger that lives in your repository. `agentlinkops check` fetches a source page,
@@ -34,7 +34,7 @@ the installed version's help before selecting guidance.
    `https://app.agentlinkops.com/mcp` as a remote HTTP MCP server in your client.
    On a version whose help supports selection, use `agentlinkops agent setup --skill ID`
    or `--recipe ID` for optional guidance; repeat either flag for several choices.
-   Choose `--all-skills` only for this product pack's skills. Separate optional packs
+   Without `--pack`, `--all-skills` selects only this product pack's skills. Separate optional packs
    require `--pack DIR`. Customer instructions and records
    remain the customer's choice.
 
@@ -208,13 +208,15 @@ point at five product skills in `skills/`: connect, discovery, campaigns, CRM an
 add explicit selections. `--all-skills` selects this pack's five skills. Upgrades retain
 older optional selections and customer edits until explicit removal.
 
-The separate optional content pack contains builder, humanizer, text cleanup,
-internal-linking and pre-publish guidance. Its source-rights and portable-dependency
-qualification remain unresolved; the product build preserves its
-older published index and archives without qualifying them. When a separately qualified
-pack is available, `--pack DIR` selects its local skills directory. An optional pack alone
-does not configure AgentLinkOps MCP. The existing product discovery index and content
-index paths remain unchanged.
+Two optional packs sit outside this package, and both are Apache-2.0. The content pack holds
+drafting, humanizing, text cleanup, internal-linking and pre-publish review workflows. The SEO
+pack holds on-page audit, technical setup, topical map, entity coverage, content freshness,
+factual consistency, link reclamation and site migration workflows. Install one with the
+`skills` CLI: `npx -y skills add https://agentlinkops.com/content` or
+`npx -y skills add https://agentlinkops.com/seo`. `agentlinkops agent setup --pack DIR` takes the
+`skills` directory of a built pack instead; its skills install only when you choose them with
+`--skill ID` or `--all-skills`. An optional pack alone does not configure AgentLinkOps MCP. The
+product skills' index stays at `https://agentlinkops.com/.well-known/agent-skills/index.json`.
 
 Each standalone product archive includes its required references and Python resources.
 Its dependency receipt declares the separately installed CLI, selected recipes and

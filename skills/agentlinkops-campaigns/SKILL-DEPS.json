@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "skill": "agentlinkops-campaigns",
   "pack": "product",
-  "contractSha256": "e3d29a169dd1ecae2db26b22ab666419c4057e84831653df655f04ae61725e93",
+  "contractSha256": "7bdf0456165bc5569d6f9c9c4735aa00323620c94f7c48f2b51729590657021d",
   "sourceManifest": [
     {
       "path": "references/cli.md",
@@ -54,7 +54,7 @@
     },
     {
       "path": "skills/agentlinkops-campaigns/references/first-campaign.md",
-      "sha256": "5233d598d63a438f32ea0c9150f66f96bb58159e132fbadd221578f34dacdc0e"
+      "sha256": "61f37552d72370591bbd8c5483149082131f16816469b116bfc74b1276705454"
     },
     {
       "path": "skills/agentlinkops-campaigns/references/mailbox-campaign.md",
@@ -76,7 +76,7 @@
     },
     {
       "path": "references/first-campaign.md",
-      "sha256": "5233d598d63a438f32ea0c9150f66f96bb58159e132fbadd221578f34dacdc0e"
+      "sha256": "61f37552d72370591bbd8c5483149082131f16816469b116bfc74b1276705454"
     },
     {
       "path": "references/mailbox-campaign.md",

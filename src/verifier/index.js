@@ -6,10 +6,11 @@ import { analyzeReadiness, isAccessChallenge } from './readiness.js';
 import { nativeRenderEvidence } from './render-evidence.js';
 import {capturedDocument} from '../page-acquisition/capture.js';
 import {readRenderFailure} from '../page-acquisition/render-failure.js';
+import { siteGoneReason, hostnameStatus } from './site-gone.js';
 
 export { validatePublicUrl } from './url.js';
 export { parseLinks } from './parser.js';
-export { transitionState } from './transition.js';
+export { transitionState, settleLandingReason } from './transition.js';
 export { checkObservationKind, normalizeDeclaredSite, withinDeclaredSite } from './observation-kind.js';
 
 export const CHECKER_VERSION = '4';
@@ -23,6 +24,8 @@ const suppliedInitial = Symbol('suppliedInitial');
 const forceRender = Symbol('forceRender');
 
 const RENDER_REASONS = new Set(['possible_render_required', 'navigation_requires_browser']);
+// Other links to the watched site that a complete read keeps (DP-0004-T26 wrong landing page).
+const SITE_LINK_LIMIT = 10;
 
 /** Optional adaptive lane. The default remains one bounded HTTP observation. */
 export async function verifyLink(input, options = {}) {
@@ -136,13 +139,19 @@ export async function verifyLink(input, options = {}) {
     ...(initial.robotsHistory ? { robotsHistory: structuredClone(initial.robotsHistory) } : {}),
     ...(initial.sourceResponse ? { sourceResponse: structuredClone(initial.sourceResponse) } : {}),
   };
-  if (rendered.state === 'absent' && options.renderPage.positiveOnly === true) {
-    rendered.state = 'unknown'; rendered.reason = 'render_no_positive_evidence';
+  // Rendered use is positive-only where asked (DP-0004-T24): a browser read may prove a link is
+  // there, never that it is gone. A rendered page that reads as a gone site is a negative result
+  // too, so it is demoted the same way as an absent link, and so is one read before the page was
+  // known to be ready.
+  const negative = rendered.state === 'absent' || (rendered.state === 'source_unavailable' && /^site_gone_/.test(String(rendered.reason)));
+  const demote = (reason) => {
+    rendered.state = 'unknown'; rendered.reason = reason;
     rendered.evidence.complete = false; delete rendered.linkSignature;
-  } else if (rendered.state === 'absent' && !doc.ready) {
-    rendered.state = 'unknown'; rendered.reason = 'render_readiness_unconfirmed';
-    rendered.evidence.complete = false; delete rendered.linkSignature;
-  } else if (rendered.state === 'absent') rendered.reason = 'no_matching_link_in_ready_dom';
+    for (const field of ['landingLinks', 'landingLinkCount', 'siteLinks', 'siteLinkCount']) delete rendered[field];
+  };
+  if (negative && options.renderPage.positiveOnly === true) demote('render_no_positive_evidence');
+  else if (negative && !doc.ready) demote('render_readiness_unconfirmed');
+  else if (rendered.state === 'absent' && rendered.reason !== 'wrong_landing_page') rendered.reason = 'no_matching_link_in_ready_dom';
   for (const occurrence of rendered.occurrences) occurrence.visibility = 'rendered_dom_not_visual';
   rendered.warnings = ['Rendered DOM observation; visual visibility and search-engine indexing were not checked.'];
   if (initial.state === 'present' && rendered.state !== 'present') {
@@ -319,6 +328,21 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     result.occurrences = parsed.links.filter((link) => matchesTarget(link.targetUrl, target.url, targetScope));
     if (new TextEncoder().encode(JSON.stringify(result.occurrences)).byteLength > 96 * 1024) throw new VerificationError('evidence_too_large');
     result.expectations = expectations(result.occurrences, expectedAnchor, expectedRel);
+    // DP-0004-T26 site gone: a complete page without the link that is a parked, for-sale, expired,
+    // default-server, placeholder or suspended page. The page itself is gone, so this is never a
+    // removed link (Missing); it is source_unavailable with the reason, and the site may come back.
+    if (!result.occurrences.length) {
+      const gone = siteGoneReason({ html: body.text, title: parsed.title, links: parsed.links, sourceUrl: source.url,
+        finalUrl: result.finalUrl, redirects: result.redirects });
+      if (gone) {
+        result.state = 'source_unavailable';
+        result.reason = gone;
+        result.evidence.complete = true;
+        result.evidence.baseUrl = parsed.baseUrl;
+        result.evidence.rendered = false;
+        return result;
+      }
+    }
     // A physical tracking link can name the target without proving its eventual
     // destination. Preserve uncertainty until redirect identity is resolved.
     if (!result.occurrences.length && hasRedirectWrapperToTarget(parsed.links, target.url, targetScope)) {
@@ -338,6 +362,34 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     }
     result.state = result.occurrences.length ? 'present' : 'absent';
     result.reason = result.state === 'present' ? 'link_found' : 'no_matching_link_in_complete_html';
+    // DP-0004-T26 wrong landing page: an exact or path watch whose page has no link to the watched
+    // address but does link to another page of the same site. Every complete read of such a page
+    // keeps the other same-site links it saw (`siteLinks`, at most ten), so a later read can tell a
+    // link that REPLACED the watched one from a brand or homepage link that was always there. The
+    // candidate reason here is settled against the last read that saw the link
+    // (transition.js settleLandingReason): only a same-site link that is new since then keeps
+    // wrong_landing_page; otherwise the read is a plain removal and counts as lost. The watched
+    // link is absent either way, and the reducer confirms it the usual way. A page on the target's
+    // own site is an internal page whose navigation always links the site, so it never reads this way.
+    if ((targetScope === 'exact' || targetScope === 'path') && !sameSite(bareHost(from.host), bareHost(wanted.host))) {
+      const siteLinks = new Map();
+      for (const link of parsed.links) {
+        let host;
+        try { host = bareHost(new URL(link.targetUrl).hostname.toLowerCase()); } catch { continue; }
+        if (host !== bareHost(wanted.host) || matchesTarget(link.targetUrl, target.url, targetScope)) continue;
+        const key = String(link.targetUrl ?? '').slice(0, 512);
+        if (!siteLinks.has(key)) siteLinks.set(key, link);
+      }
+      // Recorded even when empty: "no other link to the site" is what makes a later one provably new.
+      result.siteLinks = [...siteLinks.keys()].slice(0, SITE_LINK_LIMIT);
+      result.siteLinkCount = siteLinks.size;
+      if (result.state === 'absent' && siteLinks.size) {
+        result.reason = 'wrong_landing_page';
+        result.landingLinks = [...siteLinks.values()].slice(0, SITE_LINK_LIMIT).map(({ href, targetUrl: destination, anchor, rel }) => ({
+          href: String(href ?? '').slice(0, 512), targetUrl: String(destination ?? '').slice(0, 512), anchor: String(anchor ?? '').slice(0, 256), rel }));
+        result.landingLinkCount = siteLinks.size;
+      }
+    }
     result.evidence.complete = true;
     result.evidence.baseUrl = parsed.baseUrl;
     result.evidence.rendered = false;
@@ -356,6 +408,31 @@ async function verifyHttpLink({ sourceUrl, targetUrl, targetScope = 'exact', exp
     result.evidence.complete = false;
     delete result.linkSignature;
     result.reason = error instanceof VerificationError ? error.reason : controller.signal.aborted ? 'timeout' : 'verification_error';
+    // DP-0004-T26 site gone (DNS): after a connection failure, one DNS-over-HTTPS question asks
+    // whether the hostname still exists. Only an authoritative NXDOMAIN changes the result; any other
+    // answer keeps the original reason. The lookup is injected by the hosted check path.
+    // The hosted page reader reports the same failures with an "acquisition_" prefix.
+    // The question is bound to the check's own signal and deadline, and siblings that share one
+    // source read share one answer per hostname.
+    if (typeof options.resolveHostname === 'function' && /^(?:acquisition_)?(?:network_error|timeout_or_network_error|(?:source|robots)_http_530)$/.test(result.reason)
+      && !options.signal?.aborted && !(Number.isFinite(options.deadlineAt) && options.deadlineAt <= Date.now())) {
+      try {
+        const hostname = new URL(result.finalUrl || source.url).hostname;
+        const ask = () => Promise.resolve().then(() => options.resolveHostname(hostname,
+          { signal: options.signal, ...(Number.isFinite(options.deadlineAt) ? { deadlineAt: options.deadlineAt } : {}) }));
+        const answers = options[sharedDocument] ? (options[sharedDocument].dns ??= new Map()) : null;
+        if (answers && !answers.has(hostname)) answers.set(hostname, ask());
+        const dns = await (answers ? answers.get(hostname) : ask());
+        if (dns?.status === 'nxdomain') {
+          result.state = 'source_unavailable';
+          result.reason = 'site_gone_dns';
+          result.evidence.complete = true;
+          result.evidence.dns = { hostname, status: 'nxdomain', resolver: dns.resolver ?? null, checkedAt };
+          delete result.retryAfterSeconds;
+          return result;
+        }
+      } catch { /* The original reason stands. */ }
+    }
     // The same floor a destination check keeps. A publisher rate-limiting the SOURCE page is the
     // more common case of the two, since a source is fetched on a cadence and a destination is not.
     if (Number.isFinite(error?.retryAfterSeconds)) result.retryAfterSeconds = error.retryAfterSeconds;

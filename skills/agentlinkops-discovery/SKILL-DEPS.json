@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "skill": "agentlinkops-discovery",
   "pack": "product",
-  "contractSha256": "e3d29a169dd1ecae2db26b22ab666419c4057e84831653df655f04ae61725e93",
+  "contractSha256": "7bdf0456165bc5569d6f9c9c4735aa00323620c94f7c48f2b51729590657021d",
   "sourceManifest": [
     {
       "path": "references/cli.md",
@@ -50,11 +50,11 @@
     },
     {
       "path": "skills/agentlinkops-discovery/SKILL.md",
-      "sha256": "4dd6f873a1587663d8bf142e19a94b89e9f05b906e2c8d3cc381a288d018085f"
+      "sha256": "4129f6fe6bbc1e23fb00e90009ed56e78b3cb063bcb8e741a6039cee4f85c8ab"
     },
     {
       "path": "skills/agentlinkops-discovery/references/saved-backlink-workflows.md",
-      "sha256": "f60c34c16fb197064e7aa6b7ac3880b070f5c73c96eb398c5a9bba50638964e5"
+      "sha256": "0c2c3dfbc644303f199a0d42ea0e3bbbce6b82a9fecbc828c2a2763b17fbb5a0"
     },
     {
       "path": "templates/campaigns.v1.json",
@@ -64,7 +64,7 @@
   "members": [
     {
       "path": "SKILL.md",
-      "sha256": "8dadd4df2b12dd2b8604163f93cd2dc2c5afd8d86d2c9d6ccce624e78f50f63a"
+      "sha256": "a45407856a1c35ca35fb623778b42a5f3f595634f24baa352fc5975e1e2bfac5"
     },
     {
       "path": "references/portable/references/cli.md",
@@ -116,7 +116,7 @@
     },
     {
       "path": "references/saved-backlink-workflows.md",
-      "sha256": "f60c34c16fb197064e7aa6b7ac3880b070f5c73c96eb398c5a9bba50638964e5"
+      "sha256": "0c2c3dfbc644303f199a0d42ea0e3bbbce6b82a9fecbc828c2a2763b17fbb5a0"
     }
   ],
   "edges": [

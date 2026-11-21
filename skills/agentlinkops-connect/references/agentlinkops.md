@@ -3,14 +3,13 @@
 
 AgentLinkOps stores verified backlink observations, monitoring history and private evidence
 for links a person supplies. Your agent keeps campaign judgment, browsing, email and its own
-records. This page is the complete agent reference: the same text prints from
-`agentlinkops skill`, ships inside the installed `agentlinkops-connect` skill as
-`references/agentlinkops.md`, and is served at `https://agentlinkops.com/SKILL.md`. Read it in
-full once per session, then use `describe` (or `exec describe` on MCP) for any command's exact schema.
+records. Read this reference in full once per session, then `describe` each command for its exact schema.
+The same text prints from `agentlinkops skill`, ships as `references/agentlinkops.md` in
+`agentlinkops-connect`, and is served at `https://agentlinkops.com/SKILL.md`.
 
 <!-- generated:skill-version begin (npm run generate:tools) -->
-Pack version 0.6.18. 159 commands in 13 toolsets.
-This reference targets CLI 0.6.18. Check `agentlinkops --version` and local help for installed features. The hosted MCP server and `agentlinkops tools --refresh` list hosted commands; refreshing does not install newer local CLI features. Upgrade only to a version available through your chosen channel.
+Pack version 0.6.20. 149 commands in 14 toolsets.
+This reference targets CLI 0.6.20. Check `agentlinkops --version` and local help for installed features. The hosted MCP server and `agentlinkops tools --refresh` list hosted commands; refreshing does not install newer local CLI features. Upgrade only to a version available through your chosen channel.
 <!-- generated:skill-version end -->
 
 ## Install and connect (once per machine)
@@ -21,10 +20,9 @@ npx -y agentlinkops agent setup     # writes the detected client's MCP entry; st
 agentlinkops agent status           # what is installed where
 ```
 
-CLI 0.6.10 installs the connection skill and its reference by default. Select
-optional guidance explicitly. CLI 0.6.9 and earlier can install the complete pack.
-Check the installed version's help before using selection flags. Native-client
-acceptance remains separate from package checks.
+CLI 0.6.10 defaults to the connection skill; CLI 0.6.9 and earlier can install the full
+pack. Check installed help before selecting optional guidance. Package checks do not prove
+native-client acceptance.
 
 On a version supporting selections, add only the guidance the person chooses:
 `agentlinkops agent setup --skill ID` or `--recipe ID`, repeating the flag for several
@@ -38,9 +36,7 @@ require a campaign, content workflow or local CRM.
 CLI is not installed, give the person that server URL and the next step instead of claiming
 the connection exists.
 
-Sign-in happens in the client's OAuth flow: the person picks the account, workspace and
-scopes. Never ask for a password, one-time code or token in conversation, and never print a
-credential. Hosted access opens in stages: anyone can create an account, and an account
+Use the client's OAuth flow; [review consent](https://docs.agentlinkops.com/guides/connect-mcp). Never request passwords, codes or tokens in chat, or print credentials. Hosted access opens in stages: anyone can create an account, and an account
 outside the pilot gets `PILOT_ACCESS_REQUIRED`. If a call returns it, tell the person the account
 is waiting for pilot access, pass on the error's `details.next`, and don't retry. With no account, the local
 check still works:
@@ -122,13 +118,11 @@ description says so.
 
 ## Start here
 
-At the start of a hosted session, call `list_tasks` with `{}` and tell the person what needs
-them, in the order it returns (urgent first). Each task names who can act (`who`), whether the
-person can (`canAct`), how it clears (`clears`) and the console `route` where it gets done.
-Offer to do the tasks where `agent.can` is true: follow the task's `agent.steps`, or call
-`get_handoff` when `handoff` names one; draft but never send any email or outreach; and finish
-with the verify step. `agent.prompt` is the plain sentence the person pastes to ask for the
-task. An empty `tasks` list means nothing needs them now.
+Start hosted sessions with `list_tasks {}`; report tasks in returned order. Each task gives
+`who`, `canAct`, `clears` and its console `route`. Where `agent.can` is true, follow `agent.steps`
+(or `get_handoff` for its named `handoff`) and the verify step. `agent.prompt` is the
+copyable request. Draft email or outreach for the person's sender; never send it.
+An empty `tasks` list means nothing needs them now.
 
 ## Start a session
 
@@ -140,10 +134,11 @@ advertised scope; an authenticated connection alone does not grant more.
 2. `list_projects` with `{"limit": 20}`: the websites this credential can see. Take ids from
 this answer; never guess one.
 3. For an earned link the person wants watched: `monitor_link` with `projectId`, `sourceUrl`,
-   `targetUrl`, optional `expectedAnchor`, `expectedRel` and `localReference` (the person's own
-record id). Needs `watches:write`. It creates recurring metered checks.
-4. For changes since last time: `list_events` with `feed` `links` (or `targets`), then
-   `get_history` with `subject` and `subjectId` for the observations behind a change.
+   `targetUrl`, optional `expectedAnchor`, `expectedRel` and `localReference` (the person's own record id). Needs `watches:write`. It creates recurring metered checks.
+4. For "how are my links and what changed this week", call `get_link_summary` with
+   `{"days": 7}` for counts per website. Its `prospect` count covers active monitored records with saved prospect intent. It is not the `list_prospects` total. Page campaign records with `list_prospects` and `view: "all"` until `nextAfter` is null. Then call `list_events` with `feed` `links` and
+   `since` set to the summary's `period.from`. This chooses a starting sequence; later changes can have older timestamps. `retention_limited: true` means retention may have removed matching events. Save `next_cursor` and continue from it next time.
+   `get_history` with `subject` and `subjectId` shows the observations behind a change.
 
 | Task | Permission |
 | --- | --- |
@@ -161,9 +156,8 @@ grant.
 One workspace can hold several clients' websites; limit each person or agent to the
 websites they need. `list_projects` returns those websites, and `list_members` shows teammates
 who share one plus staff with every website; other website IDs stay hidden. New credentials
-cannot exceed the issuer's current access (a limited admin's new keys record its website list),
-and project-scoped keys need the workspace's access entitlement: for `PLAN_FEATURE_REQUIRED`,
-ask the owner and keep the restriction. Older all-websites credentials can widen with the
+cannot exceed the issuer's current access (a limited admin's new keys record its website list).
+Project restrictions work on every plan, including without a subscription. If an older server returns `PLAN_FEATURE_REQUIRED`, keep the restriction and ask its owner to update the server. Older all-websites credentials can widen with the
 person's access, so revoke and reissue them before relying on a fixed client boundary. A
 refused invitation does not mean an email is unknown.
 
@@ -173,32 +167,23 @@ refused invitation does not mean an email is unknown.
 - Take every id from a response. Never invent a command name, an id or an argument.
 - Unknown is not absent. A blocked, timed-out or incomplete fetch names its reason and never
 proves a link was removed. Report inconclusive checks as inconclusive.
-- A queued job is not a result. Read `get_check_job` until the job is terminal, then read the
-  observation it produced. Its `progress` block gives live counts and when the job last moved.
+- A queued job is not a result. Read `get_check_job` until the job is terminal, then read the observation it produced. Its `progress` block gives live counts and when the job last moved.
   `phase: "stalled"` means the job stopped moving and may still finish: report the
-  `lastProgressAt` time and wait for the result. Find backlinks searches and competitor lookups
-  (`get_domain_baseline`, `get_competitor_supplier_inventory`) carry the same block.
-- Apply a full page before saving `next_cursor`; the `links`, `targets` and workspace feeds
-keep separate cursors.
+  `lastProgressAt` time and wait for the result. Find backlinks searches and competitor lookups (`get_domain_baseline`, `get_competitor_supplier_inventory`) carry the same block.
+- Apply a full page before saving its cursor. The `links`, `targets` and workspace feeds
+use `next_cursor` and keep separate cursors. `list_prospects`, `list_contacts`,
+`list_outreach_outcomes` and, where available, `list_campaign_participations` and
+`list_campaign_participation_outcomes` return `nextAfter`. Pass that value back as `after`
+with the same website, view and filters. Omit `after` on the first page and stop when
+`nextAfter` is null.
 - Join local records on `localReference`, never on URLs: stored URLs are normalized
 (`https://example.com` becomes `https://example.com/`).
 - `monitor_link` is for monitoring the person asked for, never a connection test; use
   `get_workspace` for that.
 - Quote before spending. Before a check, recheck batch, monitoring change or lookup, call
-  `estimate_usage` with the same action and selection (`subject: "target"` for a new page of
-  their own). Tell the person what it spends and what is left (`estimate` on shared-credit
-  plans, `allowance` on all others). Ask first only when they haven't already approved this
-  action and its spend. In `allowance`, `fits: false` warns that scheduled checks past what is
-  left wait for the reset and requested checks past it are refused. `blocked: true` means
-  every selected record is paused and no monitored slot is free. Without selected record IDs,
-  `addingIsUpperBound: true` marks `adding` and `overLimit` as upper bounds; read the save result
-  for what was added or already existed. A mixed active/paused selection can partly succeed, and
-  `checksStoppedBy` names a trial, plan or billing hold that refuses every check. A lookup
-  quote on any plan also carries `searches`: the searches left today under the daily limit
-  that Find backlinks searches and competitor lookups share. When `searches.remainingToday` is 0,
-  a new search can't start before `searches.resetsAt`; `searches` is null where no hosted search
-  limit applies. The quote spends nothing, and the service checks again at start.
-  Reuse an `idempotencyKey` only when retrying the same request.
+  `estimate_usage` with the same action and selection (`subject: "target"` for a new page of their own). Tell the person what it spends and what is left (`estimate` on shared-credit plans, `allowance` on all others). Ask first only when they haven't already approved this action and its spend. In `allowance`, `fits: false` warns that scheduled checks past what is left wait for the reset and requested checks past it are refused. `blocked: true` means every selected record is paused and no monitored slot is free. Without selected record IDs,
+  `addingIsUpperBound: true` marks `adding` and `overLimit` as upper bounds; read the save result for what was added or already existed. A mixed active/paused selection can partly succeed, and
+  `checksStoppedBy` names a trial, plan or billing hold that refuses every check. A lookup quote on any plan also carries `searches`: the searches left today under the daily limit that Find backlinks searches and competitor lookups share. When `searches.remainingToday` is 0, a new search can't start before `searches.resetsAt`; `searches` is null where no hosted search limit applies. The quote spends nothing, and the service checks again at start. Reuse an `idempotencyKey` only when retrying the same request.
 - A call refused with `RATE_LIMITED` did not run. Wait `details.retryAfterSeconds`, then send
 the identical request with the same `idempotencyKey`. In a `/mcp/code` script, other calls
 in the same script may already have run, including calls started in parallel, and the error
@@ -230,10 +215,18 @@ message history stay in the person's own tools and files.
 
 When `save_prospect` is available, save a publisher or exact source page with the selected
 website, destination and stable opaque `externalRef`. Saving uses no check credits and
-starts no checks. Read `get_prospect` before a revision-guarded `update_prospect` or
+starts no checks. `publisherUrl` stores the origin only: a path is discarded. Put the exact
+page in `sourceUrl`. Read `get_prospect` before a revision-guarded `update_prospect` or
 `set_prospect_monitoring`. Use `verify_prospect` for one explicit source-page check; it
 reserves one source-check unit and preserves monitoring preferences. A publisher-only
 record needs its exact source page first. Links remains the monitored placement list.
+
+Read one website with `list_prospects`. Use `view: "all"` for its unarchived campaign inventory;
+the default `active` view leaves out won and closed records. Omit `after` on the first page,
+then pass the previous `nextAfter` as `after` and keep the same view and filters until
+`nextAfter` is null. `list_contacts` and `list_outreach_outcomes` page the same way. These lists do not
+return `next_cursor`. A check hold does not make listing or saving a stored record a
+configuration error.
 
 Record an established event with `record_outreach_outcome`: its actual event date,
 stable source event identity and current contact/association revisions. Read the result
@@ -274,38 +267,11 @@ project, `list_link_watches` (or `get_link_watch`) for what is already monitored
 4. **Report** with the observation date and its uncertainty, then repeat from step 1 for the
 next change.
 
-```json
-// Step 1: observe
-{"name": "get_workspace", "arguments": {}}
-{"name": "list_projects", "arguments": {"limit": 20}}
-// Step 2: act (one write)
-{"name": "monitor_link", "arguments": {"projectId": "prj_…", "sourceUrl": "https://publisher.example/resources", "targetUrl": "https://your-site.example/guide", "expectedAnchor": "guide", "localReference": "ledger-441"}}
-// Step 3: observe the effect
-{"name": "get_check_job", "arguments": {"jobId": "job_…"}}
-{"name": "get_history", "arguments": {"subject": "link", "subjectId": "wat_…", "limit": 5}}
-```
-
 ## Common mistakes
 
-1. **Turning unknown into absent.** Wrong: "the link was removed" after one `unknown` with
-   `reason: "blocked_http_403"`. Right: "the check could not conclude (blocked, 403); the last
-verified state is present on 2026-09-15."
-2. **Reporting a queued job as a result.** Wrong: reading `request_check`'s answer as the
-observation. Right: poll `get_check_job` until `state` is terminal, then `get_history`.
-3. **Advancing a cursor early.** Wrong: saving `next_cursor` after reading half a page. Right:
-apply every event in the page, then save the cursor; keep one cursor per feed.
-4. **Joining on URL.** Wrong: matching `source_url` to a ledger URL string. Right: pass
-   `localReference` on `monitor_link` and join on it.
-5. **Guessing ids.** Wrong: calling with `projectId: "default"`. Right: `list_projects` first
-and use an id it returned.
-6. **Asking for credentials in chat.** Wrong: "paste your API key". Right: the client's OAuth
-flow, or an API key the person puts in the environment themselves.
-7. **Testing the connection with a write.** Wrong: `monitor_link` "to see if it works". Right:
-   `get_workspace` with `{}`.
-8. **Treating concise rows as complete.** Wrong: "the watch has no expected anchor" from a
-concise row. Right: `format: "detailed"` and read `expected_anchor`.
-9. **Counting reserved units as consumed.** Wrong: "the batch used 40 checks" from
-   `reserved`. Right: report reserved, consumed and released separately, as `get_usage` does.
+Read IDs and revisions from responses. Apply every row before advancing its cursor.
+Keep supplied publication claims separate from verified wins, and reserved units separate
+from consumed units. Unknown checks and partial coverage stay explicit; a queued job is pending.
 
 ## Read evidence correctly
 
@@ -314,8 +280,11 @@ A blocked, timed-out or incomplete fetch is unknown and names its reason; confir
 source-link loss needs two complete absent observations at least 30 minutes apart. An
 unavailable destination does not prove the source backlink disappeared.
 
-History collections use `items` and `next_cursor`; event feeds use `events`. Cursors are
-opaque; a cursor-expiry error carries resynchronization guidance.
+Link, target and event history use `items` and `next_cursor`; event feeds use `events`.
+Campaign lists use `items` and `nextAfter`, and the next call passes that value as `after`.
+Cursors are opaque; a cursor-expiry error on an event feed carries resynchronization
+guidance. `list_prospects` rejects a malformed or mismatched cursor with `INVALID_CURSOR`.
+The other campaign lists accept row IDs as cursors; copy their returned `nextAfter` exactly.
 
 Saved HTML is private evidence: a static observation, no JavaScript execution or visual check,
 `result.evidence` carrying the SHA-256 of the fetched bytes and `result.redirects` each hop.
@@ -328,8 +297,7 @@ A queued check reserves its unit before fetching and keeps the reservation throu
 and retries; a completed check consumes it when its observation is saved (unknown included),
 terminal failure or cancellation releases it, and pausing a watch releases a queued
 reservation only when the worker next handles it. `get_usage` keeps reserved, consumed and
-released separate; report them that way. A command marked unavailable needs an operator to
-enable its supplier admission; retrying does not change that.
+released separate; report them that way. For an unavailable command, read its description for the required capability and operator configuration; retrying does not activate it.
 
 `request_check` takes `subject` (`link` or `target`), the id as `subjectId` and an
 `idempotencyKey`; it returns a job, and a client that declares the MCP tasks extension
@@ -378,58 +346,38 @@ only the verify result is.
 in-band confirmation ask the person. Pause a watch or target, or retire a competitor set, to
 stop scheduling while keeping evidence.
 
-## Why this and not a read-only data MCP
-
-Four checkable differences, each with the boundary that travels with it. Do not add tool
-counts, superlatives or claims about other products beyond dated public statements.
-
-1. **Dated evidence behind every answer:** `get_history` and `get_evidence`, as above.
-Boundary: static HTML observations; raw snapshots expire in the pilot.
-2. **Unknown is kept apart from lost:** `observation_state`. Boundary: a blocked or incomplete
-fetch never proves removal.
-3. **Checks and events continue after the session ends:** `monitor_link` returns
-   `next_check_at`; `list_events` returns what changed while nobody was connected. Boundary:
-hosted access opens in stages; `cadenceSeconds` between 3600 and 2592000; no availability
-percentage is published.
-4. **Usage and exit are readable:** `get_usage` totals with a `check_budget` block;
-   `export_link_watches` pages monitored placements out for the person's records. Boundary:
-payment collection is not active in this build; the person chooses where to keep their
-campaign records.
-
-The human-readable version is
+The human-readable evidence overview is
 [what your agent can prove to you](https://agentlinkops.com/what-your-agent-can-prove/).
 
 ## Tool reference
 
 <!-- generated:skill-tools begin (npm run generate:tools; source: src/tool-registry.js) -->
-159 commands in 13 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated commands: prepare_competitor_supplier_inventory, start_competitor_supplier_inventory, start_competitor_analysis, prepare_domain_baseline, start_domain_baseline, request_competitor_inventory, request_domain_overview. Starting new provider-backed work requires admission in the selected deployment; without admission these commands return a configuration error.
+149 commands in 14 toolsets, generated from `src/tool-registry.js` (`npm run generate:tools`). Core on every view: `get_workspace`, `list_projects`, `list_link_watches`, `monitor_link`, `list_events`, `get_link_summary`. The index verbs list the rest by name; `describe` is the source of truth for input schemas. Admission-gated commands: prepare_competitor_supplier_inventory, start_competitor_supplier_inventory, prepare_domain_baseline, start_domain_baseline. Starting new provider-backed work requires admission in the selected deployment; without admission these commands return a configuration error. Stored campaign and contact commands (save_prospect, list_prospects, get_prospect, update_prospect, set_prospect_monitoring, verify_prospect, record_outreach_outcome, list_outreach_outcomes, list_contacts, save_contact, delete_contact, set_link_contact) use the contacts capability. With contacts enabled, stored-record reads and saves do not require supplier admission. verify_prospect follows the check allowance.
 
 | Toolset | Commands | What it covers |
 | --- | --- | --- |
 | `monitoring` | 16 | Watch earned links and destination URLs: create, list, update, import, export, recheck. |
 | `classification` | 7 | Manual link types and tags with retained placement context and metadata. |
 | `evidence` | 14 | What a check observed: histories, snapshots, change feeds, check jobs, published contacts. |
-| `discovery` | 15 | Import candidate rows, read stored runs, verify selected candidates, enroll them. |
-| `baseline` | 15 | Scoped backlink baselines; new live work requires admission in this deployment. |
-| `competitors` | 16 | Competitor sets, dated inventories, scheduled refresh and gap reports. |
-| `internal-links` | 16 | Owned-site page inventories, bounded captures, internal-link health and graph evidence. |
+| `discovery` | 13 | Import candidate rows, read stored runs, verify selected candidates, enroll them. |
+| `baseline` | 11 | Scoped backlink baselines; new live work requires admission in this deployment. |
+| `competitors` | 11 | Competitor sets; dated inventories, exclusions and scheduled refresh where enabled. |
+| `competitor-comparison` | 5 | Saved competitor lookups side by side, one referring-site matrix, suggested and rejected competitors. |
 | `reports` | 17 | Placement chronology, service assurance, backlink and domain-mix reports. |
 | `workspace` | 18 | Workspace, projects, usage, members, invitations, scratch-resource cleanup. |
 | `notifications` | 6 | Email notification preferences, previews, tests and deliveries. |
 | `disavow` | 11 | Propose, review and export website disavow rules; check the copy Google holds (handoffs). |
-| `lifecycle` | 6 | Placement costs, expiry, renewals, currency and client link reports. |
+| `lifecycle` | 16 | Placement costs, expiry, renewals, currency and client link reports. |
+| `campaigns` | 2 | Campaign contacts and supplied outreach outcomes. |
 | `digests` | 2 | Own-address digest delivery history and exact retained events. |
 <!-- generated:skill-tools end -->
 
 ## What it does not do
 
-AgentLinkOps grants no access to the mailbox or local files, has no independent global
-backlink index or authority metrics, sends no outreach email, does not browse sites for you and
-monitors supplied URLs. Finding prospects, campaign decisions, navigating sites and authorized
-outreach stay with the person's existing agent, research, browser and email tools. Monitored
-prospects and, where the connection lists `list_contacts` as available, saved publisher contacts live in
-AgentLinkOps; outreach references, message history and the rest of the CRM remain in their
-chosen files, CRM or other record system. The campaign and local CRM skills are optional guidance.
+AgentLinkOps has no mailbox or local-file access, independent global backlink index or
+authority metrics. Your agent owns research, campaign decisions, browsing and authorized
+outreach. Adopt only selected hosted campaign fields; preserve sender history and unrelated
+CRM records in their existing home. Campaign and local CRM skills are optional guidance.
 
 If the person chooses the ledger CLI, `agentlinkops connect --workspace WORKSPACE_ID --project-id
 PROJECT_ID --selection selected-links.json` saves only connection metadata and a selection of

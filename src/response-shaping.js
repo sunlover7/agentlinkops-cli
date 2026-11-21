@@ -21,6 +21,34 @@ export function conciseObservationState(state) {
 }
 const withState = (row, keys) => ({ ...pick(row, keys), observation_state: conciseObservationState(row.observation_state) });
 const categoryFields=['category_contract','chosen_category','page_assessment','display_category'];
+// DP-0063-T11: the concise link row an agent pages through. Rows share the caller's workspace, so
+// workspace_id stays in detailed rows only; null and empty fields are left out; the four category
+// fields are left out together only when there is nothing to say (a loaded assessment that was
+// never started, no deliberate choice, no assessed role, no assessment job; an assessment that could
+// not be loaded is unknown and stays); and observation_state drops what repeats elsewhere in the row:
+// nextCheckAt (next_check_at), lastChangedAt (the change feed), wasEverPresent when the link is
+// present, confirmedState equal to state, a zero absence streak, and a latest attempt that is the
+// last successful observation and agrees with state. State, uncertainty, checked_at, reasons and
+// any differing or failed attempt always stay, so unknown is never shown as missing.
+const filled = value => value !== null && value !== undefined && value !== '' && !(Array.isArray(value) && value.length === 0);
+const noCategory = row => row.page_assessment?.status === 'ready' && row.page_assessment?.reason === 'NOT_CLASSIFIED'
+  && row.chosen_category?.intent === 'automatic' && row.display_category?.source === 'none'
+  && !(row.page_assessment?.roles?.length) && !(row.page_assessment?.job_count > 0) && !(row.page_assessment?.pending_count > 0) && !(row.page_assessment?.failed_count > 0);
+const conciseLinkState = state => {
+  const out = conciseObservationState(state);
+  if (!state || typeof state !== 'object') return out;
+  delete out.nextCheckAt; delete out.lastChangedAt;
+  if (out.state === 'present' && out.wasEverPresent === true) delete out.wasEverPresent;
+  if (out.confirmedState === out.state) delete out.confirmedState;
+  if (out.consecutiveAbsent === 0) { delete out.consecutiveAbsent; if (out.firstAbsentAt == null) delete out.firstAbsentAt; }
+  const attempt = out.latestAttempt;
+  if (out.lastSuccessfulObservationSameAsLatestAttempt === true && attempt?.state === out.state && !attempt?.reason) { delete out.latestAttempt; delete out.lastSuccessfulObservationSameAsLatestAttempt; }
+  return Object.fromEntries(Object.entries(out).filter(([, value]) => filled(value)));
+};
+const conciseLinkRow = row => {
+  const keep = ['id','project_id','source_url','target_url','status','state','next_check_at','local_reference','intent','outreachStatus','lastContactedAt','campaign',...(noCategory(row) ? [] : categoryFields)];
+  return { ...Object.fromEntries(Object.entries(pick(row, keep)).filter(([, value]) => filled(value))), observation_state: conciseLinkState(row.observation_state) };
+};
 // An event snapshot (shared/observation-event.js) minus the occurrence list, expectations and
 // signatures: the state, uncertainty, check state, reason, status and timing stay.
 const conciseSnapshot = snapshot => snapshot && typeof snapshot === 'object'
@@ -35,7 +63,7 @@ const observationResult = result => result && typeof result === 'object'
 export const SHAPES = {
   list_rank_history: { rows: 'items', keeps: ['overview_run_id','slot_at','rank','observed_at','retrieved_at','freshness','outcome','execution','cost'],
     row: r => pick(r, ['overview_run_id','slot_at','rank','observed_at','retrieved_at','freshness','outcome','execution','cost']) },
-  list_link_watches: { rows: 'items', keeps: ['id','workspace_id','project_id','source_url','target_url','status','state','observation_state','next_check_at','local_reference','intent','outreachStatus','lastContactedAt','campaign',...categoryFields], row: r => withState(r, ['id','workspace_id','project_id','source_url','target_url','status','state','next_check_at','local_reference','intent','outreachStatus','lastContactedAt','campaign',...categoryFields]) },
+  list_link_watches: { rows: 'items', keeps: ['id','project_id','source_url','target_url','status','state','observation_state (state, uncertain, checked_at, reason and any differing attempt)','next_check_at','local_reference','intent','outreachStatus','lastContactedAt','campaign','category fields when any classification exists (empty ones are omitted)'], row: conciseLinkRow },
   list_targets: { rows: 'items', keeps: ['id','url','status','state','observation_state','next_check_at'], row: r => withState(r, ['id','url','status','state','next_check_at']) },
   get_target_placements: { rows: 'items', keeps: ['id','source_url','target_url','target_scope','status','state'], row: r => pick(r, ['id','source_url','target_url','target_scope','status','state']) },
   list_check_jobs: { rows: 'items', keeps: ['id','state','type','watch_id','target_id','attempt_count','error_code','created_at','completed_at'], row: r => pick(r, ['id','state','type','watch_id','target_id','attempt_count','error_code','created_at','completed_at']) },

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "skill": "agentlinkops-assets",
   "pack": "product",
-  "contractSha256": "e3d29a169dd1ecae2db26b22ab666419c4057e84831653df655f04ae61725e93",
+  "contractSha256": "7bdf0456165bc5569d6f9c9c4735aa00323620c94f7c48f2b51729590657021d",
   "sourceManifest": [
     {
       "path": "references/cli.md",

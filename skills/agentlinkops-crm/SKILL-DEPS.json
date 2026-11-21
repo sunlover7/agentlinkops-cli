@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "skill": "agentlinkops-crm",
   "pack": "product",
-  "contractSha256": "e3d29a169dd1ecae2db26b22ab666419c4057e84831653df655f04ae61725e93",
+  "contractSha256": "7bdf0456165bc5569d6f9c9c4735aa00323620c94f7c48f2b51729590657021d",
   "sourceManifest": [
     {
       "path": "references/cli.md",
@@ -62,7 +62,7 @@
     },
     {
       "path": "skills/agentlinkops-crm/SKILL.md",
-      "sha256": "95b59f4634801796277766aef9482360cbf1b2cd8a4fd3c3d02664ca7693d447"
+      "sha256": "0c2a6b7aef70d64f634ecaaafdd09454f8ef0662da39f8a1dc7adff4a4e083e3"
     },
     {
       "path": "skills/agentlinkops-crm/agents/openai.yaml",
@@ -76,7 +76,7 @@
   "members": [
     {
       "path": "SKILL.md",
-      "sha256": "20856f78dd8d8241ce33754193a61628a37e9230cbab6cd07fa36e31031716f6"
+      "sha256": "5bb84de9b763225971a4c095b7011a4933674e9cdbc9cf32cb21788aa999464a"
     },
     {
       "path": "agents/openai.yaml",

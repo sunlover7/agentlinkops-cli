@@ -58,6 +58,23 @@ export function renderIndex(commands, { toolset = null, json = false } = {}) {
   return lines.map(line => line.startsWith('  ') ? line.slice(0, line.indexOf('  ', 2)) : line).join('\n');
 }
 
+// Names whose TOOL_BINDINGS admission is contactRecords. The packaged CLI copies this
+// file and cannot import src/tool-metadata.js: that module pulls hosted command services.
+export const CONTACT_RECORD_COMMANDS = new Set([
+  'save_campaign_participation', 'get_campaign_participation', 'list_campaign_participations',
+  'record_campaign_participation_outcome', 'list_campaign_participation_outcomes',
+  'save_prospect', 'list_prospects', 'get_prospect', 'update_prospect', 'set_prospect_monitoring',
+  'verify_prospect', 'record_outreach_outcome', 'list_outreach_outcomes',
+  'list_contacts', 'save_contact', 'delete_contact', 'set_link_contact',
+]);
+
+function admissionNote(command) {
+  if (CONTACT_RECORD_COMMANDS.has(command.name)) {
+    return 'Requires the contacts capability. While that capability is off, calls return a configuration error. When it is on, reading and saving stored campaign records does not use supplier admission. verify_prospect starts one source check and follows the check allowance.';
+  }
+  return 'Unavailable until an operator enables its supplier admission; calls return the configuration error.';
+}
+
 // One definition: what a describe_tools call returns, printed for a terminal or as JSON.
 export function renderDescription(command, requested, { examples = false, outputSchema = false, json = false } = {}) {
   const props = command.inputSchema?.properties ?? {};
@@ -65,7 +82,7 @@ export function renderDescription(command, requested, { examples = false, output
   const definition = {
     name: command.name, ...(requested !== command.name ? { requestedAs: requested, note: `${requested} is a retired name; use ${command.name}.` } : {}),
     toolset: command.toolset, tier: command.tier, readOnly: command.readOnly, scopes: command.scopes, description: command.description,
-    ...(command.admissionGated ? { admission: 'gated', note: 'Unavailable until an operator enables its supplier admission; calls return the configuration error.' } : {}),
+    ...(command.admissionGated ? { admission: 'gated', note: admissionNote(command) } : {}),
     ...(command.confirm && command.confirm !== 'none' ? { confirm: command.confirm } : {}),
     inputSchema: command.inputSchema,
     ...(outputSchema ? { outputSchema: command.outputSchema } : {}),

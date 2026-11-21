@@ -3,7 +3,7 @@
 // script, the MCP router, the CLI index and the generators all read the same definitions.
 // Rules: docs/technical/AGENT-SURFACE-CONTRACT.md (DP-0036).
 
-export const TOOLSETS = ['monitoring','classification','evidence','rank','licensed','discovery','baseline','library','competitors','internal-links','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','campaigns','digests'];
+export const TOOLSETS = ['monitoring','classification','evidence','rank','licensed','discovery','baseline','library','competitors','competitor-comparison','internal-links','reports','workspace','notifications','webhooks','admission','disavow','lifecycle','campaigns','digests','citations'];
 
 // One line per toolset: what the group is for. Printed by the site brief, the REST index and the
 // catalog snapshot so the same wording reaches every client; a toolset without a summary is a
@@ -22,16 +22,19 @@ export const TOOLSET_SUMMARIES = {
   discovery: 'Import candidate rows, read stored runs, verify selected candidates, enroll them.',
   baseline: 'Scoped backlink baselines; new live work requires admission in this deployment.',
   library: 'Read and export the coverage-stated opportunity library.',
-  competitors: 'Competitor sets, dated inventories, scheduled refresh and gap reports.',
+  competitors: 'Competitor sets; dated inventories, exclusions and scheduled refresh where enabled.',
+  'competitor-comparison': 'Saved competitor lookups side by side, one referring-site matrix, suggested and rejected competitors.',
   'internal-links': 'Owned-site page inventories, bounded captures, internal-link health and graph evidence.',
   reports: 'Placement chronology, service assurance, backlink and domain-mix reports.',
   workspace: 'Workspace, projects, usage, members, invitations, scratch-resource cleanup.',
   notifications: 'Email notification preferences, previews, tests and deliveries.',
   webhooks: 'Webhook endpoints, state, secrets and delivery records.',
+  citations: 'AI answer citation watches, epochs, evidence and the citation change feed.',
 };
 
 // Provisional core tier until DP-0036-T13 usage evidence replaces it. At most six.
-export const CORE_DEFAULT = ['get_workspace','list_projects','list_link_watches','monitor_link','list_events'];
+// DP-0063-T11: get_link_summary answers "how are my links" in one call, so it joins the core.
+export const CORE_DEFAULT = ['get_workspace','list_projects','list_link_watches','monitor_link','list_events','get_link_summary'];
 
 // Fallback toolset by documentation category and by name, used only for a binding that does not
 // carry an explicit `toolset`. DP-0036-T02 makes every binding explicit; the fallback stays so a
@@ -133,6 +136,7 @@ export const EXEC_TOOL = {
 // Views. `entries` carry name, toolset, tier, readOnly and (from tool-exposure.js) unavailable.
 // An unavailable command stays a member of its views: it is listed with its marker, never
 // hidden, so a client that calls it gets the stable configuration error rather than not-found.
+// Launch-closed families (src/launch-listing.js) are filtered before views and stay callable.
 export const VIEW_BUDGETS = {
   default: { definitions:1, tokens:3500 },
   toolset: { definitions:22, tokens:8000 },
